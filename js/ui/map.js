@@ -47,7 +47,33 @@ export function createMap(elId) {
 
   const markerLayer = L.layerGroup().addTo(map);
   const routeLayer = L.layerGroup().addTo(map);
+  const draftLayer = L.layerGroup().addTo(map); // временная точка при добавлении
   let curMarkers = {}; // placeId -> marker
+  let clickHandler = null;
+
+  /* режим выбора точки на карте: fn(latlng) | null */
+  function setClickHandler(fn) {
+    clickHandler = fn;
+    const el = map.getContainer();
+    el.style.cursor = fn ? "crosshair" : "";
+    if (!fn) draftLayer.clearLayers();
+  }
+  map.on("click", (e) => {
+    if (clickHandler) clickHandler([e.latlng.lat, e.latlng.lng]);
+  });
+
+  /* показать/убрать временную точку-черновик */
+  function showDraft(coords) {
+    draftLayer.clearLayers();
+    if (!coords) return;
+    L.marker(coords, {
+      icon: L.divIcon({
+        className: "",
+        html: `<div class="pin draft"><span>+</span></div>`,
+        iconSize: [34, 34], iconAnchor: [17, 34],
+      }),
+    }).addTo(draftLayer);
+  }
 
   function update(trip, day, onPlaceClick) {
     markerLayer.clearLayers();
@@ -106,5 +132,5 @@ export function createMap(elId) {
     if (openPopup && curMarkers[place.id]) curMarkers[place.id].openPopup();
   }
 
-  return { map, update, flyToPlace };
+  return { map, update, flyToPlace, setClickHandler, showDraft };
 }

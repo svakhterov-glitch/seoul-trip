@@ -21,6 +21,8 @@ import { renderTripFormPage } from "./ui/tripForm.js";
 import { createMap } from "./ui/map.js";
 import { renderTabs } from "./ui/calendar.js";
 import { renderTimeline, highlightPlace } from "./ui/timeline.js";
+import { renderPlaceForm } from "./ui/placeForm.js";
+import { enableDnD } from "./ui/dnd.js";
 
 /* ---------- инициализация данных ---------- */
 const repo = new LocalStorageRepository();
@@ -41,6 +43,7 @@ const tripbarEl = document.getElementById("tripbar");
 const tabsEl = document.getElementById("tabs");
 const itineraryEl = document.getElementById("itinerary");
 const capEl = document.getElementById("mapCap");
+const editorEl = document.getElementById("editorPanel");
 
 /* пользователь просит меньше движения? */
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -109,6 +112,62 @@ async function handleCreateTrip(data) {
   location.hash = "";
 }
 
+/* ---------- редактор мест (добавить / изменить / удалить) ---------- */
+let formCtl = null;
+
+function closeEditor() {
+  formCtl = null;
+  editorEl.hidden = true;
+  editorEl.innerHTML = "";
+  mapApi.setClickHandler(null);
+}
+
+function openEditor(place, dayNumber) {
+  const trip = store.getTrip();
+  formCtl = renderPlaceForm(editorEl, {
+    place,
+    dayNumber: dayNumber ?? place?.dayNumber ?? (store.getActiveDay() || 1),
+    days: trip.days,
+    onPickCoords: () => {
+      mapApi.setClickHandler((coords) => {
+        if (formCtl) formCtl.setCoords(coords);
+        mapApi.showDraft(coords);
+      });
+      document.getElementById("map").scrollIntoView({
+        block: "nearest", behavior: reduceMotion.matches ? "auto" : "smooth",
+      });
+    },
+    onSave: async (data) => {
+      if (data.id) {
+        await store.updatePlace(data.id, {
+          name: data.name, time: data.time, dayNumber: data.dayNumber,
+          price: data.price, by: data.by, photo: data.photo,
+          desc: data.desc, coords: data.coords,
+        });
+      } else {
+        await store.addPlace({ ...data, source: "manual" });
+      }
+      closeEditor();
+    },
+    onCancel: closeEditor,
+    onDelete: place ? deletePlace : null,
+  });
+  editorEl.scrollIntoView({ block: "nearest", behavior: reduceMotion.matches ? "auto" : "smooth" });
+}
+
+function startAdd(dayNumber) { openEditor(null, dayNumber); }
+function startEdit(id) {
+  const p = store.getTrip().places.find((x) => x.id === id);
+  if (p) openEditor(p, p.dayNumber);
+}
+async function deletePlace(id) {
+  const p = store.getTrip().places.find((x) => x.id === id);
+  if (p && confirm(`Удалить «${p.name}»? Это действие нельзя отменить.`)) {
+    await store.removePlace(id);
+    closeEditor();
+  }
+}
+
 /* ---------- выбор места ---------- */
 function selectPlace(placeId) {
   const place = store.getTrip().places.find((p) => p.id === placeId);
@@ -143,7 +202,16 @@ function render(store) {
   renderTabs(tabsEl, trip, day, (d) => store.setActiveDay(d));
   mapApi.update(trip, day, selectPlace);
   renderCaption(trip, day);
-  renderTimeline(itineraryEl, trip, day, selectPlace);
+  renderTimeline(itineraryEl, trip, day, {
+    onPlaceClick: selectPlace,
+    onAdd: startAdd,
+    onEdit: startEdit,
+    onDelete: deletePlace,
+  });
+  enableDnD({
+    itineraryEl, tabsEl,
+    onMove: (id, dayNumber) => store.movePlaceToDay(id, dayNumber),
+  });
 }
 
 store.subscribe(render);
