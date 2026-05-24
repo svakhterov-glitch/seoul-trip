@@ -1,0 +1,10 @@
+{
+  "name": "seoul-trip",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Лендинг путешествия по Сеулу: карта, расписание по дням, история",
+  "scripts": {
+    "dev": "npx --yes serve .",
+    "start": "npx --yes serve ."
+  }
+}

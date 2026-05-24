@@ -1,0 +1,192 @@
+/* ============================================================
+   Сеул · лендинг путешествия — стили
+   ============================================================ */
+:root{
+  --navy:#0f1b3d; --navy-2:#1c2c5e; --accent:#e8463c;
+  --sergey:#2f6fd6; --polina:#d6457f;
+  --bg:#f4f5f8; --card:#ffffff; --text:#1a2238; --muted:#6b7385;
+  --line:#e6e8ef; --radius:16px; --shadow:0 8px 30px rgba(15,27,61,.10);
+  --c-start:#6b7385; --c-tour:#2f6fd6; --c-dist:#159a93;
+  --c-shop:#d98a1b; --c-trend:#9a55c9;
+  color-scheme: light;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+
+/* видимый фокус с клавиатуры для всех интерактивных элементов */
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px;border-radius:6px}
+
+/* skip-link: видим только при фокусе с клавиатуры */
+.skip-link{position:absolute;left:12px;top:-48px;z-index:1000;
+  background:var(--navy);color:#fff;padding:10px 16px;border-radius:10px;
+  font-weight:700;text-decoration:none;transition:top .15s}
+.skip-link:focus{top:12px}
+body{font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,Roboto,Helvetica,Arial,sans-serif;
+  color:var(--text);background:var(--bg);line-height:1.55;-webkit-font-smoothing:antialiased}
+
+/* ---------- HERO ---------- */
+.hero{position:relative;color:#fff;padding:58px 24px 110px;overflow:hidden;
+  background:
+    radial-gradient(900px 380px at 85% -10%, rgba(232,70,60,.55), transparent 60%),
+    radial-gradient(700px 360px at 5% 110%, rgba(47,111,214,.50), transparent 60%),
+    linear-gradient(135deg,var(--navy) 0%,var(--navy-2) 100%)}
+.hero-inner{max-width:1180px;margin:0 auto;position:relative;z-index:1}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;
+  letter-spacing:.06em;text-transform:uppercase;background:rgba(255,255,255,.12);
+  border:1px solid rgba(255,255,255,.18);padding:7px 14px;border-radius:999px}
+.hero h1{font-size:clamp(2.3rem,6vw,4rem);line-height:1.05;margin:18px 0 8px;
+  font-weight:800;letter-spacing:-.02em}
+.hero h1 span{color:#ffd6d2}
+.hero .lead{font-size:clamp(1rem,2.2vw,1.18rem);color:#c9cfe4;max-width:640px}
+.lovenote{margin-top:14px;display:inline-flex;align-items:center;gap:9px;
+  background:rgba(214,69,127,.18);border:1px solid rgba(214,69,127,.35);
+  padding:9px 15px;border-radius:12px;font-size:14px;font-weight:600;color:#ffe1ec}
+.meta-row{display:flex;flex-wrap:wrap;gap:12px;margin-top:22px}
+.chip{display:flex;align-items:center;gap:9px;background:rgba(255,255,255,.10);
+  border:1px solid rgba(255,255,255,.16);padding:11px 16px;border-radius:12px;
+  font-size:14px;font-weight:600}
+.flights{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:24px;max-width:720px}
+.flight{background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.16);
+  border-radius:14px;padding:14px 16px}
+.flight .fl-h{display:flex;justify-content:space-between;font-size:12px;color:#aab2cc;
+  font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+.flight .fl-route{display:flex;align-items:center;gap:10px;margin:8px 0 4px}
+.flight .fl-time{font-size:1.3rem;font-weight:800;font-variant-numeric:tabular-nums}
+.flight .fl-line{flex:1;height:2px;background:rgba(255,255,255,.30);position:relative}
+.flight .fl-line::after{content:"\2708";position:absolute;right:-2px;top:-9px;
+  font-size:13px;color:#ffd6d2}
+.flight .fl-codes{display:flex;justify-content:space-between;font-size:13px;
+  font-weight:600;color:#dfe3f0}
+.flight .fl-air{display:flex;justify-content:space-between;font-size:12.5px;color:#aab2cc}
+
+/* ---------- STAGE ---------- */
+.stage{max-width:1180px;margin:-72px auto 0;padding:0 24px 60px;position:relative;z-index:2}
+
+/* MAP сверху */
+.map-card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);
+  overflow:hidden}
+#map{width:100%;height:440px;background:#dfe3ec}
+.map-cap{display:flex;align-items:center;gap:9px;flex-wrap:wrap;
+  padding:12px 18px;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}
+.map-cap b{color:var(--text)}
+
+/* TABS */
+.tabs{display:flex;gap:8px;overflow-x:auto;padding:16px 4px 6px;
+  -webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
+.tab{flex:none;cursor:pointer;border:1px solid var(--line);background:var(--card);
+  border-radius:12px;padding:8px 14px;font-size:13.5px;font-weight:800;color:var(--text);
+  font-family:inherit;text-align:left;touch-action:manipulation;
+  transition:border-color .15s, background .15s, color .15s;
+  white-space:nowrap;box-shadow:0 2px 8px rgba(15,27,61,.05);
+  border-top:3px solid var(--tc,#c7cde0)}
+.tab small{display:block;font-size:11px;font-weight:700;color:var(--tc,#9aa2bb);margin-top:1px}
+.tab:hover{border-color:#c4cbe0}
+.tab.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+.tab.active small{color:#cdd4ec}
+
+/* DAY SECTION */
+#itinerary{margin-top:12px}
+.day-sec{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);
+  padding:20px 22px 8px;margin-bottom:16px}
+.day-head{border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:6px}
+.dh-row{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.dh-date{font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;
+  color:var(--muted)}
+.day-head h3{font-size:1.3rem;font-weight:800;margin:6px 0 2px}
+.day-head p{font-size:13.5px;color:var(--muted)}
+
+/* TIMELINE */
+.timeline{padding:14px 0 6px}
+.tl-empty{color:var(--muted);font-size:13.5px;padding:10px 2px 16px;line-height:1.5}
+.tl-item{display:flex;gap:0;cursor:pointer;touch-action:manipulation}
+.tl-time{width:62px;flex:none;text-align:right;padding:14px 14px 0 0;
+  font-size:13px;font-weight:800;color:var(--accent);font-variant-numeric:tabular-nums}
+.tl-mid{width:34px;flex:none;display:flex;flex-direction:column;align-items:center}
+.tl-dot{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;
+  font-size:19px;background:linear-gradient(135deg,#eef1f8,#dde3f3);
+  margin-top:9px;flex:none;border:2px solid #fff;box-shadow:0 2px 6px rgba(15,27,61,.12)}
+.tl-line{flex:1;width:2px;background:var(--line);margin:4px 0}
+.tl-item:last-child .tl-line{display:none}
+.tl-card{flex:1;margin:9px 0 4px 12px;padding:13px 15px;border-radius:13px;
+  border:1px solid transparent;transition:background .15s}
+.tl-item:hover .tl-card{background:#f7f8fb}
+.tl-item.active .tl-card{background:#fff;border-color:var(--line);
+  box-shadow:0 5px 16px rgba(15,27,61,.10)}
+.tl-name{font-size:15.5px;font-weight:800}
+.tl-desc{font-size:13px;color:var(--muted);margin-top:4px}
+.tl-hist{font-size:12.5px;color:#5a4633;background:#fbf3e4;border:1px solid #efe1c4;
+  border-radius:9px;padding:8px 11px;margin-top:9px}
+.tl-hist b{color:#7a5b2e}
+
+.badges{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+.badge{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;
+  padding:4px 9px;border-radius:999px;border:1px solid var(--line);background:#f7f8fb}
+.badge.price-free{color:#1f8a4c;background:#e7f6ec;border-color:#cdebd6}
+.badge.price-1{color:#3a7d2f;background:#eef7e8;border-color:#d8ebcb}
+.badge.price-2{color:#b5791b;background:#fdf3df;border-color:#f3e2bd}
+.badge.price-3{color:#c2402f;background:#fceae7;border-color:#f4cfc8}
+.badge.by-sergey{color:var(--sergey);background:#e9f1fc;border-color:#cfe0f6}
+.badge.by-polina{color:var(--polina);background:#fceaf1;border-color:#f5cfdf}
+.badge.by-both{color:#7b53c9;background:#f0ebfb;border-color:#dccff2}
+.badge.cat-start{color:#fff;background:var(--c-start);border-color:var(--c-start)}
+.badge.cat-tour {color:#fff;background:var(--c-tour); border-color:var(--c-tour)}
+.badge.cat-dist {color:#fff;background:var(--c-dist); border-color:var(--c-dist)}
+.badge.cat-shop {color:#fff;background:var(--c-shop); border-color:var(--c-shop)}
+.badge.cat-trend{color:#fff;background:var(--c-trend);border-color:var(--c-trend)}
+
+.kakao{display:inline-flex;align-items:center;gap:6px;margin-top:10px;
+  font-size:12.5px;font-weight:700;text-decoration:none;color:#3a1d1d;touch-action:manipulation;
+  background:#ffe600;border:1px solid #e6cf00;padding:6px 12px;border-radius:9px;transition:background .15s}
+.kakao:hover{background:#ffd400}
+
+/* HISTORY */
+.history{background:linear-gradient(135deg,#fbf6ec,#f5ede0);
+  border:1px solid #ece0c8;border-radius:var(--radius);padding:24px 26px;margin-bottom:16px}
+.history h3{font-size:1.25rem;font-weight:800;display:flex;align-items:center;gap:9px}
+.history p{font-size:14px;color:#4a4332;margin-top:11px}
+.history .h-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px}
+.h-fact{background:rgba(255,255,255,.65);border:1px solid #ece0c8;border-radius:12px;
+  padding:12px 14px}
+.h-fact .y{font-size:13px;font-weight:800;color:#b07d22}
+.h-fact .t{font-size:13px;color:#4a4332;margin-top:2px}
+
+/* leaflet markers */
+.pin{width:34px;height:34px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);
+  background:var(--accent);border:3px solid #fff;
+  box-shadow:0 3px 8px rgba(0,0,0,.35);display:grid;place-items:center}
+.pin span{transform:rotate(45deg);color:#fff;font-weight:800;font-size:14px}
+.pin.hotel{background:var(--sergey);width:40px;height:40px}
+.pin.hotel span{font-size:17px}
+.pin.airport{background:#2f9e54;width:40px;height:40px}
+.pin.airport span{font-size:16px}
+
+.leaflet-popup-content-wrapper{border-radius:14px;padding:0;overflow:hidden}
+.leaflet-popup-content{margin:0;width:248px!important}
+.pop-photo{height:92px;display:grid;place-items:center;font-size:42px;
+  background:linear-gradient(135deg,var(--navy-2),var(--accent))}
+.pop-body{padding:11px 14px 13px}
+.pop-day{font-size:11px;font-weight:700;text-transform:uppercase;color:var(--accent);letter-spacing:.04em}
+.pop-name{font-size:15px;font-weight:800;margin:2px 0 5px}
+.pop-desc{font-size:12.7px;color:var(--muted)}
+.pop-body .badges{margin-top:8px}
+.pop-body .kakao{margin-top:9px}
+
+.note{font-size:13px;color:var(--muted)}
+.note strong{display:block;margin-top:10px}
+.legend{display:flex;gap:8px;flex-wrap:wrap;margin-top:7px;margin-bottom:4px}
+.legend .badge{cursor:default}
+
+@media(max-width:880px){
+  .flights{grid-template-columns:1fr}
+  #map{height:340px}
+  .stage{margin-top:-64px}
+  .history .h-grid{grid-template-columns:1fr}
+  .tl-time{width:50px;font-size:12px}
+}
+
+/* уважение к настройке «меньше движения» */
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{
+    transition-duration:.001ms!important;
+    animation-duration:.001ms!important;
+    scroll-behavior:auto!important}
+}
