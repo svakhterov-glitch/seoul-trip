@@ -82,6 +82,15 @@ js/
     dnd.js              — drag-and-drop мест (порядок внутри дня, перенос между днями)
     map.js              — карта Leaflet (маркеры, маршрут, выбор точки кликом)
     helpers.js          — бейджи (категория/цена/автор), ссылка Kakao
+  config.js             — опц. подгрузка config.local.js (иначе локальный режим)
+  data/supabaseRepo.js  — Repository через Supabase REST (тот же контракт)
+  ai/apiAiService.js    — AiService через edge-функцию (настоящий Claude)
+  services/resolveLink.js — клиент edge-функции «чтения» ссылок
+backend/                — БД и серверные функции (ветка backend-scaffold)
+  schema.sql            — таблица trips (jsonb) + RLS + индексы
+  functions/            — resolve-link, generate-itinerary, trends (Deno)
+  README.md             — пошаговая настройка (аккаунты, ключи, деплой)
+config.local.example.js — шаблон конфига (копировать в config.local.js)
 PLAN.md                 — видение продукта и план по этапам
 ```
 
@@ -133,6 +142,26 @@ flights[], days[], places[], inbox[] }`
   меткой. Интерактив выносить из `<label>`.
 - **Скрытая карта.** После показа ранее скрытого вида звать
   `map.invalidateSize()` (см. `route()`), иначе тайлы «серые».
+
+## Бэкенд (опционально, ветка `backend-scaffold`)
+
+Каркас, готовый «подключить ключи». **По умолчанию выключен**: без
+`config.local.js` приложение работает локально (localStorage + MockAiService),
+поведение не меняется.
+
+- **Включение** — скопировать `config.local.example.js` → `config.local.js`,
+  вписать Supabase и/или `functionsUrl`. Тогда `app.js` сам выбирает
+  `SupabaseRepository` вместо localStorage и `ApiAiService` вместо mock, а
+  разбор ссылок идёт через функцию `resolve-link` (с откатом на фронт).
+- **Секреты не коммитим**: `config.local.js`, `.env` — в `.gitignore`. Ключи
+  функций — в секретах Supabase (`supabase secrets set …`).
+- **Контракты те же**: `Repository` и `AiService` не менялись — поэтому смена
+  локального на облачное не трогает UI/Store.
+- **TODO для боевого использования**: экран входа (Supabase Auth) — RLS требует
+  пользовательский JWT. Без входа работают только функции (ссылки/ИИ), но не
+  синхронизация БД. Подробности — `backend/README.md`.
+- Функции в `backend/` — Deno (TypeScript), `npm run check` их не проверяет
+  (он только для `js/`).
 
 ## Как добавить типичное
 

@@ -1,3 +1,9 @@
 node_modules/
 .DS_Store
 *.log
+
+# Локальный конфиг и секреты — НИКОГДА не коммитить
+config.local.js
+.env
+.env.*
+backend/.env

@@ -9,7 +9,9 @@
    ИИ-генерация — отдельным сервисом (ai/*).
    ============================================================ */
 
+import { getConfig } from "./config.js";
 import { LocalStorageRepository } from "./data/localStorageRepo.js";
+import { SupabaseRepository } from "./data/supabaseRepo.js";
 import { Store } from "./store/store.js";
 import { seoulTrip } from "./model/seed.seoul.js";
 import { getDay, createTrip, byOptions } from "./model/entities.js";
@@ -29,14 +31,19 @@ import { renderDayForm } from "./ui/dayForm.js";
 import { renderInbox } from "./ui/inbox.js";
 import { renderTrends } from "./ui/trends.js";
 import { MockAiService } from "./ai/mockAiService.js";
+import { ApiAiService } from "./ai/apiAiService.js";
+import { resolveLinkViaBackend } from "./services/resolveLink.js";
 import { enableDnD } from "./ui/dnd.js";
 
 /* ---------- инициализация данных ---------- */
-const repo = new LocalStorageRepository();
+// Конфиг опционален: без config.local.js — локальный режим (localStorage).
+const config = await getConfig();
+const repo = config.supabase?.url
+  ? new SupabaseRepository(config.supabase)
+  : new LocalStorageRepository();
 
-// Загружаем сохранённую поездку, если она есть (правки пользователя
-// сохраняются между перезагрузками). Если хранилище пустое — кладём
-// готовый Сеул из seed. При открытии показываем Сеул (стартовый экран).
+// Загружаем сохранённую поездку, если она есть (правки сохраняются между
+// перезагрузками). Если пусто — кладём готовый Сеул из seed.
 let trip = await repo.getTrip(seoulTrip.id);
 if (!trip) trip = await repo.saveTrip(seoulTrip);
 const store = new Store(repo, trip);
@@ -54,7 +61,7 @@ const editorEl = document.getElementById("editorPanel");
 const inboxEl = document.getElementById("inbox");
 const trendsEl = document.getElementById("trends");
 const catLegendEl = document.getElementById("catLegend");
-const aiService = new MockAiService();
+const aiService = config.functionsUrl ? new ApiAiService(config.functionsUrl) : new MockAiService();
 
 /* пользователь просит меньше движения? */
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -216,10 +223,21 @@ function looksLikeHost(s) {
 /* ---------- окно ссылок (инбокс) ---------- */
 async function addLink(url, name) {
   const p = url ? parseLink(url) : { name: "", coords: null, photo: "🔗" };
-  const finalName = name?.trim() || p.name;
+  let finalName = name?.trim() || p.name;
   let coords = p.coords;
-  // имя задано вручную ИЛИ вытащено из ссылки (не хост) → ищем место на карте
-  const query = name?.trim() || (!looksLikeHost(p.name) ? p.name : null);
+
+  // если есть бэкенд и имя не задано вручную — просим сервер «прочитать» ссылку
+  // (развернёт короткую, прочитает страницу, поймёт место). Иначе — фронтовый путь.
+  if (config.functionsUrl && url && !name?.trim()) {
+    const resolved = await resolveLinkViaBackend(config.functionsUrl, url);
+    if (resolved) {
+      if (resolved.name) finalName = resolved.name;
+      if (resolved.coords) coords = resolved.coords;
+    }
+  }
+
+  // фронтовый геокодинг по названию, если координат всё ещё нет
+  const query = name?.trim() || (!looksLikeHost(finalName) ? finalName : null);
   if (!coords && query) {
     const g = await geocode(`${query}, ${store.getTrip().city}`);
     if (g) coords = g.coords;
