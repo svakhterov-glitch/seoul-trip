@@ -175,12 +175,69 @@ body{font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,Roboto,Helvetica,Ar
 .legend{display:flex;gap:8px;flex-wrap:wrap;margin-top:7px;margin-bottom:4px}
 .legend .badge{cursor:default}
 
+/* ---------- TRIP BAR (на тёмной шапке) ---------- */
+.tripbar{max-width:1180px;margin:0 auto 20px;position:relative;z-index:1}
+.tripbar-inner{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.tripbar-label{font-size:12px;font-weight:700;letter-spacing:.05em;
+  text-transform:uppercase;color:#aab2cc}
+.tripbar-select{appearance:none;-webkit-appearance:none;background-color:rgba(255,255,255,.12);
+  color:#fff;border:1px solid rgba(255,255,255,.22);border-radius:10px;
+  padding:9px 36px 9px 13px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;
+  touch-action:manipulation;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23fff' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 12px center}
+.tripbar-select option{color:#1a2238}
+.tripbar-new{margin-left:auto;background:var(--accent);color:#fff;border:0;border-radius:10px;
+  padding:9px 16px;font-size:14px;font-weight:800;font-family:inherit;cursor:pointer;
+  touch-action:manipulation;transition:filter .15s}
+.tripbar-new:hover{filter:brightness(1.08)}
+
+/* ---------- СТРАНИЦА «НОВАЯ ПОЕЗДКА» ---------- */
+.page{min-height:100vh;background:var(--bg)}
+.page-head{background:linear-gradient(135deg,var(--navy) 0%,var(--navy-2) 100%);
+  color:#fff;padding:18px 24px}
+.page-head-inner{max-width:760px;margin:0 auto;display:flex;align-items:center;gap:14px}
+.page-back{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);
+  color:#fff;border-radius:10px;padding:8px 14px;font-size:14px;font-weight:700;
+  font-family:inherit;cursor:pointer;touch-action:manipulation;transition:background .15s}
+.page-back:hover{background:rgba(255,255,255,.2)}
+.page-eyebrow{font-size:12px;font-weight:700;letter-spacing:.06em;
+  text-transform:uppercase;color:#aab2cc}
+.page-body{max-width:760px;margin:0 auto;padding:28px 24px 60px}
+.tf-title{font-size:clamp(1.6rem,4vw,2.2rem);font-weight:800;letter-spacing:-.02em}
+.tf-intro{font-size:14px;color:var(--muted);margin:8px 0 0;max-width:560px}
+.tf-card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);
+  padding:22px 24px;margin-top:20px}
+.tf-h2{font-size:1.1rem;font-weight:800;margin-bottom:14px}
+.tf-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.ff{display:flex;flex-direction:column;gap:5px}
+.ff-label{font-size:12.5px;font-weight:700;color:var(--text)}
+.ff input{font-family:inherit;font-size:14px;padding:10px 12px;border:1px solid var(--line);
+  border-radius:10px;background:#fff;color:var(--text);width:100%}
+.ff input:focus{border-color:var(--accent)}
+.tf-flight{border:1px solid var(--line);border-radius:14px;padding:6px 16px 16px;margin-top:14px}
+.tf-flight legend{font-size:12.5px;font-weight:800;color:var(--muted);padding:0 6px}
+.tf-error{color:var(--accent);font-size:13px;font-weight:700;margin-top:10px}
+.tf-foot{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}
+.btn-primary{background:var(--accent);color:#fff;border:0;border-radius:10px;
+  padding:11px 20px;font-size:14px;font-weight:800;font-family:inherit;cursor:pointer;
+  touch-action:manipulation;transition:filter .15s}
+.btn-primary:hover{filter:brightness(1.08)}
+.btn-ghost{background:#f0f2f7;color:var(--text);border:0;border-radius:10px;
+  padding:11px 18px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;
+  touch-action:manipulation}
+.btn-ghost:hover{background:#e6e9f1}
+
 @media(max-width:880px){
   .flights{grid-template-columns:1fr}
   #map{height:340px}
   .stage{margin-top:-64px}
   .history .h-grid{grid-template-columns:1fr}
   .tl-time{width:50px;font-size:12px}
+}
+@media(max-width:560px){
+  .tf-grid{grid-template-columns:1fr}
+  .tripbar-new{margin-left:0}
 }
 
 /* уважение к настройке «меньше движения» */

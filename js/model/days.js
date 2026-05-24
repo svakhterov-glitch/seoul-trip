@@ -25,6 +25,19 @@ export function formatDateRu(isoDate) {
   return `${d.getDate()} ${MONTHS_RU[d.getMonth()]}`;
 }
 
+/* '2026-06-07' + '2026-06-15' → '7–15 июня 2026' (умно по месяцам/годам) */
+export function formatDateRange(startIso, endIso) {
+  const a = new Date(startIso + "T00:00:00");
+  const b = new Date(endIso + "T00:00:00");
+  const sameMonth = a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear();
+  if (sameMonth) {
+    return `${a.getDate()}–${b.getDate()} ${MONTHS_RU[b.getMonth()]} ${b.getFullYear()}`;
+  }
+  const left = `${a.getDate()} ${MONTHS_RU[a.getMonth()]}`;
+  const right = `${b.getDate()} ${MONTHS_RU[b.getMonth()]} ${b.getFullYear()}`;
+  return `${left} – ${right}`;
+}
+
 /* число дней между двумя датами включительно */
 export function daysBetween(startIso, endIso) {
   const a = new Date(startIso + "T00:00:00");

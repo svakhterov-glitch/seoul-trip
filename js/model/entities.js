@@ -94,8 +94,12 @@ export function createTrip(data = {}) {
     id: data.id || uid("trip"),
     title: data.title || "",
     city: data.city || "",
+    country: data.country || "",       // для подписи-«надзаголовка»
     startDate: data.startDate || "",   // 'YYYY-MM-DD'
     endDate: data.endDate || "",
+    lead: data.lead || "",             // вводный абзац под заголовком
+    note: data.note || "",             // личная заметка (необязательно)
+    travelers: data.travelers || "",   // 'Сергей & Полина' (необязательно)
     hotel: data.hotel || null,         // { name, coords:[lat,lng] }
     flights: (data.flights || []).map(createFlight),
     days: (data.days || []).map(createDay),

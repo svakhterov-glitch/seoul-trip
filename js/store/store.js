@@ -36,6 +36,13 @@ export class Store {
   getTrip() { return this.trip; }
   getActiveDay() { return this.activeDay; }
 
+  /* переключиться на другую поездку (показываем её обзор) */
+  loadTrip(trip) {
+    this.trip = trip;
+    this.activeDay = 0;
+    this._emit();
+  }
+
   /* ---------- UI-действия ---------- */
   setActiveDay(day) {
     this.activeDay = day;

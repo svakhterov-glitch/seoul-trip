@@ -15,39 +15,18 @@
 
 <a class="skip-link" href="#route">Перейти к маршруту</a>
 
+<!-- Полноэкранные страницы-маршруты (напр. «Новая поездка») рисуются сюда -->
+<div id="view-page" hidden></div>
+
+<!-- ===================== ОСНОВНОЙ ВИД (поездка) ===================== -->
+<div id="view-app">
+
 <!-- ===================== HERO ===================== -->
 <header class="hero">
-  <div class="hero-inner">
-    <span class="eyebrow">🇰🇷 Корея · 2026</span>
-    <h1>Сеул вдвоём, <span>8 дней</span></h1>
-    <p class="lead">Путешествие Сергея и Полины по столице Южной Кореи. Карта маршрута,
-       расписание каждого дня по часам и краткая история города в одном месте.</p>
-    <div class="lovenote">💛 Восемь дней только вдвоём — пока малыш гостит у бабушки</div>
-
-    <div class="meta-row">
-      <div class="chip">📅 7–15 июня 2026</div>
-      <div class="chip">👫 Сергей &amp; Полина</div>
-      <div class="chip">🏨 Stanford Hotel Myeongdong</div>
-      <div class="chip">🕘 Расписание по часам</div>
-    </div>
-
-    <div class="flights">
-      <div class="flight">
-        <div class="fl-h"><span>Туда · Air China</span><span>7 июн</span></div>
-        <div class="fl-route"><div class="fl-time">17:30</div>
-          <div class="fl-line"></div><div class="fl-time">11:35</div></div>
-        <div class="fl-codes"><span>SVO Шереметьево</span><span>ICN Инчхон</span></div>
-        <div class="fl-air"><span>9 ч в пути</span><span>пересадка 2.5 ч · Пекин</span></div>
-      </div>
-      <div class="flight">
-        <div class="fl-h"><span>Обратно · Air China</span><span>15 июн</span></div>
-        <div class="fl-route"><div class="fl-time">10:50</div>
-          <div class="fl-line"></div><div class="fl-time">17:10</div></div>
-        <div class="fl-codes"><span>ICN Инчхон</span><span>SVO Шереметьево</span></div>
-        <div class="fl-air"><span>10 ч в пути</span><span>пересадка 2 ч · Пекин</span></div>
-      </div>
-    </div>
-  </div>
+  <!-- панель выбора/создания поездки -->
+  <div class="tripbar" id="tripbar"></div>
+  <!-- содержимое шапки рисуется из данных поездки (см. js/ui/hero.js) -->
+  <div class="hero-inner" id="heroInner"></div>
 </header>
 
 <!-- ===================== STAGE ===================== -->
@@ -117,9 +96,11 @@
     </div>
     <p style="margin-top:6px">Кнопка <em>Kakao Map</em> открывает корейское
        картографическое приложение прямо на точке. Время визитов — ориентировочное,
-       его легко менять в файле <code>js/data.js</code>.</p>
+       его легко менять в файле <code>js/model/seed.seoul.js</code>.</p>
   </div>
 </section>
+
+</div><!-- /#view-app -->
 
 <!-- Leaflet (грузится до модулей: обычный скрипт выполняется раньше defer-модуля) -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
