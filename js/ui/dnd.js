@@ -1,12 +1,11 @@
 /* ============================================================
-   DRAG-AND-DROP мест
-   • Внутри дня: перетаскивание меняет ПОРЯДОК блоков (план дня
-     строится по нему, а не по времени) — onReorder(day, ids).
-   • На вкладку дня наверху: быстрый перенос в КОНЕЦ того дня со
-     сбросом времени — onMoveToDay(id, day).
+   DRAG-AND-DROP
+   • Карточка места (.tl-item[draggable]) — порядок внутри дня
+     (onReorder) или перенос на вкладку дня (onMoveToDay).
+   • Карточка ссылки (.link-card[draggable]) из инбокса — сброс на
+     день превращает её в место (onLinkToDay).
 
-   Отель/аэропорт (data-fixed) не перетаскиваются и не участвуют
-   в нумерации порядка.
+   Отель/аэропорт (data-fixed) не перетаскиваются.
    Нативный HTML5 DnD — десктоп (мышь); тач добавим отдельно.
    ============================================================ */
 
@@ -16,7 +15,6 @@ function makeIndicator() {
   return el;
 }
 
-/* элемент, ПЕРЕД которым нужно вставить (по позиции курсора) */
 function dragAfterElement(list, y, draggingId) {
   const items = [...list.querySelectorAll('.tl-item:not([data-fixed])')]
     .filter((el) => el.dataset.id !== draggingId);
@@ -29,32 +27,36 @@ function dragAfterElement(list, y, draggingId) {
   return closest.el;
 }
 
-export function enableDnD({ itineraryEl, tabsEl, onReorder, onMoveToDay }) {
+export function enableDnD({ itineraryEl, tabsEl, inboxEl, onReorder, onMoveToDay, onLinkToDay }) {
+  let dragKind = null; // 'place' | 'link'
   let dragId = null;
   const indicator = makeIndicator();
 
   function cleanup() {
     indicator.remove();
-    itineraryEl.querySelectorAll(".drop-target").forEach((e) => e.classList.remove("drop-target"));
-    tabsEl.querySelectorAll(".drop-target").forEach((e) => e.classList.remove("drop-target"));
+    document.querySelectorAll(".drop-target").forEach((e) => e.classList.remove("drop-target"));
   }
 
-  /* перетаскиваемые карточки */
-  itineraryEl.querySelectorAll('.tl-item[draggable="true"]').forEach((el) => {
+  function bindDraggable(el, kind, id) {
     el.addEventListener("dragstart", (e) => {
-      dragId = el.dataset.id;
+      dragKind = kind; dragId = id;
       e.dataTransfer.effectAllowed = "move";
-      e.dataTransfer.setData("text/plain", dragId);
+      e.dataTransfer.setData("text/plain", id);
       el.classList.add("dragging");
     });
     el.addEventListener("dragend", () => {
       el.classList.remove("dragging");
       cleanup();
-      dragId = null;
+      dragKind = null; dragId = null;
     });
-  });
+  }
 
-  /* зоны дней: перестановка/вставка внутри списка */
+  itineraryEl.querySelectorAll('.tl-item[draggable="true"]').forEach((el) =>
+    bindDraggable(el, "place", el.dataset.id));
+  if (inboxEl) inboxEl.querySelectorAll('.link-card[draggable="true"]').forEach((el) =>
+    bindDraggable(el, "link", el.dataset.linkId));
+
+  /* зоны дней: список (перестановка/вставка/приём ссылки) */
   itineraryEl.querySelectorAll(".day-sec").forEach((sec) => {
     const day = +sec.dataset.day;
     const list = sec.querySelector(".timeline");
@@ -65,22 +67,21 @@ export function enableDnD({ itineraryEl, tabsEl, onReorder, onMoveToDay }) {
       e.preventDefault();
       e.dataTransfer.dropEffect = "move";
       sec.classList.add("drop-target");
-      const after = dragAfterElement(list, e.clientY, dragId);
-      if (after) list.insertBefore(indicator, after);
-      else list.appendChild(indicator);
+      if (dragKind === "place") {
+        const after = dragAfterElement(list, e.clientY, dragId);
+        if (after) list.insertBefore(indicator, after);
+        else list.appendChild(indicator);
+      }
     });
     list.addEventListener("dragleave", (e) => {
-      if (!list.contains(e.relatedTarget)) {
-        sec.classList.remove("drop-target");
-        indicator.remove();
-      }
+      if (!list.contains(e.relatedTarget)) { sec.classList.remove("drop-target"); indicator.remove(); }
     });
     list.addEventListener("drop", (e) => {
       if (dragId == null) return;
       e.preventDefault();
+      if (dragKind === "link") { const id = dragId; cleanup(); onLinkToDay(id, day); return; }
       const ids = [...list.querySelectorAll('.tl-item:not([data-fixed])')]
-        .map((el) => el.dataset.id)
-        .filter((id) => id !== dragId);
+        .map((el) => el.dataset.id).filter((id) => id !== dragId);
       const after = dragAfterElement(list, e.clientY, dragId);
       const idx = after ? ids.indexOf(after.dataset.id) : ids.length;
       ids.splice(idx < 0 ? ids.length : idx, 0, dragId);
@@ -89,7 +90,7 @@ export function enableDnD({ itineraryEl, tabsEl, onReorder, onMoveToDay }) {
     });
   });
 
-  /* вкладки дней — быстрый перенос в конец дня */
+  /* вкладки дней — быстрый перенос/приём в конец дня */
   tabsEl.querySelectorAll(".tab[data-day]").forEach((tab) => {
     const day = +tab.dataset.day;
     if (!(day >= 1)) return;
@@ -104,7 +105,10 @@ export function enableDnD({ itineraryEl, tabsEl, onReorder, onMoveToDay }) {
       if (dragId == null) return;
       e.preventDefault();
       tab.classList.remove("drop-target");
-      onMoveToDay(dragId, day);
+      const id = dragId, kind = dragKind;
+      cleanup();
+      if (kind === "link") onLinkToDay(id, day);
+      else onMoveToDay(id, day);
     });
   });
 }

@@ -26,10 +26,11 @@ function coordsLabel(coords) {
 }
 
 export function renderPlaceForm(container, opts) {
-  const { place, dayNumber, days, byList, currency, onSave, onCancel, onDelete, onPickCoords } = opts;
+  const { place, prefill, dayNumber, days, byList, currency, onSave, onCancel, onDelete, onPickCoords, onGeocode } = opts;
   const editing = !!place;
-  let coords = place?.coords || null;
-  const priceVal = place?.price == null ? "" : String(place.price);
+  const v = place || prefill || {}; // источник значений (правка или предзаполнение)
+  let coords = v.coords || null;
+  const priceVal = v.price == null ? "" : String(v.price);
   const dayVal = String(dayNumber ?? place?.dayNumber ?? 1);
   const BY = byList?.length ? byList : ["Вместе"];
   const PRICES = priceOptions(currency);
@@ -44,27 +45,29 @@ export function renderPlaceForm(container, opts) {
       <form class="pf-form" novalidate>
         <div class="pf-grid">
           <label class="ff"><span class="ff-label">Название</span>
-            <input id="pf_name" type="text" required value="${place?.name || ""}" placeholder="напр. Кафе у реки"></label>
+            <input id="pf_name" type="text" required value="${v.name || ""}" placeholder="напр. Кафе у реки"></label>
           <label class="ff"><span class="ff-label">Время (необязательно)</span>
-            <input id="pf_time" type="time" value="${place?.time || ""}"></label>
+            <input id="pf_time" type="time" value="${v.time || ""}"></label>
           <label class="ff"><span class="ff-label">День</span>
             <select id="pf_day">
               ${days.map((d) => opt(String(d.number), `День ${d.number} · ${d.title}`, dayVal)).join("")}
             </select></label>
           <label class="ff"><span class="ff-label">Цена</span>
-            <select id="pf_price">${PRICES.map(([v, l]) => opt(v, l, priceVal)).join("")}</select></label>
+            <select id="pf_price">${PRICES.map(([val, l]) => opt(val, l, priceVal)).join("")}</select></label>
           <label class="ff"><span class="ff-label">Кто нашёл</span>
-            <select id="pf_by">${BY.map((b) => opt(b, b, place?.by || "Вместе")).join("")}</select></label>
+            <select id="pf_by">${BY.map((b) => opt(b, b, v.by || "Вместе")).join("")}</select></label>
           <label class="ff"><span class="ff-label">Иконка</span>
-            <input id="pf_photo" type="text" maxlength="2" value="${place?.photo || "📍"}"></label>
+            <input id="pf_photo" type="text" maxlength="2" value="${v.photo || "📍"}"></label>
         </div>
         <label class="ff"><span class="ff-label">Описание</span>
-          <textarea id="pf_desc" rows="2" placeholder="Пара слов о месте">${place?.desc || ""}</textarea></label>
+          <textarea id="pf_desc" rows="2" placeholder="Пара слов о месте">${v.desc || ""}</textarea></label>
 
         <div class="pf-coords">
           <span class="ff-label">Точка на карте:</span>
           <span class="pf-coords-val" id="pf_coords">${coordsLabel(coords)}</span>
-          <button type="button" class="btn-ghost btn-sm" id="pf_pick">Указать на карте</button>
+          <button type="button" class="btn-ghost btn-sm" id="pf_find">🔍 Найти по названию</button>
+          <button type="button" class="btn-ghost btn-sm" id="pf_pick">Указать вручную</button>
+          <span class="pf-find-status" id="pf_findst" role="status"></span>
         </div>
         <p class="tf-error" id="pf_error" role="alert" hidden></p>
 
@@ -81,11 +84,24 @@ export function renderPlaceForm(container, opts) {
   const $ = (id) => container.querySelector("#" + id);
   const errEl = $("pf_error");
   const showError = (msg) => { errEl.textContent = msg; errEl.hidden = false; };
+  const updateCoords = (c) => { coords = c; $("pf_coords").textContent = coordsLabel(c); };
 
   $("pf_pick").addEventListener("click", () => onPickCoords());
   $("pf_x").addEventListener("click", onCancel);
   $("pf_cancel").addEventListener("click", onCancel);
   if (editing && onDelete) $("pf_del").addEventListener("click", () => onDelete(place.id));
+
+  // «Найти по названию» — геокодинг текущего названия (см. app.onGeocode)
+  $("pf_find").addEventListener("click", async () => {
+    const q = $("pf_name").value.trim();
+    const st = $("pf_findst");
+    if (!q) { st.textContent = "сначала введите название"; return; }
+    if (!onGeocode) return;
+    st.textContent = "ищу…";
+    const found = await onGeocode(q);
+    if (found) { updateCoords(found); st.textContent = "✓ найдено на карте"; }
+    else { st.textContent = "не нашлось — задайте точку вручную"; }
+  });
 
   container.querySelector("form").addEventListener("submit", (e) => {
     e.preventDefault();
@@ -107,10 +123,5 @@ export function renderPlaceForm(container, opts) {
 
   $("pf_name").focus();
 
-  return {
-    setCoords(c) {
-      coords = c;
-      $("pf_coords").textContent = coordsLabel(c);
-    },
-  };
+  return { setCoords: updateCoords };
 }

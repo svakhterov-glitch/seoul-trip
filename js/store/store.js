@@ -146,4 +146,24 @@ export class Store {
     this.trip.inbox = this.trip.inbox.filter((x) => x.id !== id);
     await this._commit();
   }
+
+  /* превратить ссылку из инбокса в место выбранного дня (в конец) */
+  async placeFromLink(linkId, dayNumber) {
+    const link = this.trip.inbox.find((l) => l.id === linkId);
+    if (!link) return;
+    const place = createPlace({
+      id: uid("place"),
+      name: link.parsedName || "Из ссылки",
+      coords: link.parsedCoords || null,
+      photo: link.parsedPhoto || "🔗",
+      dayNumber,
+      order: maxOrderInDay(this.trip, dayNumber) + 1,
+      source: "link",
+      sourceUrl: link.url,
+    });
+    this.trip.places.push(place);
+    this.trip.inbox = this.trip.inbox.filter((l) => l.id !== linkId);
+    await this._commit();
+    return place;
+  }
 }

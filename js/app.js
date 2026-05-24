@@ -14,6 +14,8 @@ import { Store } from "./store/store.js";
 import { seoulTrip } from "./model/seed.seoul.js";
 import { getDay, createTrip, byOptions } from "./model/entities.js";
 import { buildDays, formatDateRu } from "./model/days.js";
+import { parseLink } from "./model/linkParse.js";
+import { geocode } from "./model/geocode.js";
 import { catBadge } from "./ui/helpers.js";
 import { renderHero } from "./ui/hero.js";
 import { renderTripBar } from "./ui/tripBar.js";
@@ -24,6 +26,7 @@ import { renderTabs } from "./ui/calendar.js";
 import { renderTimeline, highlightPlace } from "./ui/timeline.js";
 import { renderPlaceForm } from "./ui/placeForm.js";
 import { renderDayForm } from "./ui/dayForm.js";
+import { renderInbox } from "./ui/inbox.js";
 import { enableDnD } from "./ui/dnd.js";
 
 /* ---------- инициализация данных ---------- */
@@ -46,6 +49,7 @@ const tabsEl = document.getElementById("tabs");
 const itineraryEl = document.getElementById("itinerary");
 const capEl = document.getElementById("mapCap");
 const editorEl = document.getElementById("editorPanel");
+const inboxEl = document.getElementById("inbox");
 const catLegendEl = document.getElementById("catLegend");
 
 /* пользователь просит меньше движения? */
@@ -136,14 +140,16 @@ function closeEditor() {
   mapApi.setClickHandler(null);
 }
 
-function openEditor(place, dayNumber) {
+function openEditor(place, dayNumber, extra = {}) {
   const trip = store.getTrip();
   formCtl = renderPlaceForm(editorEl, {
     place,
+    prefill: extra.prefill,
     dayNumber: dayNumber ?? place?.dayNumber ?? (store.getActiveDay() || 1),
     days: trip.days,
     byList: byOptions(trip),
     currency: trip.currency,
+    onGeocode: geocodeForForm,
     onPickCoords: () => {
       mapApi.setClickHandler((coords) => {
         if (formCtl) formCtl.setCoords(coords);
@@ -156,7 +162,8 @@ function openEditor(place, dayNumber) {
     onSave: async (data) => {
       const { id, ...patch } = data;
       if (id) await store.updatePlace(id, patch);
-      else await store.addPlace({ ...patch, source: "manual" });
+      else await store.addPlace({ ...patch, source: extra.fromLinkId ? "link" : "manual" });
+      if (extra.fromLinkId) await store.removeLink(extra.fromLinkId);
       closeEditor();
     },
     onCancel: closeEditor,
@@ -169,6 +176,45 @@ function startAdd(dayNumber) { openEditor(null, dayNumber); }
 function startEdit(id) {
   const p = store.getTrip().places.find((x) => x.id === id);
   if (p) openEditor(p, p.dayNumber);
+}
+
+/* геокодинг по названию для формы: ищет место (+ город поездки),
+   подлетает картой и показывает точку-черновик. Возвращает coords|null. */
+async function geocodeForForm(name) {
+  const city = store.getTrip().city;
+  const found = await geocode(city ? `${name}, ${city}` : name);
+  if (found) {
+    mapApi.showDraft(found.coords);
+    mapApi.flyToPlace({ coords: found.coords }, false, !reduceMotion.matches);
+  }
+  return found ? found.coords : null;
+}
+
+/* выглядит ли строка как хост (нет пробелов, есть точка) — тогда не геокодим */
+function looksLikeHost(s) {
+  return /\./.test(s) && !/\s/.test(s);
+}
+
+/* ---------- окно ссылок (инбокс) ---------- */
+async function addLink(url, name) {
+  const p = url ? parseLink(url) : { name: "", coords: null, photo: "🔗" };
+  const finalName = name?.trim() || p.name;
+  let coords = p.coords;
+  // имя задано вручную ИЛИ вытащено из ссылки (не хост) → ищем место на карте
+  const query = name?.trim() || (!looksLikeHost(p.name) ? p.name : null);
+  if (!coords && query) {
+    const g = await geocode(`${query}, ${store.getTrip().city}`);
+    if (g) coords = g.coords;
+  }
+  await store.addLink(url || "", { parsedName: finalName || "Без названия", parsedCoords: coords, parsedPhoto: p.photo });
+}
+function convertLink(linkId) {
+  const link = store.getTrip().inbox.find((l) => l.id === linkId);
+  if (!link) return;
+  openEditor(null, store.getActiveDay() || 1, {
+    prefill: { name: link.parsedName, coords: link.parsedCoords, photo: link.parsedPhoto },
+    fromLinkId: linkId,
+  });
 }
 
 /* настройка дня (категория, начало/конец, заголовок, тема).
@@ -244,6 +290,11 @@ function render(store) {
   const day = store.getActiveDay();
   renderHero(heroEl, trip);
   renderCatLegend(trip);
+  renderInbox(inboxEl, trip, {
+    onAdd: addLink,
+    onConvert: convertLink,
+    onDelete: (id) => store.removeLink(id),
+  });
   renderTabs(tabsEl, trip, day, (d) => store.setActiveDay(d));
   mapApi.update(trip, day, selectPlace);
   renderCaption(trip, day);
@@ -255,9 +306,10 @@ function render(store) {
     onDelete: deletePlace,
   });
   enableDnD({
-    itineraryEl, tabsEl,
+    itineraryEl, tabsEl, inboxEl,
     onReorder: (dayNumber, ids) => store.setDayOrder(dayNumber, ids),
     onMoveToDay: (id, dayNumber) => store.moveToDayEnd(id, dayNumber),
+    onLinkToDay: (linkId, dayNumber) => store.placeFromLink(linkId, dayNumber),
   });
 }
 
