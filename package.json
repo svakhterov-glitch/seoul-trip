@@ -2,9 +2,10 @@
   "name": "seoul-trip",
   "version": "1.0.0",
   "private": true,
-  "description": "Лендинг путешествия по Сеулу: карта, расписание по дням, история",
+  "description": "Планировщик путешествий: карта, расписание по дням, настройки поездки",
   "scripts": {
     "dev": "npx --yes serve .",
-    "start": "npx --yes serve ."
+    "start": "npx --yes serve .",
+    "check": "for f in $(find js -name '*.js'); do node --check \"$f\" || exit 1; done && echo 'syntax OK'"
   }
 }
