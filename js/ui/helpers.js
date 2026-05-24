@@ -4,30 +4,30 @@
    Не хранят состояние, используются и картой, и расписанием.
    ============================================================ */
 
-import { CATS } from "../model/config.js";
-import { lastDayNumber } from "../model/entities.js";
+import { lastDayNumber, getCategory } from "../model/entities.js";
 
 export function kakaoLink(p) {
   return `https://map.kakao.com/link/map/${encodeURIComponent(p.name)},${p.coords[0]},${p.coords[1]}`;
 }
 
-export function priceBadge(price) {
+export function priceBadge(price, currency = "₩") {
+  const c = currency || "₩";
   if (price === "free") return '<span class="badge price-free">Бесплатно</span>';
-  if (price === 1) return '<span class="badge price-1">₩ недорого</span>';
-  if (price === 2) return '<span class="badge price-2">₩₩ средний</span>';
-  if (price === 3) return '<span class="badge price-3">₩₩₩ выше среднего</span>';
+  if (price === 1) return `<span class="badge price-1">${c} недорого</span>`;
+  if (price === 2) return `<span class="badge price-2">${c}${c} средний</span>`;
+  if (price === 3) return `<span class="badge price-3">${c}${c}${c} выше среднего</span>`;
   return "";
 }
 
 export function byBadge(by) {
-  if (by === "Сергей") return '<span class="badge by-sergey">🧭 нашёл Сергей</span>';
-  if (by === "Полина") return '<span class="badge by-polina">🧭 нашла Полина</span>';
-  return '<span class="badge by-both">🧭 вместе</span>';
+  if (!by || by === "Вместе" || by === "Оба") return '<span class="badge by-both">🧭 вместе</span>';
+  return `<span class="badge by-person">🧭 ${by}</span>`;
 }
 
-export function catBadge(catKey) {
-  if (!catKey || !CATS[catKey]) return "";
-  return `<span class="badge ${CATS[catKey].cls}">${CATS[catKey].label}</span>`;
+export function catBadge(trip, catKey) {
+  const c = getCategory(trip, catKey);
+  if (!c) return "";
+  return `<span class="badge badge-cat" style="background:${c.color};border-color:${c.color}">${c.label}</span>`;
 }
 
 export function dayLabel(trip, p) {

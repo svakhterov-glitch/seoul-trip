@@ -44,6 +44,17 @@ body{font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,Roboto,Helvetica,Ar
 .chip{display:flex;align-items:center;gap:9px;background:rgba(255,255,255,.10);
   border:1px solid rgba(255,255,255,.16);padding:11px 16px;border-radius:12px;
   font-size:14px;font-weight:600}
+/* полоса ключевых показателей поездки — равные плитки в сетке */
+.hero-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+  gap:12px;margin-top:22px;max-width:720px}
+.hstat{display:flex;flex-direction:column;justify-content:center;
+  background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.16);
+  border-radius:14px;padding:14px 18px;min-height:74px}
+.hstat-num{font-size:1.7rem;font-weight:800;line-height:1.05;letter-spacing:-.01em}
+.hstat-label{font-size:12px;color:#aab2cc;font-weight:600;margin-top:4px}
+.hstat-accent{background:rgba(232,70,60,.16);border-color:rgba(232,70,60,.34)}
+.hstat-accent .hstat-num{color:#ffd6d2}
+
 .flights{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:24px;max-width:720px}
 .flight{background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.16);
   border-radius:14px;padding:14px 16px}
@@ -127,6 +138,7 @@ body{font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,Roboto,Helvetica,Ar
 .badge.by-sergey{color:var(--sergey);background:#e9f1fc;border-color:#cfe0f6}
 .badge.by-polina{color:var(--polina);background:#fceaf1;border-color:#f5cfdf}
 .badge.by-both{color:#7b53c9;background:#f0ebfb;border-color:#dccff2}
+.badge.by-person{color:var(--sergey);background:#e9f1fc;border-color:#cfe0f6}
 .badge.cat-start{color:#fff;background:var(--c-start);border-color:var(--c-start)}
 .badge.cat-tour {color:#fff;background:var(--c-tour); border-color:var(--c-tour)}
 .badge.cat-dist {color:#fff;background:var(--c-dist); border-color:var(--c-dist)}
@@ -187,10 +199,13 @@ body{font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,Roboto,Helvetica,Ar
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23fff' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
   background-repeat:no-repeat;background-position:right 12px center}
 .tripbar-select option{color:#1a2238}
-.tripbar-new{margin-left:auto;background:var(--accent);color:#fff;border:0;border-radius:10px;
-  padding:9px 16px;font-size:14px;font-weight:800;font-family:inherit;cursor:pointer;
-  touch-action:manipulation;transition:filter .15s}
-.tripbar-new:hover{filter:brightness(1.08)}
+.tripbar-actions{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.tripbar-btn{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.22);
+  border-radius:10px;padding:9px 14px;font-size:14px;font-weight:700;font-family:inherit;
+  cursor:pointer;touch-action:manipulation;transition:background .15s}
+.tripbar-btn:hover{background:rgba(255,255,255,.2)}
+.tripbar-new{background:var(--accent);border-color:var(--accent);font-weight:800;transition:filter .15s}
+.tripbar-new:hover{filter:brightness(1.08);background:var(--accent)}
 
 /* ---------- СТРАНИЦА «НОВАЯ ПОЕЗДКА» ---------- */
 .page{min-height:100vh;background:var(--bg)}
@@ -239,11 +254,53 @@ body{font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,Roboto,Helvetica,Ar
 .ff textarea{resize:vertical;min-height:42px;line-height:1.45}
 .ff select:focus,.ff textarea:focus{border-color:var(--accent)}
 
-/* кнопка «добавить место» в шапке дня */
-.day-add{margin-left:auto;background:#eef1f8;color:var(--navy);border:1px dashed #c3cbe4;
+/* встроенная форма настройки дня */
+.day-editor{margin:12px 0 4px}
+
+/* строки начала/конца дня (обрамление расписания) */
+.tl-edge{display:flex;cursor:pointer}
+.tl-edge .tl-time{width:62px;flex:none;text-align:right;padding:14px 14px 0 0;
+  font-size:13px;font-weight:800;color:var(--navy);font-variant-numeric:tabular-nums}
+.tl-edge-dot{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;
+  font-size:17px;background:#eef1f8;margin-top:9px;flex:none;border:2px dashed #c3cbe4}
+.tl-edge-card{flex:1;display:flex;align-items:center;gap:10px;margin:9px 0 4px 12px;
+  padding:9px 13px;border-radius:11px}
+.tl-edge:hover .tl-edge-card{background:#f7f8fb}
+.tl-edge-label{font-size:12.5px;font-weight:800;color:var(--navy)}
+.tl-edge-hint{font-size:12px;color:var(--muted)}
+@media(max-width:880px){.tl-edge .tl-time{width:50px;font-size:12px}}
+
+/* кнопки в шапке дня */
+.day-cfg{margin-left:auto;background:#fff;color:var(--muted);border:1px solid var(--line);
+  border-radius:9px;padding:6px 12px;font-size:12.5px;font-weight:700;font-family:inherit;
+  cursor:pointer;touch-action:manipulation;transition:background .15s}
+.day-cfg:hover{background:#f3f5fa;color:var(--text)}
+.day-add{background:#eef1f8;color:var(--navy);border:1px dashed #c3cbe4;
   border-radius:9px;padding:6px 12px;font-size:12.5px;font-weight:700;font-family:inherit;
   cursor:pointer;touch-action:manipulation;transition:background .15s}
 .day-add:hover{background:#e3e8f5}
+
+/* динамический бейдж категории (цвет задаётся inline) */
+.badge.badge-cat{color:#fff}
+
+/* текстовая кнопка-ссылка */
+.link-btn{background:none;border:0;color:var(--accent);font-family:inherit;font-size:12px;
+  font-weight:700;cursor:pointer;padding:0;margin-left:8px;text-decoration:underline;
+  text-underline-offset:2px}
+.link-btn:hover{color:#c2402f}
+
+/* списки в настройках (люди, категории) */
+.list{display:flex;flex-direction:column;gap:10px;margin-bottom:14px}
+.list-row{display:flex;align-items:center;gap:10px}
+.list-input{flex:1;font-family:inherit;font-size:14px;padding:10px 12px;
+  border:1px solid var(--line);border-radius:10px;color:var(--text)}
+.list-input:focus{border-color:var(--accent)}
+.cat-color{width:46px;height:40px;padding:2px;border:1px solid var(--line);border-radius:9px;
+  background:#fff;cursor:pointer;flex:none}
+.list-del{border:0;background:#f0f2f7;width:40px;height:40px;border-radius:9px;cursor:pointer;
+  font-size:14px;flex:none;touch-action:manipulation}
+.list-del:hover{background:#fceae7}
+.tf-card .ff+.ff{margin-top:12px}
 
 /* действия на карточке места */
 .tl-card{position:relative}
@@ -255,11 +312,16 @@ body{font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,Roboto,Helvetica,Ar
 
 /* drag-and-drop состояния */
 .tl-item[draggable="true"]{cursor:grab}
-.tl-item.dragging{opacity:.45}
-.drop-target{outline:2px dashed var(--accent);outline-offset:2px;
-  background:rgba(232,70,60,.06)}
+.tl-item[draggable="true"]:active{cursor:grabbing}
+.tl-item.dragging{opacity:.4}
+.tl-grip{color:#b9c1da;font-size:17px;line-height:1;letter-spacing:-2px}
+.drop-target{outline:2px dashed var(--accent);outline-offset:-4px;
+  background:rgba(232,70,60,.05)}
 .tab.drop-target{background:rgba(232,70,60,.18)}
+.tl-drop-line{height:0;border-top:2px solid var(--accent);border-radius:2px;
+  margin:3px 0 3px 96px;box-shadow:0 0 0 2px rgba(232,70,60,.12)}
 .pin.draft{background:#1f8a4c;opacity:.92}
+@media(max-width:880px){.tl-drop-line{margin-left:84px}}
 
 /* панель добавления/редактирования места */
 .editor-panel{margin-top:14px}

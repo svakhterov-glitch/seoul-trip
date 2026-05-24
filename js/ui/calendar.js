@@ -1,14 +1,15 @@
 /* ============================================================
    ВКЛАДКИ ДНЕЙ (календарь)
    Рисует переключатель «Весь маршрут» + дни поездки.
-   Вкладка 0 — обзор всего маршрута.
+   Вкладка 0 — обзор всего маршрута. Цвет и подпись вкладки берутся
+   из категорий поездки (trip.categories).
 
    Доступность: контейнер — role="tablist", каждая вкладка —
    <button role="tab"> (фокусируется и срабатывает с клавиатуры).
    Стрелки ←/→ перемещают между вкладками (паттерн tablist).
    ============================================================ */
 
-import { CATS, catColor } from "../model/config.js";
+import { getCategory } from "../model/entities.js";
 
 export function renderTabs(container, trip, activeDay, onSelect) {
   container.innerHTML = "";
@@ -24,15 +25,14 @@ export function renderTabs(container, trip, activeDay, onSelect) {
     t.dataset.day = d.number;
     t.setAttribute("role", "tab");
     t.setAttribute("aria-selected", active ? "true" : "false");
-    // активная вкладка в табуляции, остальные — стрелками (roving tabindex)
     t.tabIndex = active ? 0 : -1;
 
     if (d.number === 0) {
       t.setAttribute("aria-label", "Весь маршрут, обзор");
       t.innerHTML = `Весь маршрут<small>обзор</small>`;
     } else {
-      const c = CATS[d.cat];
-      t.style.setProperty("--tc", catColor(d.cat));
+      const c = getCategory(trip, d.cat);
+      if (c) t.style.setProperty("--tc", c.color);
       t.setAttribute("aria-label", `День ${d.number}${c ? ", " + c.label : ""}`);
       t.innerHTML = `День ${d.number}<small>${c ? c.label : ""}</small>`;
     }

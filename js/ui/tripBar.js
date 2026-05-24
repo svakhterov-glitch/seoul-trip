@@ -4,7 +4,7 @@
    поездка». Нативный <select> доступен с клавиатуры из коробки.
    ============================================================ */
 
-export function renderTripBar(container, { trips, currentId, onSelect, onNew }) {
+export function renderTripBar(container, { trips, currentId, onSelect, onNew, onSettings }) {
   container.innerHTML = "";
 
   const wrap = document.createElement("div");
@@ -27,12 +27,22 @@ export function renderTripBar(container, { trips, currentId, onSelect, onNew }) 
   });
   select.addEventListener("change", () => onSelect(select.value));
 
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.className = "tripbar-new";
-  btn.innerHTML = "＋ Новая поездка";
-  btn.addEventListener("click", onNew);
+  const actions = document.createElement("div");
+  actions.className = "tripbar-actions";
 
-  wrap.append(label, select, btn);
+  const catBtn = document.createElement("button");
+  catBtn.type = "button";
+  catBtn.className = "tripbar-btn";
+  catBtn.innerHTML = "⚙️ Настройки поездки";
+  catBtn.addEventListener("click", onSettings);
+
+  const newBtn = document.createElement("button");
+  newBtn.type = "button";
+  newBtn.className = "tripbar-btn tripbar-new";
+  newBtn.innerHTML = "＋ Новая поездка";
+  newBtn.addEventListener("click", onNew);
+
+  actions.append(catBtn, newBtn);
+  wrap.append(label, select, actions);
   container.appendChild(wrap);
 }

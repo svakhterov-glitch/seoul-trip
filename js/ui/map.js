@@ -5,9 +5,8 @@
    маршрут под выбранный день, flyToPlace() центрирует на точке.
    ============================================================ */
 
-import { catColor } from "../model/config.js";
 import {
-  getDay, placesForDay, allDayPlaces, lastDayNumber,
+  getDay, getCategory, placesForDay, allDayPlaces, lastDayNumber,
 } from "../model/entities.js";
 import { kakaoLink, priceBadge, byBadge, catBadge, dayLabel } from "./helpers.js";
 
@@ -33,7 +32,7 @@ function popupHtml(trip, p) {
       <div class="pop-day">${dayLabel(trip, p)}${p.time ? " · " + p.time : ""}</div>
       <div class="pop-name">${p.name}</div>
       <div class="pop-desc">${p.desc}</div>
-      <div class="badges">${catBadge(cat)}${priceBadge(p.price)}${byBadge(p.by)}</div>
+      <div class="badges">${catBadge(trip, cat)}${priceBadge(p.price, trip.currency)}${byBadge(p.by)}</div>
       <a class="kakao" href="${kakaoLink(p)}" target="_blank" rel="noopener">🗺 Открыть в Kakao Map</a>
     </div>`;
 }
@@ -91,9 +90,12 @@ export function createMap(elId) {
       shown = placesForDay(trip, day);
       if (hotel) shown = [hotel, ...shown];
     }
+    // на карту попадают только места с координатами (свободные окна и
+    // места без точки пропускаем)
+    shown = shown.filter((p) => p.coords);
 
     /* маркеры */
-    const order = placesForDay(trip, day);
+    const order = placesForDay(trip, day).filter((p) => p.coords);
     shown.forEach((p) => {
       const label = day === 0 ? p.dayNumber : order.indexOf(p) + 1;
       const m = L.marker(p.coords, { icon: makeIcon(trip, p, label) });
@@ -107,7 +109,7 @@ export function createMap(elId) {
     const last = lastDayNumber(trip);
     if (day === 0) {
       const pts = trip.places
-        .filter((p) => p.dayNumber >= 1 && p.dayNumber < last)
+        .filter((p) => p.dayNumber >= 1 && p.dayNumber < last && p.coords)
         .map((p) => p.coords);
       if (pts.length > 1)
         L.polyline(pts, { color: "#0f1b3d", weight: 3, opacity: 0.5, dashArray: "7 9" }).addTo(routeLayer);
@@ -115,7 +117,7 @@ export function createMap(elId) {
       const pts = order.map((p) => p.coords);
       if (pts.length > 1) {
         const dayMeta = getDay(trip, day);
-        const col = catColor(dayMeta && dayMeta.cat);
+        const col = getCategory(trip, dayMeta && dayMeta.cat)?.color;
         L.polyline(pts, { color: col || "#0f1b3d", weight: 4, opacity: 0.75 }).addTo(routeLayer);
       }
     }

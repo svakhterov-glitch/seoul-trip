@@ -1,26 +1,16 @@
 /* ============================================================
-   КОНФИГ ПРЕЗЕНТАЦИИ (не данные, а оформление категорий)
-   Категории дней и их привязка к CSS-переменным цветов.
+   КАТЕГОРИИ ДНЕЙ — НАБОР ПО УМОЛЧАНИЮ
+   Категории теперь хранятся в данных поездки (trip.categories) и
+   настраиваются из интерфейса (страница «Категории»). Здесь — лишь
+   стартовый набор для новых поездок и seed. Цвет хранится прямо в
+   категории (HEX), а не в CSS-переменной.
    ============================================================ */
 
-export const CATS = {
-  start: { label: "Старт",   cls: "cat-start" },
-  tour:  { label: "Туризм",  cls: "cat-tour"  },
-  dist:  { label: "Районы",  cls: "cat-dist"  },
-  shop:  { label: "Шоппинг", cls: "cat-shop"  },
-  trend: { label: "Тренды",  cls: "cat-trend" },
-  final: { label: "Финал",   cls: "cat-start" },
-};
-
-/* какая CSS-переменная задаёт цвет категории */
-export const catVar = {
-  start: "--c-start", tour: "--c-tour", dist: "--c-dist",
-  shop: "--c-shop",   trend: "--c-trend", final: "--c-start",
-};
-
-/* прочитать цвет категории из CSS-переменной */
-export function catColor(catKey) {
-  const v = catVar[catKey];
-  if (!v) return "";
-  return getComputedStyle(document.documentElement).getPropertyValue(v).trim();
-}
+export const DEFAULT_CATEGORIES = [
+  { key: "start", label: "Старт",   color: "#6b7385" },
+  { key: "tour",  label: "Туризм",  color: "#2f6fd6" },
+  { key: "dist",  label: "Районы",  color: "#159a93" },
+  { key: "shop",  label: "Шоппинг", color: "#d98a1b" },
+  { key: "trend", label: "Тренды",  color: "#9a55c9" },
+  { key: "final", label: "Финал",   color: "#6b7385" },
+];

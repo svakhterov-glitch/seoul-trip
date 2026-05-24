@@ -12,26 +12,28 @@
 import { LocalStorageRepository } from "./data/localStorageRepo.js";
 import { Store } from "./store/store.js";
 import { seoulTrip } from "./model/seed.seoul.js";
-import { getDay, createTrip } from "./model/entities.js";
+import { getDay, createTrip, byOptions } from "./model/entities.js";
 import { buildDays, formatDateRu } from "./model/days.js";
 import { catBadge } from "./ui/helpers.js";
 import { renderHero } from "./ui/hero.js";
 import { renderTripBar } from "./ui/tripBar.js";
 import { renderTripFormPage } from "./ui/tripForm.js";
+import { renderSettingsPage } from "./ui/settingsForm.js";
 import { createMap } from "./ui/map.js";
 import { renderTabs } from "./ui/calendar.js";
 import { renderTimeline, highlightPlace } from "./ui/timeline.js";
 import { renderPlaceForm } from "./ui/placeForm.js";
+import { renderDayForm } from "./ui/dayForm.js";
 import { enableDnD } from "./ui/dnd.js";
 
 /* ---------- инициализация данных ---------- */
 const repo = new LocalStorageRepository();
 
-// Источник правды для готового Сеула — файл seed.seoul.js: пересохраняем его
-// при каждой загрузке (правки в seed сразу видны). Поездки, созданные
-// пользователем, хранятся отдельными ключами и при этом не теряются.
-// При открытии показываем именно Сеул (решение по стартовому экрану).
-const trip = await repo.saveTrip(seoulTrip);
+// Загружаем сохранённую поездку, если она есть (правки пользователя
+// сохраняются между перезагрузками). Если хранилище пустое — кладём
+// готовый Сеул из seed. При открытии показываем Сеул (стартовый экран).
+let trip = await repo.getTrip(seoulTrip.id);
+if (!trip) trip = await repo.saveTrip(seoulTrip);
 const store = new Store(repo, trip);
 
 /* ---------- UI-узлы ---------- */
@@ -44,20 +46,31 @@ const tabsEl = document.getElementById("tabs");
 const itineraryEl = document.getElementById("itinerary");
 const capEl = document.getElementById("mapCap");
 const editorEl = document.getElementById("editorPanel");
+const catLegendEl = document.getElementById("catLegend");
 
 /* пользователь просит меньше движения? */
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
 /* ---------- маршрутизация между видами ---------- */
+function showPage(render) {
+  viewApp.hidden = true;
+  viewPage.hidden = false;
+  render(viewPage);
+  window.scrollTo(0, 0);
+}
+
 function route() {
   if (location.hash === "#/new") {
-    viewApp.hidden = true;
-    viewPage.hidden = false;
-    renderTripFormPage(viewPage, {
+    showPage((el) => renderTripFormPage(el, {
       onCreate: handleCreateTrip,
       onCancel: () => history.back(),
-    });
-    window.scrollTo(0, 0);
+    }));
+  } else if (location.hash === "#/settings" || location.hash === "#/categories") {
+    showPage((el) => renderSettingsPage(el, {
+      trip: store.getTrip(),
+      onSave: async (patch) => { await store.updateTrip(patch); location.hash = ""; },
+      onCancel: () => history.back(),
+    }));
   } else {
     viewPage.hidden = true;
     viewPage.innerHTML = "";
@@ -76,6 +89,7 @@ async function refreshTripBar() {
     currentId: store.getTrip().id,
     onSelect: selectTrip,
     onNew: () => { location.hash = "#/new"; },
+    onSettings: () => { location.hash = "#/settings"; },
   });
 }
 
@@ -128,6 +142,8 @@ function openEditor(place, dayNumber) {
     place,
     dayNumber: dayNumber ?? place?.dayNumber ?? (store.getActiveDay() || 1),
     days: trip.days,
+    byList: byOptions(trip),
+    currency: trip.currency,
     onPickCoords: () => {
       mapApi.setClickHandler((coords) => {
         if (formCtl) formCtl.setCoords(coords);
@@ -138,15 +154,9 @@ function openEditor(place, dayNumber) {
       });
     },
     onSave: async (data) => {
-      if (data.id) {
-        await store.updatePlace(data.id, {
-          name: data.name, time: data.time, dayNumber: data.dayNumber,
-          price: data.price, by: data.by, photo: data.photo,
-          desc: data.desc, coords: data.coords,
-        });
-      } else {
-        await store.addPlace({ ...data, source: "manual" });
-      }
+      const { id, ...patch } = data;
+      if (id) await store.updatePlace(id, patch);
+      else await store.addPlace({ ...patch, source: "manual" });
       closeEditor();
     },
     onCancel: closeEditor,
@@ -160,6 +170,30 @@ function startEdit(id) {
   const p = store.getTrip().places.find((x) => x.id === id);
   if (p) openEditor(p, p.dayNumber);
 }
+
+/* настройка дня (категория, начало/конец, заголовок, тема).
+   Форма встраивается прямо в блок дня, где её открыли — не уезжает
+   наверх к карте (карта для настройки дня не нужна). */
+function startDaySettings(dayNumber) {
+  const d = store.getTrip().days.find((x) => x.number === dayNumber);
+  const sec = itineraryEl.querySelector(`.day-sec[data-day="${dayNumber}"]`);
+  if (!d || !sec) return;
+  closeEditor(); // закрыть форму места, если открыта
+  itineraryEl.querySelectorAll(".day-editor").forEach((e) => e.remove());
+
+  const host = document.createElement("div");
+  host.className = "day-editor";
+  sec.querySelector(".day-head").after(host);
+  renderDayForm(host, {
+    day: d,
+    categories: store.getTrip().categories,
+    // при сохранении произойдёт перерисовка — встроенная форма исчезнет сама
+    onSave: (number, patch) => store.updateDay(number, patch),
+    onCancel: () => host.remove(),
+    onManageCategories: () => { host.remove(); location.hash = "#/settings"; },
+  });
+  host.scrollIntoView({ block: "center", behavior: reduceMotion.matches ? "auto" : "smooth" });
+}
 async function deletePlace(id) {
   const p = store.getTrip().places.find((x) => x.id === id);
   if (p && confirm(`Удалить «${p.name}»? Это действие нельзя отменить.`)) {
@@ -171,8 +205,9 @@ async function deletePlace(id) {
 /* ---------- выбор места ---------- */
 function selectPlace(placeId) {
   const place = store.getTrip().places.find((p) => p.id === placeId);
-  if (!place || !place.coords) return;
+  if (!place) return;
   highlightPlace(itineraryEl, placeId);
+  if (!place.coords) return; // нет точки на карте (свободное окно / без координат)
   const smooth = !reduceMotion.matches;
   document.getElementById("map").scrollIntoView({
     block: "nearest",
@@ -190,8 +225,17 @@ function renderCaption(trip, day) {
       : `🗺️ <b>Маршрут пока пуст</b> — ${trip.days.length} дней готовы к наполнению. Выберите день и добавьте места.`;
   } else {
     const d = getDay(trip, day);
-    capEl.innerHTML = `${catBadge(d.cat)} <b>День ${day} · ${d.title}</b> — ${d.date}. Нажмите точку на карте или в расписании.`;
+    capEl.innerHTML = `${catBadge(trip, d.cat)} <b>День ${day} · ${d.title}</b> — ${d.date}. Нажмите точку на карте или в расписании.`;
   }
+}
+
+/* легенда категорий + кнопка их настройки */
+function renderCatLegend(trip) {
+  const badges = trip.categories.map((c) => catBadge(trip, c.key)).join("");
+  catLegendEl.innerHTML = `${badges}<button type="button" class="link-btn" id="catManage">настроить категории</button>`;
+  catLegendEl.querySelector("#catManage").addEventListener("click", () => {
+    location.hash = "#/settings";
+  });
 }
 
 /* ---------- общий рендер по состоянию ---------- */
@@ -199,18 +243,21 @@ function render(store) {
   const trip = store.getTrip();
   const day = store.getActiveDay();
   renderHero(heroEl, trip);
+  renderCatLegend(trip);
   renderTabs(tabsEl, trip, day, (d) => store.setActiveDay(d));
   mapApi.update(trip, day, selectPlace);
   renderCaption(trip, day);
   renderTimeline(itineraryEl, trip, day, {
     onPlaceClick: selectPlace,
     onAdd: startAdd,
+    onDaySettings: startDaySettings,
     onEdit: startEdit,
     onDelete: deletePlace,
   });
   enableDnD({
     itineraryEl, tabsEl,
-    onMove: (id, dayNumber) => store.movePlaceToDay(id, dayNumber),
+    onReorder: (dayNumber, ids) => store.setDayOrder(dayNumber, ids),
+    onMoveToDay: (id, dayNumber) => store.moveToDayEnd(id, dayNumber),
   });
 }
 

@@ -5,55 +5,56 @@
    на карте» → app включает режим выбора → setCoords()).
 
    renderPlaceForm(container, {
-     place,            // существующее место (edit) или null (add)
-     dayNumber,        // день по умолчанию
-     days,             // [{number,title}] для выпадающего списка
+     place, dayNumber, days,
      onSave(data), onCancel(), onDelete(id)|null, onPickCoords()
    }) → { setCoords(coords) }
    ============================================================ */
 
-const PRICES = [
-  ["", "—"], ["free", "Бесплатно"], ["1", "₩ недорого"],
-  ["2", "₩₩ средний"], ["3", "₩₩₩ выше среднего"],
-];
-const BY = ["Оба", "Сергей", "Полина"];
+function priceOptions(currency) {
+  const c = currency || "₩";
+  return [
+    ["", "—"], ["free", "Бесплатно"], ["1", `${c} недорого`],
+    ["2", `${c}${c} средний`], ["3", `${c}${c}${c} выше среднего`],
+  ];
+}
 
 function opt(value, label, selected) {
   return `<option value="${value}"${value === selected ? " selected" : ""}>${label}</option>`;
 }
-
 function coordsLabel(coords) {
   return coords ? `${coords[0].toFixed(5)}, ${coords[1].toFixed(5)}` : "не указаны";
 }
 
 export function renderPlaceForm(container, opts) {
-  const { place, dayNumber, days, onSave, onCancel, onDelete, onPickCoords } = opts;
+  const { place, dayNumber, days, byList, currency, onSave, onCancel, onDelete, onPickCoords } = opts;
   const editing = !!place;
   let coords = place?.coords || null;
   const priceVal = place?.price == null ? "" : String(place.price);
+  const dayVal = String(dayNumber ?? place?.dayNumber ?? 1);
+  const BY = byList?.length ? byList : ["Вместе"];
+  const PRICES = priceOptions(currency);
 
   container.hidden = false;
   container.innerHTML = `
     <div class="pf">
       <div class="pf-head">
         <h3>${editing ? "Изменить место" : "Новое место"}</h3>
-        <button type="button" class="pf-x" aria-label="Закрыть">✕</button>
+        <button type="button" id="pf_x" class="pf-x" aria-label="Закрыть">✕</button>
       </div>
       <form class="pf-form" novalidate>
         <div class="pf-grid">
           <label class="ff"><span class="ff-label">Название</span>
-            <input id="pf_name" type="text" required value="${place?.name || ""}"
-                   placeholder="напр. Кафе у реки"></label>
-          <label class="ff"><span class="ff-label">Время</span>
+            <input id="pf_name" type="text" required value="${place?.name || ""}" placeholder="напр. Кафе у реки"></label>
+          <label class="ff"><span class="ff-label">Время (необязательно)</span>
             <input id="pf_time" type="time" value="${place?.time || ""}"></label>
           <label class="ff"><span class="ff-label">День</span>
             <select id="pf_day">
-              ${days.map((d) => opt(String(d.number), `День ${d.number} · ${d.title}`, String(dayNumber))).join("")}
+              ${days.map((d) => opt(String(d.number), `День ${d.number} · ${d.title}`, dayVal)).join("")}
             </select></label>
           <label class="ff"><span class="ff-label">Цена</span>
             <select id="pf_price">${PRICES.map(([v, l]) => opt(v, l, priceVal)).join("")}</select></label>
           <label class="ff"><span class="ff-label">Кто нашёл</span>
-            <select id="pf_by">${BY.map((b) => opt(b, b, place?.by || "Оба")).join("")}</select></label>
+            <select id="pf_by">${BY.map((b) => opt(b, b, place?.by || "Вместе")).join("")}</select></label>
           <label class="ff"><span class="ff-label">Иконка</span>
             <input id="pf_photo" type="text" maxlength="2" value="${place?.photo || "📍"}"></label>
         </div>
@@ -79,8 +80,7 @@ export function renderPlaceForm(container, opts) {
 
   const $ = (id) => container.querySelector("#" + id);
   const errEl = $("pf_error");
-
-  function showError(msg) { errEl.textContent = msg; errEl.hidden = false; }
+  const showError = (msg) => { errEl.textContent = msg; errEl.hidden = false; };
 
   $("pf_pick").addEventListener("click", () => onPickCoords());
   $("pf_x").addEventListener("click", onCancel);
@@ -107,7 +107,6 @@ export function renderPlaceForm(container, opts) {
 
   $("pf_name").focus();
 
-  /* контроллер для внешнего обновления координат (по клику на карте) */
   return {
     setCoords(c) {
       coords = c;
