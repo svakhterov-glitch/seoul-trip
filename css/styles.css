@@ -115,6 +115,8 @@ body{font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,Roboto,Helvetica,Ar
 .tl-dot{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;
   font-size:19px;background:linear-gradient(135deg,#eef1f8,#dde3f3);
   margin-top:9px;flex:none;border:2px solid #fff;box-shadow:0 2px 6px rgba(15,27,61,.12)}
+.tl-dot-img{padding:0;overflow:hidden}
+.tl-thumb{width:100%;height:100%;object-fit:cover;display:block}
 .tl-line{flex:1;width:2px;background:var(--line);margin:4px 0}
 .tl-item:last-child .tl-line{display:none}
 .tl-card{flex:1;margin:9px 0 4px 12px;padding:13px 15px;border-radius:13px;
@@ -175,6 +177,8 @@ body{font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,Roboto,Helvetica,Ar
 .leaflet-popup-content{margin:0;width:248px!important}
 .pop-photo{height:92px;display:grid;place-items:center;font-size:42px;
   background:linear-gradient(135deg,var(--navy-2),var(--accent))}
+.pop-photo-img{padding:0}
+.pop-photo-img img{width:100%;height:100%;object-fit:cover;display:block}
 .pop-body{padding:11px 14px 13px}
 .pop-day{font-size:11px;font-weight:700;text-transform:uppercase;color:var(--accent);letter-spacing:.04em}
 .pop-name{font-size:15px;font-weight:800;margin:2px 0 5px}
@@ -282,6 +286,21 @@ body{font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,Roboto,Helvetica,Ar
   border:1px solid var(--line);border-radius:999px;padding:2px 8px}
 .link-tag.ok{color:#1f8a4c;background:#e7f6ec;border-color:#cdebd6}
 .link-actions{display:flex;flex-direction:column;gap:4px;flex:none}
+
+/* тренды (инсайты) */
+.trends{background:linear-gradient(135deg,#fff4ef,#fdeee8);border:1px solid #f3d9cd;
+  border-radius:var(--radius);padding:16px 18px;margin-top:14px}
+.trends-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.trends-head h3{font-size:1.05rem;font-weight:800}
+.trends-note{font-size:12px;color:var(--muted)}
+.trend-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;margin-top:12px}
+.trend-card{display:flex;flex-direction:column;background:#fff;border:1px solid #f1ddd2;
+  border-radius:13px;padding:12px 14px}
+.trend-photo{font-size:22px}
+.trend-name{font-size:14.5px;font-weight:800;margin-top:4px}
+.trend-area{font-size:12px;color:var(--accent);font-weight:700;margin-top:2px}
+.trend-why{font-size:12.5px;color:var(--muted);margin-top:6px;flex:1}
+.trend-add{align-self:flex-start;margin-top:10px}
 
 /* строки начала/конца дня (обрамление расписания) */
 .tl-edge{display:flex;cursor:pointer}

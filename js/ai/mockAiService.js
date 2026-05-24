@@ -16,8 +16,9 @@ export class MockAiService extends AiService {
 
     // берём места из базы опыта по нужному городу
     const pool = trip.city === seoulTrip.city ? seoulTrip.places : [];
+    const lastDay = trip.days.reduce((m, d) => Math.max(m, d.number), 0);
     return pool
-      .filter((p) => p.dayNumber >= 1)
-      .map((p) => createPlace({ ...p, id: undefined, source: "ai" }));
+      .filter((p) => p.dayNumber >= 1 && p.dayNumber <= lastDay)
+      .map((p) => createPlace({ ...p, id: undefined, order: null, source: "ai" }));
   }
 }

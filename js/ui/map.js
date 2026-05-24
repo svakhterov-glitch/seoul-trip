@@ -27,7 +27,9 @@ function popupHtml(trip, p) {
   const day = getDay(trip, p.dayNumber);
   const cat = day ? day.cat : null;
   return `
-    <div class="pop-photo">${p.photo}</div>
+    <div class="pop-photo${p.image ? " pop-photo-img" : ""}">${p.image
+      ? `<img src="${p.image}" alt="${p.name}" loading="lazy">`
+      : p.photo}</div>
     <div class="pop-body">
       <div class="pop-day">${dayLabel(trip, p)}${p.time ? " · " + p.time : ""}</div>
       <div class="pop-name">${p.name}</div>

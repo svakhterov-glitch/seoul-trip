@@ -59,6 +59,8 @@ export function renderPlaceForm(container, opts) {
           <label class="ff"><span class="ff-label">Иконка</span>
             <input id="pf_photo" type="text" maxlength="2" value="${v.photo || "📍"}"></label>
         </div>
+        <label class="ff"><span class="ff-label">Фото (ссылка на картинку)</span>
+          <input id="pf_image" type="url" value="${v.image || ""}" placeholder="https://… (необязательно)"></label>
         <label class="ff"><span class="ff-label">Описание</span>
           <textarea id="pf_desc" rows="2" placeholder="Пара слов о месте">${v.desc || ""}</textarea></label>
 
@@ -116,6 +118,7 @@ export function renderPlaceForm(container, opts) {
       price: priceRaw === "" ? null : (priceRaw === "free" ? "free" : +priceRaw),
       by: $("pf_by").value,
       photo: $("pf_photo").value.trim() || "📍",
+      image: $("pf_image").value.trim(),
       desc: $("pf_desc").value.trim(),
       coords,
     });

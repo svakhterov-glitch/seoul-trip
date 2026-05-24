@@ -77,6 +77,16 @@ export function renderHero(container, trip) {
     ? `<div class="flights">${trip.flights.map(flightCard).join("")}</div>`
     : "";
 
+  // обложка → фон шапки (с затемнением поверх для читаемости)
+  const heroEl = container.closest(".hero");
+  if (heroEl) {
+    heroEl.style.backgroundImage = trip.cover
+      ? `linear-gradient(135deg, rgba(15,27,61,.82), rgba(28,44,94,.78)), url("${trip.cover}")`
+      : "";
+    heroEl.style.backgroundSize = trip.cover ? "cover" : "";
+    heroEl.style.backgroundPosition = trip.cover ? "center" : "";
+  }
+
   container.innerHTML = `
     <span class="eyebrow">📍 ${eyebrow}</span>
     <h1>${trip.title || trip.city || "Новая поездка"}</h1>

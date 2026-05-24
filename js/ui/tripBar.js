@@ -4,7 +4,7 @@
    поездка». Нативный <select> доступен с клавиатуры из коробки.
    ============================================================ */
 
-export function renderTripBar(container, { trips, currentId, onSelect, onNew, onSettings }) {
+export function renderTripBar(container, { trips, currentId, onSelect, onNew, onSettings, onGenerate }) {
   container.innerHTML = "";
 
   const wrap = document.createElement("div");
@@ -30,6 +30,12 @@ export function renderTripBar(container, { trips, currentId, onSelect, onNew, on
   const actions = document.createElement("div");
   actions.className = "tripbar-actions";
 
+  const aiBtn = document.createElement("button");
+  aiBtn.type = "button";
+  aiBtn.className = "tripbar-btn";
+  aiBtn.innerHTML = "🤖 Собрать через ИИ";
+  aiBtn.addEventListener("click", onGenerate);
+
   const catBtn = document.createElement("button");
   catBtn.type = "button";
   catBtn.className = "tripbar-btn";
@@ -42,7 +48,7 @@ export function renderTripBar(container, { trips, currentId, onSelect, onNew, on
   newBtn.innerHTML = "＋ Новая поездка";
   newBtn.addEventListener("click", onNew);
 
-  actions.append(catBtn, newBtn);
+  actions.append(aiBtn, catBtn, newBtn);
   wrap.append(label, select, actions);
   container.appendChild(wrap);
 }

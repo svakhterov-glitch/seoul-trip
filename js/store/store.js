@@ -92,6 +92,17 @@ export class Store {
     return place;
   }
 
+  /* массовое добавление мест (ИИ-генерация) — один коммит */
+  async addPlaces(list) {
+    list.forEach((data) => {
+      const place = createPlace({ ...data, id: uid("place") });
+      if (place.order == null) place.order = maxOrderInDay(this.trip, place.dayNumber) + 1;
+      this.trip.places.push(place);
+    });
+    normalizeDayOrders(this.trip);
+    await this._commit();
+  }
+
   async updatePlace(id, patch) {
     const p = this.trip.places.find((x) => x.id === id);
     if (p) {

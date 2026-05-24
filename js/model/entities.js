@@ -72,6 +72,7 @@ export function createPlace(data = {}) {
     type: data.type || null,            // 'hotel' | 'airport' | null
     name: data.name || "",
     coords: data.coords || null,        // [lat, lng]
+    image: data.image || "",            // URL фотографии (необязательно)
     time: data.time || "",              // 'ЧЧ:ММ' (необязательно)
     photo: data.photo || "📍",
     price: data.price ?? null,          // 'free' | 1 | 2 | 3 | null
@@ -113,6 +114,7 @@ export function createTrip(data = {}) {
     endDate: data.endDate || "",
     lead: data.lead || "",             // вводный абзац под заголовком
     note: data.note || "",             // личная заметка (необязательно)
+    cover: data.cover || "",           // URL обложки (фон шапки)
     travelers: data.travelers || "",   // 'Сергей & Полина' — устаревшее, см. people
     people: data.people || [],         // ['Сергей','Полина'] — питает «кто нашёл»
     currency: data.currency || "₩",    // символ/код валюты для цен

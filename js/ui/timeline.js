@@ -30,7 +30,9 @@ function placeCard(trip, p) {
         ? p.time
         : (fixed ? "" : '<span class="tl-grip" title="Перетащите, чтобы изменить порядок" aria-hidden="true">⠿</span>')}</div>
       <div class="tl-mid">
-        <div class="tl-dot" aria-hidden="true">${p.photo}</div>
+        <div class="tl-dot${p.image ? " tl-dot-img" : ""}">${p.image
+          ? `<img class="tl-thumb" src="${p.image}" alt="${p.name}" loading="lazy">`
+          : `<span aria-hidden="true">${p.photo}</span>`}</div>
         <div class="tl-line"></div>
       </div>
       <div class="tl-card">

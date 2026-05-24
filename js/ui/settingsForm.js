@@ -64,6 +64,8 @@ export function renderSettingsPage(container, { trip, onSave, onCancel }) {
             <textarea id="st_lead" rows="2" placeholder="короткое описание поездки">${trip.lead || ""}</textarea></label>
           <label class="ff"><span class="ff-label">Личная заметка</span>
             <input id="st_note" type="text" value="${trip.note || ""}" placeholder="напр. 💛 только вдвоём"></label>
+          <label class="ff"><span class="ff-label">Обложка (ссылка на картинку)</span>
+            <input id="st_cover" type="url" value="${trip.cover || ""}" placeholder="https://… фон шапки (необязательно)"></label>
           <p class="tf-error" id="st_error" role="alert" hidden></p>
         </section>
 
@@ -147,6 +149,7 @@ export function renderSettingsPage(container, { trip, onSave, onCancel }) {
       hotel: $("st_hotel").value.trim() ? { name: $("st_hotel").value.trim(), coords: trip.hotel?.coords || null } : null,
       lead: $("st_lead").value.trim(),
       note: $("st_note").value.trim(),
+      cover: $("st_cover").value.trim(),
       people,
       currency: $("st_currency").value.trim() || "₩",
       budget: budgetRaw === "" ? null : Number(budgetRaw),

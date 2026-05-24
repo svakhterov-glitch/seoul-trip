@@ -27,6 +27,8 @@ import { renderTimeline, highlightPlace } from "./ui/timeline.js";
 import { renderPlaceForm } from "./ui/placeForm.js";
 import { renderDayForm } from "./ui/dayForm.js";
 import { renderInbox } from "./ui/inbox.js";
+import { renderTrends } from "./ui/trends.js";
+import { MockAiService } from "./ai/mockAiService.js";
 import { enableDnD } from "./ui/dnd.js";
 
 /* ---------- инициализация данных ---------- */
@@ -50,7 +52,9 @@ const itineraryEl = document.getElementById("itinerary");
 const capEl = document.getElementById("mapCap");
 const editorEl = document.getElementById("editorPanel");
 const inboxEl = document.getElementById("inbox");
+const trendsEl = document.getElementById("trends");
 const catLegendEl = document.getElementById("catLegend");
+const aiService = new MockAiService();
 
 /* пользователь просит меньше движения? */
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -94,7 +98,21 @@ async function refreshTripBar() {
     onSelect: selectTrip,
     onNew: () => { location.hash = "#/new"; },
     onSettings: () => { location.hash = "#/settings"; },
+    onGenerate: generateItinerary,
   });
+}
+
+/* ---------- ИИ-генерация маршрута (заглушка) ---------- */
+async function generateItinerary() {
+  const trip = store.getTrip();
+  const hasPlaces = trip.places.some((p) => p.dayNumber >= 1 && p.type !== "airport");
+  if (hasPlaces && !confirm("Собрать черновик маршрута через ИИ? Предложенные места добавятся к уже имеющимся.")) return;
+  const suggested = await aiService.generateItinerary(trip);
+  if (!suggested.length) {
+    alert("ИИ-заглушка пока умеет только Сеул (демо на базе «опыта»). Настоящий ИИ для любого города подключим на бэкенде.");
+    return;
+  }
+  await store.addPlaces(suggested);
 }
 
 async function selectTrip(id) {
@@ -294,6 +312,11 @@ function render(store) {
     onAdd: addLink,
     onConvert: convertLink,
     onDelete: (id) => store.removeLink(id),
+  });
+  renderTrends(trendsEl, trip, {
+    onAdd: (t) => openEditor(null, store.getActiveDay() || 1, {
+      prefill: { name: t.name, coords: t.coords, photo: t.photo, desc: t.why },
+    }),
   });
   renderTabs(tabsEl, trip, day, (d) => store.setActiveDay(d));
   mapApi.update(trip, day, selectPlace);
