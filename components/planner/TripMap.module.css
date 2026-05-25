@@ -1,0 +1,4 @@
+.map { width: 100%; height: 100%; min-height: 320px; }
+.pin { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; background: var(--accent); color: #fff; font-weight: 700; font-size: 13px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); border: 2px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,.3); }
+.pin span { transform: rotate(45deg); }
+.draft { background: var(--navy); }
