@@ -1,0 +1,6 @@
+.steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; padding: 32px; max-width: 1080px; margin: 0 auto; }
+.step { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px; }
+.ic { font-size: 24px; }
+.step h3 { margin: 10px 0 4px; font-size: 15px; color: var(--navy); }
+.step p { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.45; }
+@media (max-width: 760px) { .steps { grid-template-columns: 1fr; } }
