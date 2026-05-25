@@ -4,7 +4,7 @@
    поездка». Нативный <select> доступен с клавиатуры из коробки.
    ============================================================ */
 
-export function renderTripBar(container, { trips, currentId, onSelect, onNew, onSettings, onGenerate }) {
+export function renderTripBar(container, { trips, currentId, onSelect, onNew, onSettings, onGenerate, auth }) {
   container.innerHTML = "";
 
   const wrap = document.createElement("div");
@@ -49,6 +49,23 @@ export function renderTripBar(container, { trips, currentId, onSelect, onNew, on
   newBtn.addEventListener("click", onNew);
 
   actions.append(aiBtn, catBtn, newBtn);
+
+  // вход/выход (только если настроен Supabase)
+  if (auth) {
+    const authBtn = document.createElement("button");
+    authBtn.type = "button";
+    authBtn.className = "tripbar-btn";
+    if (auth.user) {
+      authBtn.innerHTML = `🚪 Выйти`;
+      authBtn.title = auth.user.email || "";
+      authBtn.addEventListener("click", auth.onLogout);
+    } else {
+      authBtn.innerHTML = `🔑 Войти`;
+      authBtn.addEventListener("click", auth.onLogin);
+    }
+    actions.append(authBtn);
+  }
+
   wrap.append(label, select, actions);
   container.appendChild(wrap);
 }

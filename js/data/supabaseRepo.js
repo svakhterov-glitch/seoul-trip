@@ -15,25 +15,33 @@ import { Repository } from "./repository.js";
 import { createTrip } from "../model/entities.js";
 
 export class SupabaseRepository extends Repository {
+  /** @param {{url, anonKey, getToken?:()=>Promise<string>}} cfg */
   constructor(cfg) {
     super();
+    this.cfg = cfg;
     this.base = `${cfg.url}/rest/v1/trips`;
-    this.headers = {
-      apikey: cfg.anonKey,
-      Authorization: `Bearer ${cfg.accessToken || cfg.anonKey}`,
+  }
+
+  // заголовки с актуальным токеном пользователя (или anon как запасной)
+  async _headers(extra = {}) {
+    const token = (this.cfg.getToken ? await this.cfg.getToken() : null) || this.cfg.anonKey;
+    return {
+      apikey: this.cfg.anonKey,
+      Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
+      ...extra,
     };
   }
 
   async listTrips() {
-    const r = await fetch(`${this.base}?select=data&order=updated_at.desc`, { headers: this.headers });
+    const r = await fetch(`${this.base}?select=data&order=updated_at.desc`, { headers: await this._headers() });
     if (!r.ok) return [];
     const rows = await r.json();
     return rows.map((row) => createTrip(row.data));
   }
 
   async getTrip(id) {
-    const r = await fetch(`${this.base}?id=eq.${encodeURIComponent(id)}&select=data`, { headers: this.headers });
+    const r = await fetch(`${this.base}?id=eq.${encodeURIComponent(id)}&select=data`, { headers: await this._headers() });
     if (!r.ok) return null;
     const rows = await r.json();
     return rows.length ? createTrip(rows[0].data) : null;
@@ -43,13 +51,13 @@ export class SupabaseRepository extends Repository {
     // upsert: один атомарный запрос (Prefer: resolution=merge-duplicates)
     await fetch(this.base, {
       method: "POST",
-      headers: { ...this.headers, Prefer: "resolution=merge-duplicates,return=minimal" },
+      headers: await this._headers({ Prefer: "resolution=merge-duplicates,return=minimal" }),
       body: JSON.stringify({ id: trip.id, data: trip }),
     });
     return createTrip(trip);
   }
 
   async deleteTrip(id) {
-    await fetch(`${this.base}?id=eq.${encodeURIComponent(id)}`, { method: "DELETE", headers: this.headers });
+    await fetch(`${this.base}?id=eq.${encodeURIComponent(id)}`, { method: "DELETE", headers: await this._headers() });
   }
 }

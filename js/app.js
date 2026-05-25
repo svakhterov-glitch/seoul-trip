@@ -33,13 +33,18 @@ import { renderTrends } from "./ui/trends.js";
 import { MockAiService } from "./ai/mockAiService.js";
 import { ApiAiService } from "./ai/apiAiService.js";
 import { resolveLinkViaBackend } from "./services/resolveLink.js";
+import { isLoggedIn, currentUser, getAccessToken, signOut } from "./services/auth.js";
+import { renderLoginPage } from "./ui/loginForm.js";
 import { enableDnD } from "./ui/dnd.js";
 
 /* ---------- инициализация данных ---------- */
 // Конфиг опционален: без config.local.js — локальный режим (localStorage).
 const config = await getConfig();
-const repo = config.supabase?.url
-  ? new SupabaseRepository(config.supabase)
+// облако используем только если Supabase задан И пользователь вошёл;
+// иначе — локальный режим (localStorage)
+const useCloud = !!config.supabase?.url && isLoggedIn();
+const repo = useCloud
+  ? new SupabaseRepository({ ...config.supabase, getToken: () => getAccessToken(config.supabase) })
   : new LocalStorageRepository();
 
 // Загружаем сохранённую поездку, если она есть (правки сохраняются между
@@ -86,6 +91,12 @@ function route() {
       onSave: async (patch) => { await store.updateTrip(patch); location.hash = ""; },
       onCancel: () => history.back(),
     }));
+  } else if (location.hash === "#/login") {
+    showPage((el) => renderLoginPage(el, {
+      supabase: config.supabase,
+      onDone: () => { location.hash = ""; location.reload(); }, // переинициализация в облачном режиме
+      onCancel: () => history.back(),
+    }));
   } else {
     viewPage.hidden = true;
     viewPage.innerHTML = "";
@@ -106,6 +117,12 @@ async function refreshTripBar() {
     onNew: () => { location.hash = "#/new"; },
     onSettings: () => { location.hash = "#/settings"; },
     onGenerate: generateItinerary,
+    // вход/выход показываем только если Supabase настроен
+    auth: config.supabase?.url ? {
+      user: currentUser(),
+      onLogin: () => { location.hash = "#/login"; },
+      onLogout: async () => { await signOut(config.supabase); location.reload(); },
+    } : null,
   });
 }
 
