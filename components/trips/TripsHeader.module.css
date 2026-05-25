@@ -1,0 +1,6 @@
+.bar { display: flex; align-items: center; justify-content: space-between; padding: 14px 24px; background: var(--navy); color: #fff; }
+.logo { font-weight: 800; font-size: 18px; }
+.logo b { color: var(--accent); }
+.right { display: flex; align-items: center; gap: 14px; }
+.email { font-size: 13px; color: #c7cde0; }
+.logout { background: transparent; border: 1px solid rgba(255,255,255,.4); color: #fff; border-radius: 8px; padding: 6px 14px; font-weight: 600; }

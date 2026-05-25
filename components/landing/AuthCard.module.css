@@ -1,0 +1,12 @@
+.card { background: #fff; border-radius: 14px; padding: 22px; box-shadow: 0 8px 28px rgba(0,0,0,.22); }
+.tabs { display: flex; gap: 6px; background: #f1f3f9; border-radius: 10px; padding: 4px; margin-bottom: 16px; }
+.tab, .tabOn { flex: 1; text-align: center; font-size: 13px; font-weight: 600; padding: 9px; border-radius: 7px; border: 0; background: transparent; color: var(--muted); }
+.tabOn { background: #fff; color: var(--navy); box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+.label { display: block; font-size: 12px; color: var(--navy); font-weight: 600; margin: 12px 0 4px; }
+.input { width: 100%; border: 1px solid #d4d8e6; border-radius: 9px; padding: 11px 12px; font-size: 14px; background: #fafbff; }
+.input:focus { outline: 2px solid var(--accent); border-color: var(--accent); }
+.err { color: var(--accent); font-size: 12px; margin-top: 4px; }
+.serverErr { color: #fff; background: var(--accent); border-radius: 8px; padding: 8px 10px; font-size: 13px; margin-top: 12px; }
+.cta { width: 100%; background: var(--accent); color: #fff; border: 0; border-radius: 9px; padding: 13px; font-weight: 700; font-size: 14px; margin-top: 16px; }
+.cta:disabled { opacity: .6; cursor: default; }
+.fine { font-size: 11px; color: var(--muted); text-align: center; margin: 10px 0 0; }
