@@ -15,5 +15,6 @@ backend/.env
 /.next
 /out
 next-env.d.ts
+*.tsbuildinfo
 .env.local
 .env.production
