@@ -201,9 +201,9 @@ seoul-trip/
 
 ## 6. Бэкенд (каркас готов — ветка `backend-scaffold`, требует ключей)
 
-Написан каркас, выключенный по умолчанию (см. `backend/README.md`):
+Написан каркас, выключенный по умолчанию (см. `supabase/README.md`):
 
-- **Supabase:** `SupabaseRepository` + `backend/schema.sql` (таблица trips jsonb,
+- **Supabase:** `SupabaseRepository` + `supabase/migrations/*_init.sql` (таблица trips jsonb,
   RLS, индексы). Включается конфигом, вместо localStorage. TODO: экран входа.
 - **Настоящий ИИ:** функция `generate-itinerary` (Claude) + `ApiAiService`
   вместо `MockAiService`.

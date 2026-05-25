@@ -2,13 +2,13 @@
    РЕАЛИЗАЦИЯ ХРАНИЛИЩА НА SUPABASE (через REST)
    Тот же контракт, что у LocalStorageRepository — приложение не
    замечает разницы. Данные поездки лежат как JSONB в таблице trips
-   (см. backend/schema.sql). Зависимостей нет: ходим в Supabase REST
+   (см. supabase/migrations/*_init.sql). Зависимостей нет: ходим в Supabase REST
    обычным fetch.
 
    Авторизация: для RLS нужен JWT пользователя (cfg.accessToken).
    Без входа запросы пойдут с anon-ключом и будут отclonкнены RLS —
    поэтому к боевому использованию нужен экран входа (Supabase Auth),
-   см. backend/README.md. Это каркас, готовый к подключению.
+   см. supabase/README.md. Это каркас, готовый к подключению.
    ============================================================ */
 
 import { Repository } from "./repository.js";

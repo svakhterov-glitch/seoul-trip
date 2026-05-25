@@ -1,0 +1,52 @@
+name: Deploy to Supabase
+
+# Деплой edge-функций (и, при наличии пароля БД, миграций) при пуше в main.
+# Нужны секреты репозитория (Settings → Secrets and variables → Actions):
+#   SUPABASE_ACCESS_TOKEN  — Account → Access Tokens на supabase.com
+#   SUPABASE_PROJECT_REF   — ref проекта (из URL https://<ref>.supabase.co)
+#   ANTHROPIC_API_KEY      — для ИИ и «чтения» ссылок (необязательно)
+#   KAKAO_REST_KEY         — для трендов (необязательно)
+#   SUPABASE_DB_PASSWORD   — пароль БД, если хотите применять миграции из CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "supabase/**"
+      - ".github/workflows/deploy-supabase.yml"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+      DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Секреты функций (ИИ / Kakao)
+        run: |
+          if [ -n "${{ secrets.ANTHROPIC_API_KEY }}" ]; then
+            supabase secrets set ANTHROPIC_API_KEY="${{ secrets.ANTHROPIC_API_KEY }}" --project-ref "$PROJECT_REF"
+          fi
+          if [ -n "${{ secrets.ANTHROPIC_MODEL }}" ]; then
+            supabase secrets set ANTHROPIC_MODEL="${{ secrets.ANTHROPIC_MODEL }}" --project-ref "$PROJECT_REF"
+          fi
+          if [ -n "${{ secrets.KAKAO_REST_KEY }}" ]; then
+            supabase secrets set KAKAO_REST_KEY="${{ secrets.KAKAO_REST_KEY }}" --project-ref "$PROJECT_REF"
+          fi
+
+      - name: Миграции БД (если задан SUPABASE_DB_PASSWORD)
+        if: ${{ env.DB_PASSWORD != '' }}
+        run: |
+          supabase link --project-ref "$PROJECT_REF" --password "$DB_PASSWORD"
+          supabase db push --password "$DB_PASSWORD"
+
+      - name: Деплой edge-функций
+        run: supabase functions deploy --project-ref "$PROJECT_REF"

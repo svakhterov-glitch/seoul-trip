@@ -1,0 +1,13 @@
+# Конфигурация Supabase CLI. project_id используется для локальной разработки;
+# в CI/деплое проект указывается через --project-ref (секрет GitHub).
+project_id = "seoul-trip"
+
+# Функции вызываются из браузера без пользовательского JWT.
+[functions.resolve-link]
+verify_jwt = false
+
+[functions.generate-itinerary]
+verify_jwt = false
+
+[functions.trends]
+verify_jwt = false

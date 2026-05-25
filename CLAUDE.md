@@ -86,10 +86,12 @@ js/
   data/supabaseRepo.js  — Repository через Supabase REST (тот же контракт)
   ai/apiAiService.js    — AiService через edge-функцию (настоящий Claude)
   services/resolveLink.js — клиент edge-функции «чтения» ссылок
-backend/                — БД и серверные функции (ветка backend-scaffold)
-  schema.sql            — таблица trips (jsonb) + RLS + индексы
-  functions/            — resolve-link, generate-itinerary, trends (Deno)
-  README.md             — пошаговая настройка (аккаунты, ключи, деплой)
+supabase/                — БД и серверные функции (стандартная структура)
+  migrations/            — схема БД: trips (jsonb) + RLS + индексы
+  functions/             — resolve-link, generate-itinerary, trends (Deno)
+  config.toml            — конфиг CLI (функции без verify_jwt)
+  README.md              — деплой через GitHub (2 способа), ключи
+.github/workflows/deploy-supabase.yml — авто-деплой функций/миграций по пушу
 config.local.example.js — шаблон конфига (копировать в config.local.js)
 PLAN.md                 — видение продукта и план по этапам
 ```
@@ -143,7 +145,7 @@ flights[], days[], places[], inbox[] }`
 - **Скрытая карта.** После показа ранее скрытого вида звать
   `map.invalidateSize()` (см. `route()`), иначе тайлы «серые».
 
-## Бэкенд (опционально, ветка `backend-scaffold`)
+## Бэкенд (опционально, выключен по умолчанию)
 
 Каркас, готовый «подключить ключи». **По умолчанию выключен**: без
 `config.local.js` приложение работает локально (localStorage + MockAiService),
@@ -159,8 +161,8 @@ flights[], days[], places[], inbox[] }`
   локального на облачное не трогает UI/Store.
 - **TODO для боевого использования**: экран входа (Supabase Auth) — RLS требует
   пользовательский JWT. Без входа работают только функции (ссылки/ИИ), но не
-  синхронизация БД. Подробности — `backend/README.md`.
-- Функции в `backend/` — Deno (TypeScript), `npm run check` их не проверяет
+  синхронизация БД. Подробности — `supabase/README.md`.
+- Функции в `supabase/functions/` — Deno (TypeScript), `npm run check` их не проверяет
   (он только для `js/`).
 
 ## Как добавить типичное
