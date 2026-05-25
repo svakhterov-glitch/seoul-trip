@@ -1,0 +1,9 @@
+.wrap { padding: 16px; overflow-y: auto; }
+.daySec { margin-bottom: 22px; }
+.head { margin-bottom: 8px; }
+.headTop { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.dlabel { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
+.add { border: 1px solid var(--accent); color: var(--accent); background: transparent; border-radius: 8px; padding: 5px 10px; font-size: 12px; font-weight: 700; }
+.add:hover { background: var(--accent); color: #fff; }
+.dtitle { margin: 4px 0 0; font-size: 17px; color: var(--navy); }
+.empty { font-size: 13px; color: var(--muted); background: #fff; border: 1px dashed var(--line); border-radius: 10px; padding: 14px; }
