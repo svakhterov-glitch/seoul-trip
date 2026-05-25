@@ -11,6 +11,9 @@ backend/.env
 # Визуальный компаньон брейншторма (временные макеты)
 .superpowers/
 
+# Локальные настройки/состояние Claude Code
+.claude/
+
 # Next.js
 /.next
 /out
