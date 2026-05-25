@@ -1,0 +1,8 @@
+.bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; background: var(--navy); color: #fff; }
+.back { font-size: 13px; color: #c7cde0; white-space: nowrap; }
+.back:hover { color: #fff; }
+.center { text-align: center; }
+.title { font-weight: 800; font-size: 16px; }
+.dates { font-size: 12px; color: #c7cde0; }
+.spacer { width: 96px; }
+@media (max-width: 560px) { .spacer { display: none; } }
