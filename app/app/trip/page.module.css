@@ -1,0 +1,9 @@
+.layout { display: grid; grid-template-columns: minmax(360px, 1fr) 1fr; height: calc(100vh - 56px - 73px); }
+.left { overflow-y: auto; border-right: 1px solid var(--line); background: var(--bg); position: relative; }
+.right { position: relative; }
+.formWrap { position: absolute; inset: 0; background: rgba(15,27,61,.35); display: flex; align-items: flex-start; justify-content: center; padding: 18px; overflow-y: auto; z-index: 500; }
+.formInner { width: 100%; max-width: 460px; }
+.loading { padding: 80px; text-align: center; color: var(--muted); }
+.notfound { padding: 60px 24px; text-align: center; color: var(--muted); }
+.notfound a { color: var(--accent); font-weight: 700; }
+@media (max-width: 800px) { .layout { grid-template-columns: 1fr; height: auto; } .right { height: 60vh; } }

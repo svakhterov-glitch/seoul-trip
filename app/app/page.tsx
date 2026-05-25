@@ -34,7 +34,7 @@ export default function TripsPage() {
       <TripsGrid
         trips={trips}
         onNew={() => router.push('/app/new')}
-        onOpen={() => router.push('/app/new?soon=1')}
+        onOpen={(id) => router.push(`/app/trip/?id=${id}`)}
       />
     </main>
   );
