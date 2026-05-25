@@ -21,3 +21,21 @@ export async function createTrip(supabase: SupabaseClient, doc: TripDoc): Promis
   if (error) throw error;
   return doc;
 }
+
+export async function getTrip(supabase: SupabaseClient, id: string): Promise<TripSummary | null> {
+  const { data, error } = await supabase
+    .from('trips')
+    .select('id,data')
+    .eq('id', id)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  const row = data as { id: string; data: TripDoc };
+  return { ...row.data, id: row.id };
+}
+
+export async function updateTrip(supabase: SupabaseClient, doc: TripDoc): Promise<TripDoc> {
+  const { error } = await supabase.from('trips').update({ data: doc }).eq('id', doc.id);
+  if (error) throw error;
+  return doc;
+}

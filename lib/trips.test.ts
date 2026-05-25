@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { listTrips, createTrip } from '@/lib/trips';
+import { listTrips, createTrip, getTrip, updateTrip } from '@/lib/trips';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 function fakeClientForList(rows: unknown[]) {
@@ -46,5 +46,49 @@ describe('createTrip', () => {
     const insert = vi.fn().mockResolvedValue({ error: { message: 'rls' } });
     const client = { from: () => ({ insert }) } as unknown as SupabaseClient;
     await expect(createTrip(client, { id: 'a' } as never)).rejects.toThrow();
+  });
+});
+
+describe('getTrip', () => {
+  it('возвращает документ с id', async () => {
+    const maybeSingle = vi.fn().mockResolvedValue({ data: { id: 'trip_1', data: { id: 'trip_1', title: 'Сеул' } }, error: null });
+    const eq = vi.fn().mockReturnValue({ maybeSingle });
+    const select = vi.fn().mockReturnValue({ eq });
+    const client = { from: vi.fn().mockReturnValue({ select }) } as unknown as SupabaseClient;
+    const trip = await getTrip(client, 'trip_1');
+    expect(trip?.id).toBe('trip_1');
+    expect(trip?.title).toBe('Сеул');
+    expect(eq).toHaveBeenCalledWith('id', 'trip_1');
+  });
+
+  it('нет строки → null', async () => {
+    const maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+    const client = { from: () => ({ select: () => ({ eq: () => ({ maybeSingle }) }) }) } as unknown as SupabaseClient;
+    expect(await getTrip(client, 'nope')).toBeNull();
+  });
+
+  it('ошибка → исключение', async () => {
+    const maybeSingle = vi.fn().mockResolvedValue({ data: null, error: { message: 'boom' } });
+    const client = { from: () => ({ select: () => ({ eq: () => ({ maybeSingle }) }) }) } as unknown as SupabaseClient;
+    await expect(getTrip(client, 'x')).rejects.toThrow();
+  });
+});
+
+describe('updateTrip', () => {
+  it('пишет data по id и возвращает документ', async () => {
+    const eq = vi.fn().mockResolvedValue({ error: null });
+    const update = vi.fn().mockReturnValue({ eq });
+    const client = { from: vi.fn().mockReturnValue({ update }) } as unknown as SupabaseClient;
+    const doc = { id: 'trip_x', title: 'Токио' } as never;
+    const res = await updateTrip(client, doc);
+    expect(update).toHaveBeenCalledWith({ data: doc });
+    expect(eq).toHaveBeenCalledWith('id', 'trip_x');
+    expect(res).toBe(doc);
+  });
+
+  it('ошибка → исключение', async () => {
+    const eq = vi.fn().mockResolvedValue({ error: { message: 'rls' } });
+    const client = { from: () => ({ update: () => ({ eq }) }) } as unknown as SupabaseClient;
+    await expect(updateTrip(client, { id: 'a' } as never)).rejects.toThrow();
   });
 });
