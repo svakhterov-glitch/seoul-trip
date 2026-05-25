@@ -13,9 +13,12 @@
 # ============================================================
 set -euo pipefail
 
-SUPA_URL="${1:-}"
-SUPA_KEY="${2:-}"
-FN_URL="${3:-}"
+# Значения Supabase зашиты по умолчанию (publishable-ключ безопасен
+# для браузера и всё равно отдаётся посетителям). Можно переопределить
+# аргументами: setup.sh <URL> <KEY> <FUNCTIONS_URL>.
+SUPA_URL="${1:-https://wcipnwgniynriazvqucn.supabase.co}"
+SUPA_KEY="${2:-sb_publishable_KRJndMFAM0J-CXhcSIx0Fg_JCcjhdzL}"
+FN_URL="${3:-https://wcipnwgniynriazvqucn.functions.supabase.co}"
 DIR=/var/www/seoul-trip
 REPO=https://github.com/svakhterov-glitch/seoul-trip.git
 
