@@ -126,6 +126,7 @@ function PlannerInner() {
         title={trip.title}
         lead={trip.lead}
         companions={trip.companions}
+        coverImage={trip.coverImage}
         dateRange={formatDateRange(trip.startDate, trip.endDate)}
         busy={busy}
         onSave={handleCoverSave}

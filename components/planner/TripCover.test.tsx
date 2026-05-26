@@ -8,6 +8,7 @@ const base = {
   title: 'Весна в Сеуле',
   lead: 'Поездка мечты',
   companions: ['Аня'],
+  coverImage: '',
   dateRange: '7–15 июня 2026',
   busy: false,
 };
@@ -45,7 +46,24 @@ describe('TripCover', () => {
       title: 'Новый заголовок',
       lead: 'Поездка мечты',
       companions: ['Аня', 'Миша'],
+      coverImage: '',
     });
+  });
+
+  it('показывает картинку-обложку, если задана', () => {
+    render(<TripCover {...base} coverImage="https://example.com/seoul.jpg" onSave={vi.fn()} />);
+    const img = document.querySelector('img') as HTMLImageElement;
+    expect(img).toBeTruthy();
+    expect(img.getAttribute('src')).toBe('https://example.com/seoul.jpg');
+  });
+
+  it('сохраняет ссылку на обложку', async () => {
+    const onSave = vi.fn();
+    render(<TripCover {...base} onSave={onSave} />);
+    await userEvent.click(screen.getByRole('button', { name: /Редактировать обложку/i }));
+    await userEvent.type(screen.getByLabelText(/Картинка-обложка/i), 'https://example.com/x.jpg');
+    await userEvent.click(screen.getByRole('button', { name: /Сохранить/i }));
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ coverImage: 'https://example.com/x.jpg' }));
   });
 
   it('пустое название не сохраняется', async () => {

@@ -62,6 +62,8 @@ export interface TripDoc {
   note: string;
   /** Спутники: с кем едем (список имён). */
   companions: string[];
+  /** Ссылка на картинку-обложку этой поездки (перебивает дефолт города). */
+  coverImage: string;
   currency: string;
   categories: Category[];
   days: Day[];
@@ -118,6 +120,7 @@ export function createTripDoc(input: CreateTripInput): TripDoc {
     lead: '',
     note: '',
     companions: [],
+    coverImage: '',
     currency: 'RUB',
     categories: DEFAULT_CATEGORIES,
     days: buildDays(input.startDate, input.endDate),
@@ -180,11 +183,13 @@ export function ensureTripDefaults(trip: TripDoc): TripDoc {
   const days = Array.isArray(trip.days) ? trip.days : [];
   const needDays = days.length === 0;
   const needCompanions = !Array.isArray(trip.companions);
-  if (!needDays && !needCompanions) return trip;
+  const needCover = typeof trip.coverImage !== 'string';
+  if (!needDays && !needCompanions && !needCover) return trip;
   return {
     ...trip,
     days: needDays ? buildDays(trip.startDate, trip.endDate) : days,
     companions: needCompanions ? [] : trip.companions,
+    coverImage: needCover ? '' : trip.coverImage,
   };
 }
 
@@ -193,6 +198,7 @@ export interface TripMetaPatch {
   title?: string;
   lead?: string;
   companions?: string[];
+  coverImage?: string;
 }
 
 /** Иммутабельно обновить мету поездки (название/описание/спутники). */
