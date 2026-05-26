@@ -110,10 +110,12 @@ function PlannerInner() {
     setResolving((r) => r.filter((x) => x !== link.id));
     const base = tripRef.current;
     if (!resolved || !base || !base.inbox.some((l) => l.id === link.id)) return;
-    if (resolved.coords || (resolved.name && !link.name)) {
+    if (resolved.coords || resolved.desc || resolved.image || (resolved.name && !link.name)) {
       save(updateInboxLink(base, link.id, {
         coords: resolved.coords ?? link.coords,
         name: resolved.name || link.name,
+        desc: resolved.desc || link.desc,
+        image: resolved.image || link.image,
       }));
     }
   }
@@ -177,7 +179,7 @@ function PlannerInner() {
   const initial: PlaceInput | undefined = editing
     ? { name: editing.name, coords: editing.coords, time: editing.time, desc: editing.desc, price: editing.price, image: editing.image, kind: editing.kind, by: editing.by, note: editing.note }
     : fromLink
-      ? { name: fromLink.name, coords: fromLink.coords, time: '', desc: '', price: null, image: '', kind: '', by: '', note: '' }
+      ? { name: fromLink.name, coords: fromLink.coords, time: '', desc: fromLink.desc ?? '', price: null, image: fromLink.image ?? '', kind: '', by: '', note: '' }
       : undefined;
 
   return (

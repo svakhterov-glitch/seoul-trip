@@ -13,21 +13,21 @@ describe('resolveLink', () => {
 
   it('возвращает координаты и имя из ответа функции', async () => {
     invoke.mockResolvedValue({
-      data: { name: 'Кёнбоккун', coords: [37.579, 126.977], displayName: 'Сеул', sourceUrl: 'https://www.google.com/maps/place/...' },
+      data: { name: 'Кёнбоккун', coords: [37.579, 126.977], description: 'Главный дворец', image: 'https://img/x.jpg', displayName: 'Сеул', sourceUrl: 'https://www.google.com/maps/place/...' },
       error: null,
     });
     const r = await resolveLink('https://maps.app.goo.gl/abc');
     expect(r).toEqual({
-      name: 'Кёнбоккун', coords: [37.579, 126.977], displayName: 'Сеул',
-      sourceUrl: 'https://www.google.com/maps/place/...',
+      name: 'Кёнбоккун', coords: [37.579, 126.977], desc: 'Главный дворец', image: 'https://img/x.jpg',
+      displayName: 'Сеул', sourceUrl: 'https://www.google.com/maps/place/...',
     });
     expect(invoke).toHaveBeenCalledWith('resolve-link', { body: { url: 'https://maps.app.goo.gl/abc' } });
   });
 
-  it('coords=null, если функция их не нашла', async () => {
-    invoke.mockResolvedValue({ data: { name: 'Кафе', coords: null }, error: null });
+  it('coords=null, если функция их не нашла; desc/image из ответа', async () => {
+    invoke.mockResolvedValue({ data: { name: 'Кафе', coords: null, description: 'уютное', image: 'https://p/1.jpg' }, error: null });
     const r = await resolveLink('https://instagram.com/p/x');
-    expect(r).toMatchObject({ name: 'Кафе', coords: null });
+    expect(r).toMatchObject({ name: 'Кафе', coords: null, desc: 'уютное', image: 'https://p/1.jpg' });
   });
 
   it('пустой URL → null без запроса', async () => {

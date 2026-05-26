@@ -60,12 +60,18 @@ export function Inbox({ links, days, busy = false, resolving = [], onAddLink, on
                 return (
                 <li key={l.id} className={styles.item}>
                   <div className={styles.info}>
-                    <span className={styles.chip}>{SOURCE_LABEL[l.source] ?? 'Ссылка'}</span>
-                    {l.coords && <span className={styles.located} title="Место найдено на карте">📍</span>}
-                    <a className={styles.name} href={l.url} target="_blank" rel="noopener noreferrer" title={l.url}>
-                      {l.name || l.url}
-                    </a>
-                    {isResolving && <span className={styles.resolving} role="status">разбираю…</span>}
+                    {l.image && <img className={styles.thumb} src={l.image} alt="" loading="lazy" />}
+                    <div className={styles.text}>
+                      <div className={styles.line}>
+                        <span className={styles.chip}>{SOURCE_LABEL[l.source] ?? 'Ссылка'}</span>
+                        {l.coords && <span className={styles.located} title="Место найдено на карте">📍</span>}
+                        <a className={styles.name} href={l.url} target="_blank" rel="noopener noreferrer" title={l.url}>
+                          {l.name || l.url}
+                        </a>
+                        {isResolving && <span className={styles.resolving} role="status">разбираю…</span>}
+                      </div>
+                      {l.desc && <p className={styles.desc}>{l.desc}</p>}
+                    </div>
                   </div>
                   <div className={styles.actions}>
                     <div className={styles.dayPick}>

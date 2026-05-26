@@ -33,20 +33,26 @@ Deno.serve(async (req) => {
     // 3. имя из страницы (og:title / <title>), если из URL не вышло
     if (!name) name = titleFromHtml(html);
 
-    // 4. уточнить «о каком месте речь» через Claude (если есть ключ)
+    // 4. фото и описание из og-тегов страницы (у Instagram/блогов — настоящие;
+    //    у Google og:image — превью-карта, og:description — мусор, чистим).
+    const image = imageFromHtml(html);
+    let description = cleanDesc(descFromHtml(html));
+
+    // 5. через Claude (Haiku, если есть ключ): чистое имя + краткое описание места.
     if (ANTHROPIC_KEY && (html || name)) {
-      const refined = await refinePlaceName(name, html);
-      if (refined) name = refined;
+      const d = await describePlace(name, html);
+      if (d.name) name = d.name;
+      if (d.description) description = d.description;
     }
 
-    // 5. геокодинг координат по названию, если их нет
+    // 6. геокодинг координат по названию, если их нет
     let displayName = "";
     if (!coords && name) {
       const g = await geocode(name);
       if (g) { coords = g.coords; displayName = g.displayName; }
     }
 
-    return json({ name: name || "", coords: coords ?? null, displayName, sourceUrl: finalUrl });
+    return json({ name: name || "", coords: coords ?? null, image, description, displayName, sourceUrl: finalUrl });
   } catch (e) {
     return json({ error: String(e) }, 500);
   }
@@ -87,6 +93,35 @@ function titleFromHtml(html: string): string {
   return t ? decodeEntities(t[1]).trim() : "";
 }
 
+// og:image / twitter:image — фото (у Instagram/блогов настоящее, у Google превью-карта).
+function imageFromHtml(html: string): string {
+  const m = metaContent(html, "og:image") || metaContent(html, "twitter:image");
+  return m ? decodeEntities(m).trim() : "";
+}
+
+// og:description / meta description — краткое описание со страницы.
+function descFromHtml(html: string): string {
+  const m = metaContent(html, "og:description")
+    || html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']*)["']/i)?.[1];
+  return m ? decodeEntities(m).trim() : "";
+}
+
+// Содержимое meta-тега по property (og:*) или name — порядок атрибутов любой.
+function metaContent(html: string, key: string): string {
+  const k = key.replace(/[:]/g, "\\:");
+  return (
+    html.match(new RegExp(`<meta[^>]+(?:property|name)=["']${k}["'][^>]+content=["']([^"']*)["']`, "i"))?.[1]
+    || html.match(new RegExp(`<meta[^>]+content=["']([^"']*)["'][^>]+(?:property|name)=["']${k}["']`, "i"))?.[1]
+    || ""
+  );
+}
+
+// Отсеять мусорные дефолтные описания Google Maps (страница — SPA-заглушка).
+function cleanDesc(s: string): string {
+  const junk = /find local businesses|view maps|get driving directions|найти информацию о местных|посмотреть карты/i;
+  return s && junk.test(s) ? "" : s;
+}
+
 function decodeEntities(s: string): string {
   return s.replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'")
     .replace(/&lt;/g, "<").replace(/&gt;/g, ">");
@@ -102,8 +137,10 @@ async function geocode(q: string) {
   return null;
 }
 
-// Claude: из заголовка/фрагмента страницы вытащить чистое название места
-async function refinePlaceName(title: string, html: string): Promise<string> {
+// Claude (Haiku): по названию + фрагменту страницы вернуть чистое имя места и
+// краткое описание для путешественника. Одним вызовом, ответ — JSON.
+async function describePlace(title: string, html: string): Promise<{ name: string; description: string }> {
+  const empty = { name: "", description: "" };
   try {
     const text = (title + "\n" + html.replace(/<[^>]+>/g, " ")).slice(0, 4000);
     const r = await fetch("https://api.anthropic.com/v1/messages", {
@@ -115,16 +152,23 @@ async function refinePlaceName(title: string, html: string): Promise<string> {
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 64,
+        max_tokens: 200,
         messages: [{
           role: "user",
-          content: `Вот заголовок и текст веб-страницы про место для путешествия. Верни ТОЛЬКО короткое название конкретного места (кафе/достопримечательность/район) и город, без кавычек и пояснений. Если места нет — верни пустую строку.\n\n${text}`,
+          content: `Это место для путешествия (заголовок + текст страницы). Верни ТОЛЬКО JSON без пояснений: {"name": "короткое название места и город", "description": "1–2 предложения по-русски: что это за место и чем интересно туристу"}. Если узнаёшь конкретное место по названию — опиши его из своих знаний. Если место не определяется — верни {"name":"","description":""}.\n\n${text}`,
         }],
       }),
     });
     const d = await r.json();
-    return (d?.content?.[0]?.text ?? "").trim().slice(0, 120);
+    const raw = (d?.content?.[0]?.text ?? "").trim();
+    const j = raw.match(/\{[\s\S]*\}/);
+    if (!j) return empty;
+    const parsed = JSON.parse(j[0]);
+    return {
+      name: typeof parsed.name === "string" ? parsed.name.trim().slice(0, 120) : "",
+      description: typeof parsed.description === "string" ? parsed.description.trim().slice(0, 400) : "",
+    };
   } catch {
-    return "";
+    return empty;
   }
 }

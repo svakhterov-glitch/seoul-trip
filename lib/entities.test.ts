@@ -213,11 +213,12 @@ describe('инбокс ссылок', () => {
     expect(addPlaceFromInbox(t, 'нет', 1, { name: 'A', coords: [1, 2], time: '', desc: '', price: null, image: '' })).toBe(t);
   });
 
-  it('updateInboxLink дописывает координаты и имя после разбора', () => {
+  it('updateInboxLink дописывает координаты, имя, описание и фото после разбора', () => {
     const t = addInboxLink(base(), 'https://maps.app.goo.gl/abc'); // короткая → coords null
+    expect(t.inbox[0]).toMatchObject({ desc: '', image: '' }); // изначально пусто
     const id = t.inbox[0].id;
-    const r = updateInboxLink(t, id, { coords: [37.58, 126.98], name: 'Кёнбоккун' });
-    expect(r.inbox[0]).toMatchObject({ coords: [37.58, 126.98], name: 'Кёнбоккун' });
+    const r = updateInboxLink(t, id, { coords: [37.58, 126.98], name: 'Кёнбоккун', desc: 'Дворец', image: 'https://i/x.jpg' });
+    expect(r.inbox[0]).toMatchObject({ coords: [37.58, 126.98], name: 'Кёнбоккун', desc: 'Дворец', image: 'https://i/x.jpg' });
     expect(r).not.toBe(t); // иммутабельно
   });
 

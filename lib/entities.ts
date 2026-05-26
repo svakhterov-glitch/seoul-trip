@@ -80,6 +80,8 @@ export interface InboxLink {
   url: string;
   name: string;          // разобранное название ('' если не вышло)
   coords: Coords | null; // координаты из map-ссылки, иначе null
+  desc: string;          // краткое описание с сервера ('' пока не разобрано)
+  image: string;         // фото со страницы (og:image), '' если нет
   source: string;        // 'google' | 'kakao' | 'instagram' | 'other'
   createdAt: string;     // ISO-время добавления
 }
@@ -339,6 +341,8 @@ export function addInboxLink(trip: TripDoc, url: string): TripDoc {
     url: u,
     name: parsed.name,
     coords: parsed.coords,
+    desc: '',
+    image: '',
     source: parsed.source,
     createdAt: new Date().toISOString(),
   };
@@ -354,7 +358,7 @@ export function removeInboxLink(trip: TripDoc, id: string): TripDoc {
  * Дописать в ссылку инбокса результат разбора (имя/координаты с сервера).
  * Неизвестный id → trip без изменений. Используется после `resolveLink`.
  */
-export function updateInboxLink(trip: TripDoc, id: string, patch: Partial<Pick<InboxLink, 'name' | 'coords'>>): TripDoc {
+export function updateInboxLink(trip: TripDoc, id: string, patch: Partial<Pick<InboxLink, 'name' | 'coords' | 'desc' | 'image'>>): TripDoc {
   if (!trip.inbox.some((l) => l.id === id)) return trip;
   return { ...trip, inbox: trip.inbox.map((l) => (l.id === id ? { ...l, ...patch } : l)) };
 }
