@@ -1,4 +1,13 @@
-.mapSection { position: relative; height: 460px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.shell {
+  max-width: 1072px; margin: 0 auto; padding: 16px;
+  display: flex; flex-direction: column; gap: 16px;
+}
+
+.mapSection {
+  position: relative; height: 440px;
+  border-radius: 16px; overflow: hidden;
+  border: 1px solid var(--line); box-shadow: var(--shadow);
+}
 
 .modal {
   position: fixed; inset: 0; z-index: 1000;
@@ -27,4 +36,7 @@
 
 @media (max-width: 800px) {
   .mapSection { height: 60vh; }
+}
+@media (max-width: 560px) {
+  .shell { padding: 12px; gap: 12px; }
 }

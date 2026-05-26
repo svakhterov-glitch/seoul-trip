@@ -1,4 +1,4 @@
-.wrap { padding: 16px; overflow-y: auto; }
+.wrap { padding: 0; }
 .daySec { margin-bottom: 22px; }
 .head { margin-bottom: 8px; }
 .headTop { display: flex; align-items: center; justify-content: space-between; gap: 10px; }

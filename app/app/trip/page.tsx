@@ -121,28 +121,30 @@ function PlannerInner() {
     <main>
       <PlannerHeader title={trip.title} startDate={trip.startDate} endDate={trip.endDate} />
 
-      <TripCover
-        city={trip.city}
-        title={trip.title}
-        lead={trip.lead}
-        companions={trip.companions}
-        coverImage={trip.coverImage}
-        dateRange={formatDateRange(trip.startDate, trip.endDate)}
-        busy={busy}
-        onSave={handleCoverSave}
-      />
+      <div className={styles.shell}>
+        <TripCover
+          city={trip.city}
+          title={trip.title}
+          lead={trip.lead}
+          companions={trip.companions}
+          coverImage={trip.coverImage}
+          dateRange={formatDateRange(trip.startDate, trip.endDate)}
+          busy={busy}
+          onSave={handleCoverSave}
+        />
 
-      <DayTabs days={trip.days} categories={trip.categories} activeDay={activeDay} onSelect={setActiveDay} />
+        <DayTabs days={trip.days} categories={trip.categories} activeDay={activeDay} onSelect={setActiveDay} />
 
-      <div className={styles.mapSection} ref={mapRef}>
-        <TripMap trip={trip} day={activeDay} picking={picking} draftCoords={draftCoords}
-          onMapClick={(c) => { setDraftCoords(c); setPicking(false); }}
-          onPlaceClick={openEdit} />
+        <div className={styles.mapSection} ref={mapRef}>
+          <TripMap trip={trip} day={activeDay} picking={picking} draftCoords={draftCoords}
+            onMapClick={(c) => { setDraftCoords(c); setPicking(false); }}
+            onPlaceClick={openEdit} />
+        </div>
+
+        <Timeline trip={trip} day={activeDay}
+          onAddPlace={openAdd} onEditPlace={openEdit} onDeletePlace={handleDelete}
+          onSelectPlace={() => { /* выбор места — на будущее (центрирование карты) */ }} />
       </div>
-
-      <Timeline trip={trip} day={activeDay}
-        onAddPlace={openAdd} onEditPlace={openEdit} onDeletePlace={handleDelete}
-        onSelectPlace={() => { /* выбор места — на будущее (центрирование карты) */ }} />
 
       {/* Форма места — модалка. В режиме выбора точки прячем (не размонтируя, чтобы сохранить ввод). */}
       {form.mode !== 'closed' && (
