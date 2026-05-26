@@ -2,6 +2,7 @@
 
 import { type TripDoc, getCategory, placesForDay } from '@/lib/entities';
 import { PlaceCard } from './PlaceCard';
+import { CatBadge } from './badges';
 import styles from './Timeline.module.css';
 
 interface Props {
@@ -28,7 +29,10 @@ export function Timeline({ trip, day, onAddPlace, onEditPlace, onDeletePlace, on
                 <span className={styles.dlabel}>День {d.number} · {d.date}</span>
                 <button type="button" className={styles.add} onClick={() => onAddPlace(d.number)}>＋ Добавить место</button>
               </div>
-              <h3 className={styles.dtitle}>{d.title}</h3>
+              <div className={styles.titleRow}>
+                <h3 className={styles.dtitle}>{d.title}</h3>
+                {cat && <CatBadge category={cat} />}
+              </div>
             </div>
             {places.length === 0
               ? <div className={styles.empty}>На этот день пока ничего не запланировано. Добавьте место кнопкой выше.</div>

@@ -1,7 +1,7 @@
 'use client';
 
 import { type Place, type Category, getPlaceKind } from '@/lib/entities';
-import { CatBadge, PriceBadge, KindBadge, PersonBadge } from './badges';
+import { PriceBadge, KindBadge, PersonBadge } from './badges';
 import styles from './PlaceCard.module.css';
 
 interface Props {
@@ -15,6 +15,7 @@ interface Props {
 export function PlaceCard({ place, category, onSelect, onEdit, onDelete }: Props) {
   const emoji = getPlaceKind(place.kind)?.emoji || place.photo || '📍';
   const stripe = category?.color || '#cbd2e6';
+  const hasBadges = !!place.kind || (place.price !== null && place.price !== undefined) || !!place.by;
 
   return (
     <div className={styles.item} role="button" tabIndex={0}
@@ -47,12 +48,13 @@ export function PlaceCard({ place, category, onSelect, onEdit, onDelete }: Props
             <div className={styles.name}>{place.name}</div>
             {place.desc && <div className={styles.desc}>{place.desc}</div>}
             {place.note && <div className={styles.note}>💬 {place.note}</div>}
-            <div className={styles.badges}>
-              <KindBadge kind={place.kind} />
-              <CatBadge category={category} />
-              <PriceBadge price={place.price} />
-              <PersonBadge name={place.by} />
-            </div>
+            {hasBadges && (
+              <div className={styles.badges}>
+                <KindBadge kind={place.kind} />
+                <PriceBadge price={place.price} />
+                <PersonBadge name={place.by} />
+              </div>
+            )}
           </div>
         </div>
       </div>
