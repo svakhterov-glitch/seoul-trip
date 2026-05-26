@@ -1,8 +1,21 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Timeline } from '@/components/planner/Timeline';
 import { createTripDoc, addPlaceToTrip } from '@/lib/entities';
+
+function rect(top: number, height: number): DOMRect {
+  return { top, height, bottom: top + height, left: 0, right: 0, width: 0, x: 0, y: top, toJSON() {} } as DOMRect;
+}
+
+// jsdom не прокидывает clientY через PointerEvent — используем MouseEvent (clientY
+// в конструкторе работает) с типом pointer*, дописывая pointerId/pointerType.
+function firePointer(el: Element, type: string, init: { pointerId: number; clientY?: number; button?: number }) {
+  const ev = new MouseEvent(type, { bubbles: true, cancelable: true, button: init.button ?? 0, clientY: init.clientY ?? 0 });
+  Object.defineProperty(ev, 'pointerId', { value: init.pointerId });
+  Object.defineProperty(ev, 'pointerType', { value: 'mouse' });
+  act(() => { el.dispatchEvent(ev); });
+}
 
 function tripWithPlace() {
   const base = createTripDoc({ title: 'X', country: 'Y', city: 'Z', startDate: '2026-06-07', endDate: '2026-06-09' });
@@ -58,6 +71,36 @@ describe('Timeline', () => {
     grip.focus();
     await userEvent.keyboard('{ArrowDown}');
     expect(onMovePlace).toHaveBeenCalledWith(trip.places[0].id, 1, 1);
+  });
+
+  it('перетаскивание мышью (pointer): тянем первое место вниз → onMovePlace(id,1,1)', () => {
+    const base = createTripDoc({ title: 'X', country: 'Y', city: 'Z', startDate: '2026-06-07', endDate: '2026-06-09' });
+    let trip = addPlaceToTrip(base, 1, { name: 'Первое', coords: [37, 127], time: '', desc: '', price: null, image: '' });
+    trip = addPlaceToTrip(trip, 1, { name: 'Второе', coords: [37, 127], time: '', desc: '', price: null, image: '' });
+    const onMovePlace = vi.fn();
+    const { container } = render(<Timeline trip={trip} day={1} onAddPlace={vi.fn()} onEditPlace={vi.fn()} onDeletePlace={vi.fn()} onSelectPlace={vi.fn()} onMovePlace={onMovePlace} />);
+    // Подменяем геометрию: секция 0..200, карточка A mid=75, карточка B mid=135.
+    (container.querySelector('[data-day-sec="1"]') as HTMLElement).getBoundingClientRect = () => rect(0, 200);
+    const cards = container.querySelectorAll<HTMLElement>('[data-card]');
+    cards[0].getBoundingClientRect = () => rect(50, 50);
+    cards[1].getBoundingClientRect = () => rect(110, 50);
+
+    const grip = screen.getByRole('button', { name: /Переместить «Первое»/i });
+    firePointer(grip, 'pointerdown', { pointerId: 1, button: 0 });
+    firePointer(grip, 'pointermove', { pointerId: 1, clientY: 140 }); // ниже середины «Второго»
+    firePointer(grip, 'pointerup', { pointerId: 1, clientY: 140 });
+    expect(onMovePlace).toHaveBeenCalledWith(trip.places[0].id, 1, 1);
+  });
+
+  it('клик по ручке без движения ничего не переносит', () => {
+    const base = createTripDoc({ title: 'X', country: 'Y', city: 'Z', startDate: '2026-06-07', endDate: '2026-06-09' });
+    const trip = addPlaceToTrip(base, 1, { name: 'Одно', coords: [37, 127], time: '', desc: '', price: null, image: '' });
+    const onMovePlace = vi.fn();
+    render(<Timeline trip={trip} day={1} onAddPlace={vi.fn()} onEditPlace={vi.fn()} onDeletePlace={vi.fn()} onSelectPlace={vi.fn()} onMovePlace={onMovePlace} />);
+    const grip = screen.getByRole('button', { name: /Переместить «Одно»/i });
+    firePointer(grip, 'pointerdown', { pointerId: 1, button: 0 });
+    firePointer(grip, 'pointerup', { pointerId: 1 });
+    expect(onMovePlace).not.toHaveBeenCalled();
   });
 
   it('без onMovePlace ручек переноса нет', () => {

@@ -17,16 +17,17 @@
 .list { display: flex; flex-direction: column; }
 .slot { position: relative; display: flex; align-items: stretch; gap: 4px; border-radius: 12px; }
 .cardWrap { flex: 1; min-width: 0; }
-.dragging { opacity: .45; }
+.slot { transition: opacity .12s; }
+.dragging { opacity: .4; }
 
 /* Ручка перетаскивания — слева, проявляется при наведении/фокусе на карточку. */
 .grip {
   flex: 0 0 auto; align-self: center;
   display: flex; align-items: center; justify-content: center;
-  width: 22px; height: 36px; margin-left: -4px;
-  border: none; background: transparent; color: var(--line);
-  cursor: grab; border-radius: 7px; opacity: 0; transition: opacity .15s, color .15s, background .15s;
-  touch-action: none;
+  width: 24px; height: 40px; margin-left: -4px;
+  border: none; background: transparent; color: var(--muted);
+  cursor: grab; border-radius: 7px; opacity: .35; transition: opacity .15s, color .15s, background .15s;
+  touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
 }
 .slot:hover .grip, .slot:focus-within .grip { opacity: 1; }
 .grip:hover { color: var(--navy); background: #f1f4fb; }
