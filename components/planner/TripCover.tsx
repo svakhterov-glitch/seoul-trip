@@ -76,6 +76,7 @@ export function TripCover({ city, title, lead, companions, coverImage, dateRange
 
   return (
     <section className={styles.cover}>
+      <div className={styles.banner}>
       <div className={styles.art} aria-hidden="true">
         <CoverArt image={displayImage} city={city} />
         <div className={styles.scrim} />
@@ -140,6 +141,7 @@ export function TripCover({ city, title, lead, companions, coverImage, dateRange
             </div>
           </form>
         )}
+      </div>
       </div>
     </section>
   );
