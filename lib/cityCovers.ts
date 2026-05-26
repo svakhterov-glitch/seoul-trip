@@ -5,7 +5,8 @@
  * показывается процедурный скайлайн (запасной вариант).
  */
 const CITY_COVERS: Record<string, string> = {
-  // пример: 'сеул': '/covers/seoul.jpg',
+  'сеул': '/covers/seoul.png',
+  'seoul': '/covers/seoul.png',
 };
 
 /** Нормализованный ключ города (без регистра и крайних пробелов). */
