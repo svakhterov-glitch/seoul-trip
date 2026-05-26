@@ -26,8 +26,9 @@ Deno.serve(async (req) => {
     const finalUrl = res.url || url;
     const html = await res.text();
 
-    // 2. координаты и имя из самого URL (Google/Kakao/Яндекс Maps)
-    let coords = coordsFor(finalUrl) ?? coordsFor(url);
+    // 2. ТОЧНЫЙ маркер места из URL (центр карты сюда НЕ берём — он врёт:
+    //    у Яндекса `ll` это центр вьюпорта, иногда за километры от места).
+    let coords = exactCoordsFor(finalUrl) ?? exactCoordsFor(url);
     let name = nameFromUrl(finalUrl) ?? "";
 
     // 3. имя из страницы (og:title / <title>), если из URL не вышло
@@ -38,19 +39,25 @@ Deno.serve(async (req) => {
     const image = imageFromHtml(html);
     let description = cleanDesc(descFromHtml(html));
 
-    // 5. через Claude (Haiku, если есть ключ): чистое имя + краткое описание места.
+    // 5. через Claude (Haiku, если есть ключ): чистое имя, описание и гео-запрос
+    //    для геокодера (английское/локальное имя + город, без слов «дворец/кафе»).
+    let geo = "";
     if (ANTHROPIC_KEY && (html || name)) {
       const d = await describePlace(name, html);
       if (d.name) name = d.name;
       if (d.description) description = d.description;
+      geo = d.geo;
     }
 
-    // 6. геокодинг координат по названию, если их нет
+    // 6. нет точного маркера → геокодим по чистому имени (надёжнее центра карты)
     let displayName = "";
-    if (!coords && name) {
-      const g = await geocode(name);
+    if (!coords) {
+      const g = await geocode(geo || name);
       if (g) { coords = g.coords; displayName = g.displayName; }
     }
+
+    // 7. последний резерв — центр карты из URL (приблизительно)
+    if (!coords) coords = centerCoordsFor(finalUrl) ?? centerCoordsFor(url);
 
     return json({ name: name || "", coords: coords ?? null, image, description, displayName, sourceUrl: finalUrl });
   } catch (e) {
@@ -58,27 +65,29 @@ Deno.serve(async (req) => {
   }
 });
 
-// Координаты из URL карт. Яндекс отдаёт `долгота,широта` — переставляем
-// в наш порядок [широта, долгота]; Google/Kakao уже дают `широта,долгота`.
-function coordsFor(u: string): [number, number] | null {
-  if (/yandex/i.test(u)) return coordsFromYandex(u);
-  return coordsFromUrl(u);
-}
-
-function coordsFromUrl(u: string): [number, number] | null {
-  let m = u.match(/link\/map\/[^,]+,(-?\d+\.\d+),(-?\d+\.\d+)/);
+// ТОЧНЫЙ маркер места из URL (НЕ центр карты). Яндекс отдаёт `долгота,широта`
+// — переставляем в [широта, долгота]; Google/Kakao уже дают `широта,долгота`.
+function exactCoordsFor(u: string): [number, number] | null {
+  if (/yandex/i.test(u)) {
+    const m = u.match(/whatshere\[point\]=(-?\d+\.\d+)(?:,|%2C)(-?\d+\.\d+)/i);
+    return m ? [+m[2], +m[1]] : null; // только точка «что здесь», не центр
+  }
+  let m = u.match(/link\/map\/[^,]+,(-?\d+\.\d+),(-?\d+\.\d+)/); // Kakao
   if (m) return [+m[1], +m[2]];
-  // !3d!4d — координаты самого маркера (точнее, чем @ — центр карты).
-  m = u.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/)
-    || u.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/)
-    || u.match(/[?&](?:q|ll|query)=(-?\d+\.\d+),\s*(-?\d+\.\d+)/);
+  m = u.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/)               // Google маркер
+    || u.match(/[?&]q=(-?\d+\.\d+),\s*(-?\d+\.\d+)/);          // ?q=lat,lng (точка)
   return m ? [+m[1], +m[2]] : null;
 }
 
-function coordsFromYandex(u: string): [number, number] | null {
-  const m = u.match(/[?&](?:ll|pt)=(-?\d+\.\d+)(?:,|%2C)(-?\d+\.\d+)/i)
-    || u.match(/whatshere\[point\]=(-?\d+\.\d+)(?:,|%2C)(-?\d+\.\d+)/i);
-  return m ? [+m[2], +m[1]] : null;
+// Центр карты/вьюпорта из URL — приблизительно, только как последний резерв.
+function centerCoordsFor(u: string): [number, number] | null {
+  if (/yandex/i.test(u)) {
+    const m = u.match(/[?&](?:ll|pt)=(-?\d+\.\d+)(?:,|%2C)(-?\d+\.\d+)/i);
+    return m ? [+m[2], +m[1]] : null;
+  }
+  const m = u.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/)
+    || u.match(/[?&](?:ll|query)=(-?\d+\.\d+),\s*(-?\d+\.\d+)/);
+  return m ? [+m[1], +m[2]] : null;
 }
 
 function nameFromUrl(u: string): string {
@@ -137,10 +146,10 @@ async function geocode(q: string) {
   return null;
 }
 
-// Claude (Haiku): по названию + фрагменту страницы вернуть чистое имя места и
-// краткое описание для путешественника. Одним вызовом, ответ — JSON.
-async function describePlace(title: string, html: string): Promise<{ name: string; description: string }> {
-  const empty = { name: "", description: "" };
+// Claude (Haiku): по названию + фрагменту страницы вернуть чистое имя места,
+// краткое описание и гео-запрос для геокодера. Одним вызовом, ответ — JSON.
+async function describePlace(title: string, html: string): Promise<{ name: string; description: string; geo: string }> {
+  const empty = { name: "", description: "", geo: "" };
   try {
     const text = (title + "\n" + html.replace(/<[^>]+>/g, " ")).slice(0, 4000);
     const r = await fetch("https://api.anthropic.com/v1/messages", {
@@ -152,10 +161,10 @@ async function describePlace(title: string, html: string): Promise<{ name: strin
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 200,
+        max_tokens: 260,
         messages: [{
           role: "user",
-          content: `Это место для путешествия (заголовок + текст страницы). Верни ТОЛЬКО JSON без пояснений: {"name": "короткое название места и город", "description": "1–2 предложения по-русски: что это за место и чем интересно туристу"}. Если узнаёшь конкретное место по названию — опиши его из своих знаний. Если место не определяется — верни {"name":"","description":""}.\n\n${text}`,
+          content: `Это место для путешествия (заголовок + текст страницы). Верни ТОЛЬКО JSON без пояснений: {"name": "короткое название места и город по-русски", "description": "1–2 предложения по-русски: что это за место и чем интересно туристу", "geo": "запрос для геокодера: официальное название на английском или местном языке + город, БЕЗ слов вроде «дворец/кафе/ресторан» (напр. Gyeongbokgung, Seoul)"}. Если узнаёшь конкретное место по названию — опиши из своих знаний. Если место не определяется — верни всё пустыми строками.\n\n${text}`,
         }],
       }),
     });
@@ -167,6 +176,7 @@ async function describePlace(title: string, html: string): Promise<{ name: strin
     return {
       name: typeof parsed.name === "string" ? parsed.name.trim().slice(0, 120) : "",
       description: typeof parsed.description === "string" ? parsed.description.trim().slice(0, 400) : "",
+      geo: typeof parsed.geo === "string" ? parsed.geo.trim().slice(0, 160) : "",
     };
   } catch {
     return empty;

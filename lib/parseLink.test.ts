@@ -36,25 +36,20 @@ describe('parseLink — координаты из URL карт', () => {
   });
 });
 
-describe('parseLink — Яндекс.Карты (переставляет долготу/широту)', () => {
-  it('ll=долгота,широта → [широта, долгота]', () => {
-    const r = parseLink('https://yandex.ru/maps/?ll=37.620393,55.753960&z=15');
-    expect(r.coords).toEqual([55.753960, 37.620393]);
-    expect(r.source).toBe('yandex');
-  });
-
-  it('pt=долгота,широта', () => {
-    expect(parseLink('https://yandex.ru/maps/213/moscow/?pt=37.6,55.7').coords).toEqual([55.7, 37.6]);
-  });
-
-  it('whatshere[point]=долгота,широта', () => {
+describe('parseLink — Яндекс.Карты', () => {
+  it('whatshere[point]=долгота,широта → [широта, долгота] (реальный маркер)', () => {
     expect(parseLink('https://yandex.ru/maps/?whatshere[point]=127.0,37.5').coords).toEqual([37.5, 127.0]);
   });
 
-  it('короткая Яндекс-ссылка без координат', () => {
-    const r = parseLink('https://yandex.ru/maps/-/CCUxyz');
-    expect(r.coords).toBeNull();
-    expect(r.source).toBe('yandex');
+  it('ll/pt НЕ берём на фронте (это центр карты — врёт) → null', () => {
+    // На фронте координат нет → сервер доразберёт по имени (геокодинг).
+    expect(parseLink('https://yandex.ru/maps/?ll=37.620393,55.753960&z=15').coords).toBeNull();
+    expect(parseLink('https://yandex.ru/maps/213/moscow/?pt=37.6,55.7').coords).toBeNull();
+    expect(parseLink('https://yandex.ru/maps/org/kyonbokkun/192281734744/?ll=126.979578,37.561231').coords).toBeNull();
+  });
+
+  it('источник определяется как yandex даже без координат', () => {
+    expect(parseLink('https://yandex.ru/maps/-/CCUxyz').source).toBe('yandex');
   });
 });
 
