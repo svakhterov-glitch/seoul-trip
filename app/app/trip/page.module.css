@@ -1,9 +1,30 @@
-.layout { display: grid; grid-template-columns: minmax(360px, 1fr) 1fr; height: calc(100vh - 56px - 73px); }
-.left { overflow-y: auto; border-right: 1px solid var(--line); background: var(--bg); position: relative; }
-.right { position: relative; }
-.formWrap { position: absolute; inset: 0; background: rgba(15,27,61,.35); display: flex; align-items: flex-start; justify-content: center; padding: 18px; overflow-y: auto; z-index: 500; }
-.formInner { width: 100%; max-width: 460px; }
+.mapSection { position: relative; height: 460px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+
+.modal {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(15,27,61,0.45);
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 24px 16px; overflow-y: auto;
+}
+.modalHidden { display: none; }
+.modalInner { width: 100%; max-width: 480px; }
+
+.pickHint {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 1100;
+  display: flex; align-items: center; justify-content: center; gap: 14px;
+  padding: 12px 16px; background: var(--navy); color: #fff;
+  font-size: 14px; font-weight: 600; box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+}
+.pickHint button {
+  border: 1px solid rgba(255,255,255,0.6); background: transparent; color: #fff;
+  border-radius: 8px; padding: 6px 14px; font-weight: 700;
+}
+.pickHint button:hover { background: rgba(255,255,255,0.15); }
+
 .loading { padding: 80px; text-align: center; color: var(--muted); }
 .notfound { padding: 60px 24px; text-align: center; color: var(--muted); }
 .notfound a { color: var(--accent); font-weight: 700; }
-@media (max-width: 800px) { .layout { grid-template-columns: 1fr; height: auto; } .right { height: 60vh; } }
+
+@media (max-width: 800px) {
+  .mapSection { height: 60vh; }
+}
