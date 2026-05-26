@@ -16,15 +16,20 @@
 .item:focus-visible { outline: none; }
 .item:focus-visible .card { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-.actions { position: absolute; top: 10px; right: 10px; display: flex; gap: 4px; }
-.act { border: 0; background: transparent; font-size: 15px; line-height: 1; padding: 3px; border-radius: 7px; }
-.act:hover { background: #f1f3f9; }
+.actions { position: absolute; top: 9px; right: 9px; display: flex; gap: 2px; }
+.act {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; padding: 0; border: 0; border-radius: 6px;
+  background: transparent; color: var(--muted); opacity: 0.45;
+  transition: opacity 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+.act:hover, .act:focus-visible { opacity: 1; color: var(--navy); background: #f1f3f9; outline: none; }
 
 .row { display: flex; gap: 14px; align-items: flex-start; }
 .thumb { width: 64px; height: 64px; border-radius: 12px; object-fit: cover; flex: 0 0 auto; border: 1px solid var(--line); }
 .thumbEmoji { width: 64px; height: 64px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 30px; background: #f1f3f9; flex: 0 0 auto; }
 
-.main { flex: 1; min-width: 0; padding-right: 44px; }
+.main { flex: 1; min-width: 0; padding-right: 56px; }
 .name { font-size: 16px; font-weight: 700; color: var(--navy); letter-spacing: -0.01em; line-height: 1.25; }
 .desc { font-size: 13.5px; color: var(--muted); margin-top: 3px; line-height: 1.5; }
 .note { font-size: 12.5px; color: var(--navy); background: #f7f3e8; border-left: 3px solid #e0c97a; border-radius: 8px; padding: 7px 10px; margin-top: 8px; }
