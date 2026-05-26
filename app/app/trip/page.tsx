@@ -114,7 +114,7 @@ function PlannerInner() {
 
   const editing = form.mode === 'edit' ? trip.places.find((p) => p.id === form.id) : undefined;
   const initial: PlaceInput | undefined = editing
-    ? { name: editing.name, coords: editing.coords, time: editing.time, desc: editing.desc, price: editing.price, image: editing.image }
+    ? { name: editing.name, coords: editing.coords, time: editing.time, desc: editing.desc, price: editing.price, image: editing.image, kind: editing.kind, by: editing.by, note: editing.note }
     : undefined;
 
   return (
@@ -155,6 +155,7 @@ function PlannerInner() {
               coords={draftCoords}
               initial={initial}
               busy={busy}
+              companions={trip.companions}
               onSubmit={handleSubmit}
               onCancel={closeForm}
               onPickCoords={() => setPicking(true)}

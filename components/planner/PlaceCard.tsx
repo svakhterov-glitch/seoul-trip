@@ -1,7 +1,7 @@
 'use client';
 
 import type { Place, Category } from '@/lib/entities';
-import { CatBadge, PriceBadge } from './badges';
+import { CatBadge, PriceBadge, KindBadge, PersonBadge } from './badges';
 import styles from './PlaceCard.module.css';
 
 interface Props {
@@ -33,7 +33,13 @@ export function PlaceCard({ place, category, onSelect, onEdit, onDelete }: Props
         </div>
         <div className={styles.name}>{place.name}</div>
         {place.desc && <div className={styles.desc}>{place.desc}</div>}
-        <div className={styles.badges}><CatBadge category={category} /><PriceBadge price={place.price} /></div>
+        {place.note && <div className={styles.note}>💬 {place.note}</div>}
+        <div className={styles.badges}>
+          <KindBadge kind={place.kind} />
+          <CatBadge category={category} />
+          <PriceBadge price={place.price} />
+          <PersonBadge name={place.by} />
+        </div>
       </div>
     </div>
   );

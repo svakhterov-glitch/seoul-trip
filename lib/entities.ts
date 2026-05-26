@@ -19,6 +19,30 @@ export const DEFAULT_CATEGORIES: Category[] = [
 export type Coords = [number, number];
 export type PlacePrice = 'free' | 1 | 2 | 3 | null;
 
+export interface PlaceKind {
+  key: string;
+  label: string;
+  emoji: string;
+}
+
+/** Форматы места (музей, кафе, природа…). Расширяемый набор. */
+export const PLACE_KINDS: PlaceKind[] = [
+  { key: 'food', label: 'Кафе/ресторан', emoji: '🍽️' },
+  { key: 'museum', label: 'Музей/галерея', emoji: '🏛️' },
+  { key: 'nature', label: 'Природа/парк', emoji: '🌳' },
+  { key: 'sight', label: 'Достопримечательность', emoji: '📸' },
+  { key: 'shop', label: 'Шопинг', emoji: '🛍️' },
+  { key: 'fun', label: 'Развлечения', emoji: '🎡' },
+  { key: 'bar', label: 'Бар/ночная жизнь', emoji: '🍸' },
+  { key: 'hotel', label: 'Отель/жильё', emoji: '🛏️' },
+  { key: 'transport', label: 'Транспорт', emoji: '🚇' },
+  { key: 'other', label: 'Другое', emoji: '📍' },
+];
+
+export function getPlaceKind(key: string): PlaceKind | null {
+  return PLACE_KINDS.find((k) => k.key === key) || null;
+}
+
 export interface Day {
   number: number;
   date: string;
@@ -37,6 +61,12 @@ export interface Place {
   desc: string;
   price: PlacePrice;
   image: string;
+  /** Кто нашёл место (имя спутника). */
+  by: string;
+  /** Формат места (ключ из PLACE_KINDS). */
+  kind: string;
+  /** Доп. комментарий — зачем добавили. */
+  note: string;
   photo: string;
   source: string;
 }
@@ -49,6 +79,9 @@ export interface PlaceInput {
   desc: string;
   price: PlacePrice;
   image: string;
+  by?: string;
+  kind?: string;
+  note?: string;
 }
 
 export interface TripDoc {
@@ -104,6 +137,9 @@ export function createPlace(data: Partial<Place> = {}): Place {
     desc: data.desc || '',
     price: data.price ?? null,
     image: data.image || '',
+    by: data.by || '',
+    kind: data.kind || '',
+    note: data.note || '',
     photo: data.photo || '📍',
     source: data.source || 'manual',
   };

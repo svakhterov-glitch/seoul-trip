@@ -1,2 +1,4 @@
 .cat { display: inline-block; font-size: 11px; font-weight: 700; color: #fff; padding: 2px 8px; border-radius: 999px; }
 .price { display: inline-block; font-size: 11px; font-weight: 700; color: var(--navy); background: #eef0f6; padding: 2px 8px; border-radius: 999px; }
+.kind { display: inline-block; font-size: 11px; font-weight: 700; color: var(--navy); background: #fff; border: 1px solid var(--line); padding: 2px 8px; border-radius: 999px; }
+.author { display: inline-block; font-size: 11px; font-weight: 600; color: var(--muted); background: #f1f3f9; padding: 2px 8px; border-radius: 999px; }

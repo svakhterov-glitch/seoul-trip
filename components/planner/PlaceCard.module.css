@@ -8,4 +8,5 @@
 .act:hover { background: #f1f3f9; }
 .name { font-weight: 700; font-size: 14px; color: var(--navy); padding-right: 48px; }
 .desc { font-size: 13px; color: var(--muted); margin-top: 2px; }
+.note { font-size: 12px; color: var(--navy); background: #f7f3e8; border-left: 3px solid #e0c97a; border-radius: 6px; padding: 6px 9px; margin-top: 8px; }
 .badges { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }

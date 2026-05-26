@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import type { PlaceInput, PlacePrice, Coords } from '@/lib/entities';
+import { type PlaceInput, type PlacePrice, type Coords, PLACE_KINDS } from '@/lib/entities';
 import { validatePlace, type PlaceErrors } from '@/lib/placeValidation';
 import styles from './PlaceForm.module.css';
 
@@ -11,6 +11,7 @@ interface Props {
   onCancel: () => void;
   onPickCoords: () => void;         // включить режим выбора точки на карте
   busy: boolean;
+  companions?: string[];            // спутники поездки — для поля «кто нашёл»
   initial?: PlaceInput;             // для редактирования
 }
 
@@ -22,17 +23,20 @@ const PRICES: { value: PlacePrice; label: string }[] = [
   { value: 3, label: '₽₽₽' },
 ];
 
-export function PlaceForm({ coords, onSubmit, onCancel, onPickCoords, busy, initial }: Props) {
+export function PlaceForm({ coords, onSubmit, onCancel, onPickCoords, busy, companions = [], initial }: Props) {
   const [name, setName] = useState(initial?.name ?? '');
   const [time, setTime] = useState(initial?.time ?? '');
   const [desc, setDesc] = useState(initial?.desc ?? '');
   const [price, setPrice] = useState<PlacePrice>(initial?.price ?? null);
   const [image, setImage] = useState(initial?.image ?? '');
+  const [kind, setKind] = useState(initial?.kind ?? '');
+  const [by, setBy] = useState(initial?.by ?? '');
+  const [note, setNote] = useState(initial?.note ?? '');
   const [errors, setErrors] = useState<PlaceErrors>({});
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const input: PlaceInput = { name, coords, time, desc, price, image };
+    const input: PlaceInput = { name, coords, time, desc, price, image, kind, by, note };
     const found = validatePlace(input);
     setErrors(found);
     if (Object.keys(found).length === 0) onSubmit(input);
@@ -57,6 +61,25 @@ export function PlaceForm({ coords, onSubmit, onCancel, onPickCoords, busy, init
 
       <div className={styles.row}>
         <div>
+          <label className={styles.label} htmlFor="pf-kind">Формат места</label>
+          <select id="pf-kind" className={styles.input} value={kind} disabled={busy}
+            onChange={(e) => setKind(e.target.value)}>
+            <option value="">— формат —</option>
+            {PLACE_KINDS.map((k) => <option key={k.key} value={k.key}>{k.emoji} {k.label}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className={styles.label} htmlFor="pf-by">Человек</label>
+          <select id="pf-by" className={styles.input} value={by} disabled={busy || companions.length === 0}
+            onChange={(e) => setBy(e.target.value)}>
+            <option value="">{companions.length === 0 ? '— добавьте спутников —' : '— не указан —'}</option>
+            {companions.map((name) => <option key={name} value={name}>{name}</option>)}
+          </select>
+        </div>
+      </div>
+
+      <div className={styles.row}>
+        <div>
           <label className={styles.label} htmlFor="pf-time">Время</label>
           <input id="pf-time" type="time" className={styles.input} value={time} disabled={busy}
             onChange={(e) => setTime(e.target.value)} />
@@ -73,9 +96,13 @@ export function PlaceForm({ coords, onSubmit, onCancel, onPickCoords, busy, init
         </div>
       </div>
 
-      <label className={styles.label} htmlFor="pf-desc">Описание</label>
+      <label className={styles.label} htmlFor="pf-desc">Описание места</label>
       <textarea id="pf-desc" className={styles.textarea} value={desc} disabled={busy}
-        onChange={(e) => setDesc(e.target.value)} rows={3} />
+        onChange={(e) => setDesc(e.target.value)} rows={2} />
+
+      <label className={styles.label} htmlFor="pf-note">Комментарий (зачем добавили)</label>
+      <textarea id="pf-note" className={styles.textarea} value={note} disabled={busy}
+        onChange={(e) => setNote(e.target.value)} rows={2} placeholder="Чтобы не забыть, почему это место в плане" />
 
       <label className={styles.label} htmlFor="pf-image">Фото (ссылка)</label>
       <input id="pf-image" className={styles.input} value={image} disabled={busy} placeholder="https://…"

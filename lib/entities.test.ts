@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  createTripDoc, DEFAULT_CATEGORIES,
+  createTripDoc, DEFAULT_CATEGORIES, createPlace, getPlaceKind, PLACE_KINDS,
   ensureDays, ensureTripDefaults, updateTripMeta, placesForDay, getDay, lastDayNumber,
   addPlaceToTrip, updatePlaceInTrip, removePlaceFromTrip,
 } from '@/lib/entities';
@@ -118,6 +118,31 @@ describe('мутации мест (иммутабельно)', () => {
     const id = placesForDay(t1, 1)[0].id;
     const t2 = removePlaceFromTrip(t1, id);
     expect(placesForDay(t2, 1)).toHaveLength(0);
+  });
+});
+
+describe('createPlace — новые поля', () => {
+  it('по умолчанию by/kind/note пустые', () => {
+    const p = createPlace({ name: 'X' });
+    expect(p.by).toBe('');
+    expect(p.kind).toBe('');
+    expect(p.note).toBe('');
+  });
+  it('сохраняет переданные by/kind/note', () => {
+    const p = createPlace({ name: 'X', by: 'Аня', kind: 'museum', note: 'must see' });
+    expect(p).toMatchObject({ by: 'Аня', kind: 'museum', note: 'must see' });
+  });
+});
+
+describe('getPlaceKind', () => {
+  it('находит формат по ключу', () => {
+    expect(getPlaceKind('museum')?.label).toBe('Музей/галерея');
+  });
+  it('неизвестный ключ → null', () => {
+    expect(getPlaceKind('zzz')).toBeNull();
+  });
+  it('набор форматов непустой', () => {
+    expect(PLACE_KINDS.length).toBeGreaterThan(0);
   });
 });
 
