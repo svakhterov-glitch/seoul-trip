@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   createTripDoc, DEFAULT_CATEGORIES, createPlace, getPlaceKind, PLACE_KINDS,
   ensureDays, ensureTripDefaults, updateTripMeta, placesForDay, getDay, lastDayNumber,
-  addPlaceToTrip, updatePlaceInTrip, removePlaceFromTrip,
+  addPlaceToTrip, updatePlaceInTrip, removePlaceFromTrip, updateDay, addCategory, getCategory,
 } from '@/lib/entities';
 
 describe('createTripDoc', () => {
@@ -143,6 +143,28 @@ describe('getPlaceKind', () => {
   });
   it('набор форматов непустой', () => {
     expect(PLACE_KINDS.length).toBeGreaterThan(0);
+  });
+});
+
+describe('updateDay', () => {
+  const make = () => createTripDoc({ title: 'X', country: 'Y', city: 'Z', startDate: '2026-06-07', endDate: '2026-06-09' });
+  it('меняет название и категорию дня иммутабельно', () => {
+    const t = make();
+    const next = updateDay(t, 2, { title: 'Прогулка', cat: 'dist' });
+    expect(getDay(next, 2)).toMatchObject({ title: 'Прогулка', cat: 'dist' });
+    expect(getDay(t, 2)?.title).toBe('День 2'); // исходник не мутирован
+  });
+});
+
+describe('addCategory', () => {
+  const make = () => createTripDoc({ title: 'X', country: 'Y', city: 'Z', startDate: '2026-06-07', endDate: '2026-06-09' });
+  it('добавляет категорию и возвращает её ключ', () => {
+    const t = make();
+    const before = t.categories.length;
+    const { trip: next, key } = addCategory(t, { label: 'Гастротур', color: '#ff8800' });
+    expect(next.categories.length).toBe(before + 1);
+    expect(getCategory(next, key)).toMatchObject({ label: 'Гастротур', color: '#ff8800' });
+    expect(t.categories.length).toBe(before); // исходник не мутирован
   });
 });
 

@@ -261,3 +261,18 @@ export function updatePlaceInTrip(trip: TripDoc, id: string, patch: Partial<Plac
 export function removePlaceFromTrip(trip: TripDoc, id: string): TripDoc {
   return { ...trip, places: trip.places.filter((p) => p.id !== id) };
 }
+
+/** Иммутабельно обновить день (название/категория/тема). */
+export function updateDay(trip: TripDoc, dayNumber: number, patch: Partial<Day>): TripDoc {
+  return {
+    ...trip,
+    days: trip.days.map((d) => (d.number === dayNumber ? { ...d, ...patch } : d)),
+  };
+}
+
+/** Добавить новую категорию дня. Возвращает обновлённую поездку и ключ категории. */
+export function addCategory(trip: TripDoc, input: { label: string; color: string }): { trip: TripDoc; key: string } {
+  const key = newId('cat');
+  const category: Category = { key, label: input.label.trim(), color: input.color };
+  return { trip: { ...trip, categories: [...trip.categories, category] }, key };
+}

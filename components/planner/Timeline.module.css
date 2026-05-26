@@ -3,6 +3,9 @@
 .head { margin-bottom: 8px; }
 .headTop { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .dlabel { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
+.headActions { display: flex; gap: 8px; flex-wrap: wrap; }
+.editDay { border: 1px solid var(--line); color: var(--muted); background: #fff; border-radius: 8px; padding: 5px 10px; font-size: 12px; font-weight: 700; }
+.editDay:hover { border-color: var(--navy); color: var(--navy); }
 .add { border: 1px solid var(--accent); color: var(--accent); background: transparent; border-radius: 8px; padding: 5px 10px; font-size: 12px; font-weight: 700; }
 .add:hover { background: var(--accent); color: #fff; }
 .titleRow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 4px; }

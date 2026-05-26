@@ -9,12 +9,14 @@ import { getTrip, updateTrip } from '@/lib/trips';
 import {
   type TripDoc, type Coords, type PlaceInput,
   ensureTripDefaults, addPlaceToTrip, updatePlaceInTrip, removePlaceFromTrip, updateTripMeta,
+  updateDay, addCategory,
 } from '@/lib/entities';
 import { formatDateRange } from '@/lib/days';
 import { PlannerHeader } from '@/components/planner/PlannerHeader';
 import { TripCover, type TripCoverSave } from '@/components/planner/TripCover';
 import { DayTabs } from '@/components/planner/DayTabs';
 import { Timeline } from '@/components/planner/Timeline';
+import { type DaySave } from '@/components/planner/DayForm';
 import { PlaceForm } from '@/components/planner/PlaceForm';
 import styles from './page.module.css';
 
@@ -94,6 +96,18 @@ function PlannerInner() {
     save(updateTripMeta(trip, patch));
   }
 
+  function handleSaveDay(dayNumber: number, patch: DaySave) {
+    if (!trip) return;
+    let next = trip;
+    let cat = patch.cat;
+    if (patch.newCategory) {
+      const res = addCategory(next, patch.newCategory);
+      next = res.trip;
+      cat = res.key;
+    }
+    save(updateDay(next, dayNumber, { title: patch.title, cat }));
+  }
+
   function openAdd(dayNumber: number) {
     setDraftCoords(null);
     setForm({ mode: 'add', dayNumber });
@@ -141,9 +155,10 @@ function PlannerInner() {
             onPlaceClick={openEdit} />
         </div>
 
-        <Timeline trip={trip} day={activeDay}
+        <Timeline trip={trip} day={activeDay} categories={trip.categories} busy={busy}
           onAddPlace={openAdd} onEditPlace={openEdit} onDeletePlace={handleDelete}
-          onSelectPlace={() => { /* выбор места — на будущее (центрирование карты) */ }} />
+          onSelectPlace={() => { /* выбор места — на будущее (центрирование карты) */ }}
+          onSaveDay={handleSaveDay} />
       </div>
 
       {/* Форма места — модалка. В режиме выбора точки прячем (не размонтируя, чтобы сохранить ввод). */}

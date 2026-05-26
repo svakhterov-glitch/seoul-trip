@@ -36,4 +36,27 @@ describe('Timeline', () => {
     render(<Timeline trip={base} day={2} onAddPlace={vi.fn()} onEditPlace={vi.fn()} onDeletePlace={vi.fn()} onSelectPlace={vi.fn()} />);
     expect(screen.getByText(/пока ничего не запланировано/i)).toBeInTheDocument();
   });
+
+  it('редактирование дня: меняет категорию и вызывает onSaveDay', async () => {
+    const base = createTripDoc({ title: 'X', country: 'Y', city: 'Z', startDate: '2026-06-07', endDate: '2026-06-09' });
+    const onSaveDay = vi.fn();
+    render(<Timeline trip={base} day={2} categories={base.categories}
+      onAddPlace={vi.fn()} onEditPlace={vi.fn()} onDeletePlace={vi.fn()} onSelectPlace={vi.fn()} onSaveDay={onSaveDay} />);
+    await userEvent.click(screen.getByRole('button', { name: /Изменить день/i }));
+    await userEvent.selectOptions(screen.getByLabelText('Категория дня'), 'dist');
+    await userEvent.click(screen.getByRole('button', { name: /Сохранить/i }));
+    expect(onSaveDay).toHaveBeenCalledWith(2, expect.objectContaining({ cat: 'dist' }));
+  });
+
+  it('создание своей категории при редактировании дня', async () => {
+    const base = createTripDoc({ title: 'X', country: 'Y', city: 'Z', startDate: '2026-06-07', endDate: '2026-06-09' });
+    const onSaveDay = vi.fn();
+    render(<Timeline trip={base} day={2} categories={base.categories}
+      onAddPlace={vi.fn()} onEditPlace={vi.fn()} onDeletePlace={vi.fn()} onSelectPlace={vi.fn()} onSaveDay={onSaveDay} />);
+    await userEvent.click(screen.getByRole('button', { name: /Изменить день/i }));
+    await userEvent.selectOptions(screen.getByLabelText('Категория дня'), '__new__');
+    await userEvent.type(screen.getByLabelText('Название категории'), 'Гастротур');
+    await userEvent.click(screen.getByRole('button', { name: /Сохранить/i }));
+    expect(onSaveDay).toHaveBeenCalledWith(2, expect.objectContaining({ newCategory: expect.objectContaining({ label: 'Гастротур' }) }));
+  });
 });
