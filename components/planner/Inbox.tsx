@@ -14,7 +14,7 @@ interface Props {
 }
 
 const SOURCE_LABEL: Record<string, string> = {
-  google: 'Google Maps', kakao: 'Kakao', instagram: 'Instagram', other: 'Ссылка',
+  google: 'Google Maps', kakao: 'Kakao', yandex: 'Яндекс.Карты', instagram: 'Instagram', other: 'Ссылка',
 };
 
 export function Inbox({ links, days, busy = false, onAddLink, onRemoveLink, onPlace }: Props) {
@@ -44,7 +44,7 @@ export function Inbox({ links, days, busy = false, onAddLink, onRemoveLink, onPl
           <form className={styles.addRow} onSubmit={(e) => { e.preventDefault(); add(); }}>
             <input
               className={styles.input} type="url" inputMode="url"
-              placeholder="Вставьте ссылку — Instagram, блог, Google или Kakao Maps"
+              placeholder="Вставьте ссылку — Instagram, блог, Google / Яндекс / Kakao Maps"
               value={url} onChange={(e) => setUrl(e.target.value)} aria-label="Ссылка на место"
             />
             <button type="submit" className={styles.addBtn} disabled={busy || !url.trim()} aria-label="Добавить ссылку">＋</button>

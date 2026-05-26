@@ -17,6 +17,14 @@ function coordsFromUrl(u: string): Coords | null {
   return m ? [+m[1], +m[2]] : null;
 }
 
+/** Координаты из URL Яндекс.Карт. Внимание: Яндекс отдаёт `долгота,широта` —
+ *  переставляем в наш порядок [широта, долгота]. */
+function coordsFromYandex(u: string): Coords | null {
+  const m = u.match(/[?&](?:ll|pt)=(-?\d+\.\d+)(?:,|%2C)(-?\d+\.\d+)/i)
+    || u.match(/whatshere\[point\]=(-?\d+\.\d+)(?:,|%2C)(-?\d+\.\d+)/i);
+  return m ? [+m[2], +m[1]] : null;
+}
+
 /** Название места из пути Google `/place/<Имя>`. */
 function nameFromUrl(u: string): string {
   const m = u.match(/\/place\/([^/@?]+)/);
@@ -28,6 +36,7 @@ function nameFromUrl(u: string): string {
 /** Тип ссылки по домену — для иконки/чипа. */
 function sourceFromUrl(u: string): string {
   const s = u.toLowerCase();
+  if (s.includes('yandex') || s.includes('yandex.')) return 'yandex';
   if (s.includes('kakao') || s.includes('kko.to')) return 'kakao';
   if (s.includes('instagr')) return 'instagram';
   if (s.includes('google') || s.includes('goo.gl') || s.includes('maps.app')) return 'google';
@@ -42,5 +51,7 @@ function sourceFromUrl(u: string): string {
  */
 export function parseLink(url: string): ParsedLink {
   const u = (url || '').trim();
-  return { name: nameFromUrl(u), coords: coordsFromUrl(u), source: sourceFromUrl(u) };
+  const source = sourceFromUrl(u);
+  const coords = source === 'yandex' ? coordsFromYandex(u) : coordsFromUrl(u);
+  return { name: nameFromUrl(u), coords, source };
 }

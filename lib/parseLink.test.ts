@@ -31,6 +31,28 @@ describe('parseLink — координаты из URL карт', () => {
   });
 });
 
+describe('parseLink — Яндекс.Карты (переставляет долготу/широту)', () => {
+  it('ll=долгота,широта → [широта, долгота]', () => {
+    const r = parseLink('https://yandex.ru/maps/?ll=37.620393,55.753960&z=15');
+    expect(r.coords).toEqual([55.753960, 37.620393]);
+    expect(r.source).toBe('yandex');
+  });
+
+  it('pt=долгота,широта', () => {
+    expect(parseLink('https://yandex.ru/maps/213/moscow/?pt=37.6,55.7').coords).toEqual([55.7, 37.6]);
+  });
+
+  it('whatshere[point]=долгота,широта', () => {
+    expect(parseLink('https://yandex.ru/maps/?whatshere[point]=127.0,37.5').coords).toEqual([37.5, 127.0]);
+  });
+
+  it('короткая Яндекс-ссылка без координат', () => {
+    const r = parseLink('https://yandex.ru/maps/-/CCUxyz');
+    expect(r.coords).toBeNull();
+    expect(r.source).toBe('yandex');
+  });
+});
+
 describe('parseLink — источник по домену', () => {
   it('instagram → без координат и имени', () => {
     const r = parseLink('https://www.instagram.com/p/Cxyz/');
