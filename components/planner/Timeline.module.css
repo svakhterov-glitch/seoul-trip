@@ -11,3 +11,35 @@
 .titleRow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
 .dtitle { margin: 0; font-size: 17px; color: var(--navy); }
 .empty { font-size: 13px; color: var(--muted); background: #fff; border: 1px dashed var(--line); border-radius: 10px; padding: 14px; }
+.emptyDrop { border-color: var(--accent); border-style: solid; background: color-mix(in srgb, var(--accent) 8%, #fff); }
+
+/* ── drag-and-drop мест ── */
+.list { display: flex; flex-direction: column; }
+.slot { position: relative; display: flex; align-items: stretch; gap: 4px; border-radius: 12px; }
+.cardWrap { flex: 1; min-width: 0; }
+.dragging { opacity: .45; }
+
+/* Ручка перетаскивания — слева, проявляется при наведении/фокусе на карточку. */
+.grip {
+  flex: 0 0 auto; align-self: center;
+  display: flex; align-items: center; justify-content: center;
+  width: 22px; height: 36px; margin-left: -4px;
+  border: none; background: transparent; color: var(--line);
+  cursor: grab; border-radius: 7px; opacity: 0; transition: opacity .15s, color .15s, background .15s;
+  touch-action: none;
+}
+.slot:hover .grip, .slot:focus-within .grip { opacity: 1; }
+.grip:hover { color: var(--navy); background: #f1f4fb; }
+.grip:focus-visible { opacity: 1; outline: 2px solid var(--accent); outline-offset: 1px; color: var(--navy); }
+.grip:active { cursor: grabbing; }
+
+/* Индикатор позиции вставки. */
+.dropBefore::before, .dropAfter::after {
+  content: ''; position: absolute; left: 24px; right: 0; height: 3px;
+  background: var(--accent); border-radius: 2px;
+}
+.dropBefore::before { top: -3px; }
+.dropAfter::after { bottom: -3px; }
+
+@media (hover: none) { .grip { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .grip { transition: none; } }

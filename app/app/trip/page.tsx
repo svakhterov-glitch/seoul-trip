@@ -9,7 +9,7 @@ import { getTrip, updateTrip } from '@/lib/trips';
 import {
   type TripDoc, type Coords, type PlaceInput,
   ensureTripDefaults, addPlaceToTrip, updatePlaceInTrip, removePlaceFromTrip, updateTripMeta,
-  updateDay, addCategory,
+  updateDay, addCategory, movePlace,
 } from '@/lib/entities';
 import { formatDateRange } from '@/lib/days';
 import { PlannerHeader } from '@/components/planner/PlannerHeader';
@@ -91,6 +91,11 @@ function PlannerInner() {
     if (confirm('Удалить это место?')) save(removePlaceFromTrip(trip, placeId));
   }
 
+  function handleMovePlace(placeId: string, targetDay: number, targetIndex: number) {
+    if (!trip) return;
+    save(movePlace(trip, placeId, targetDay, targetIndex));
+  }
+
   function handleCoverSave(patch: TripCoverSave) {
     if (!trip) return;
     save(updateTripMeta(trip, patch));
@@ -158,7 +163,7 @@ function PlannerInner() {
         <Timeline trip={trip} day={activeDay} categories={trip.categories} busy={busy}
           onAddPlace={openAdd} onEditPlace={openEdit} onDeletePlace={handleDelete}
           onSelectPlace={() => { /* выбор места — на будущее (центрирование карты) */ }}
-          onSaveDay={handleSaveDay} />
+          onSaveDay={handleSaveDay} onMovePlace={handleMovePlace} />
       </div>
 
       {/* Форма места — модалка. В режиме выбора точки прячем (не размонтируя, чтобы сохранить ввод). */}

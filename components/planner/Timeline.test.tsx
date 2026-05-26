@@ -48,6 +48,23 @@ describe('Timeline', () => {
     expect(onSaveDay).toHaveBeenCalledWith(2, expect.objectContaining({ cat: 'dist' }));
   });
 
+  it('ручка переноса: стрелка вниз вызывает onMovePlace на следующую позицию', async () => {
+    const base = createTripDoc({ title: 'X', country: 'Y', city: 'Z', startDate: '2026-06-07', endDate: '2026-06-09' });
+    let trip = addPlaceToTrip(base, 1, { name: 'Первое', coords: [37, 127], time: '', desc: '', price: null, image: '' });
+    trip = addPlaceToTrip(trip, 1, { name: 'Второе', coords: [37, 127], time: '', desc: '', price: null, image: '' });
+    const onMovePlace = vi.fn();
+    render(<Timeline trip={trip} day={1} onAddPlace={vi.fn()} onEditPlace={vi.fn()} onDeletePlace={vi.fn()} onSelectPlace={vi.fn()} onMovePlace={onMovePlace} />);
+    const grip = screen.getByRole('button', { name: /Переместить «Первое»/i });
+    grip.focus();
+    await userEvent.keyboard('{ArrowDown}');
+    expect(onMovePlace).toHaveBeenCalledWith(trip.places[0].id, 1, 1);
+  });
+
+  it('без onMovePlace ручек переноса нет', () => {
+    render(<Timeline trip={tripWithPlace()} day={1} onAddPlace={vi.fn()} onEditPlace={vi.fn()} onDeletePlace={vi.fn()} onSelectPlace={vi.fn()} />);
+    expect(screen.queryByRole('button', { name: /Переместить/i })).not.toBeInTheDocument();
+  });
+
   it('создание своей категории при редактировании дня', async () => {
     const base = createTripDoc({ title: 'X', country: 'Y', city: 'Z', startDate: '2026-06-07', endDate: '2026-06-09' });
     const onSaveDay = vi.fn();

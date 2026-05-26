@@ -262,6 +262,40 @@ export function removePlaceFromTrip(trip: TripDoc, id: string): TripDoc {
   return { ...trip, places: trip.places.filter((p) => p.id !== id) };
 }
 
+/**
+ * Переместить место — внутри дня (смена порядка) или в другой день.
+ * `targetIndex` — позиция среди мест целевого дня (0..n, клампится). Иммутабельно
+ * перенумеровывает `order` (0,1,2…) у затронутых дней и проставляет `dayNumber`.
+ * Используется drag-and-drop и клавиатурным переносом в `Timeline`.
+ */
+export function movePlace(trip: TripDoc, placeId: string, targetDay: number, targetIndex: number): TripDoc {
+  const moving = trip.places.find((p) => p.id === placeId);
+  if (!moving) return trip;
+  const fromDay = moving.dayNumber;
+
+  // Порядок id целевого дня без перемещаемого места + вставка на нужную позицию.
+  const targetIds = placesForDay(trip, targetDay).map((p) => p.id).filter((id) => id !== placeId);
+  const idx = Math.max(0, Math.min(targetIndex, targetIds.length));
+  targetIds.splice(idx, 0, placeId);
+  const orderInTarget = new Map(targetIds.map((id, i) => [id, i] as const));
+
+  // При переносе между днями перенумеровать и исходный день (он «схлопывается»).
+  const crossDay = fromDay !== targetDay && fromDay != null;
+  const fromOrder = crossDay
+    ? new Map(placesForDay(trip, fromDay).map((p) => p.id).filter((id) => id !== placeId).map((id, i) => [id, i] as const))
+    : null;
+
+  return {
+    ...trip,
+    places: trip.places.map((p) => {
+      if (p.id === placeId) return { ...p, dayNumber: targetDay, order: orderInTarget.get(p.id)! };
+      if (orderInTarget.has(p.id)) return { ...p, order: orderInTarget.get(p.id)! };
+      if (fromOrder?.has(p.id)) return { ...p, order: fromOrder.get(p.id)! };
+      return p;
+    }),
+  };
+}
+
 /** Иммутабельно обновить день (название/категория/тема). */
 export function updateDay(trip: TripDoc, dayNumber: number, patch: Partial<Day>): TripDoc {
   return {

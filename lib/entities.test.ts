@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   createTripDoc, DEFAULT_CATEGORIES, createPlace, getPlaceKind, PLACE_KINDS,
   ensureDays, ensureTripDefaults, updateTripMeta, placesForDay, getDay, lastDayNumber,
-  addPlaceToTrip, updatePlaceInTrip, removePlaceFromTrip, updateDay, addCategory, getCategory,
+  addPlaceToTrip, updatePlaceInTrip, removePlaceFromTrip, movePlace, updateDay, addCategory, getCategory,
 } from '@/lib/entities';
 
 describe('createTripDoc', () => {
@@ -119,6 +119,57 @@ describe('мутации мест (иммутабельно)', () => {
     const t2 = removePlaceFromTrip(t1, id);
     expect(placesForDay(t2, 1)).toHaveLength(0);
   });
+});
+
+describe('movePlace', () => {
+  // День 1 c тремя местами A,B,C (order 0,1,2)
+  function withThree() {
+    let t = createTripDoc({ title: 'X', country: 'Y', city: 'Z', startDate: '2026-06-07', endDate: '2026-06-09' });
+    for (const name of ['A', 'B', 'C']) {
+      t = addPlaceToTrip(t, 1, { name, coords: [37, 127], time: '', desc: '', price: null, image: '' });
+    }
+    return t;
+  }
+  const ids = (t: ReturnType<typeof withThree>, day: number) => placesForDay(t, day).map((p) => p.name);
+
+  it('меняет порядок внутри дня (C в начало)', () => {
+    const t = withThree();
+    const cId = placesForDay(t, 1)[2].id;
+    const r = movePlace(t, cId, 1, 0);
+    expect(ids(r, 1)).toEqual(['C', 'A', 'B']);
+    expect(placesForDay(r, 1).map((p) => p.order)).toEqual([0, 1, 2]);
+  });
+
+  it('меняет порядок внутри дня (A в конец)', () => {
+    const t = withThree();
+    const aId = placesForDay(t, 1)[0].id;
+    const r = movePlace(t, aId, 1, 2);
+    expect(ids(r, 1)).toEqual(['B', 'C', 'A']);
+  });
+
+  it('переносит место в другой день и перенумеровывает оба дня', () => {
+    const t = withThree();
+    const bId = placesForDay(t, 1)[1].id;
+    const r = movePlace(t, bId, 2, 0);
+    expect(ids(r, 1)).toEqual(['A', 'C']);
+    expect(placesForDay(r, 1).map((p) => p.order)).toEqual([0, 1]);
+    expect(ids(r, 2)).toEqual(['B']);
+    expect(placesForDay(r, 2)[0]).toMatchObject({ dayNumber: 2, order: 0 });
+  });
+
+  it('клампит индекс за пределами дня', () => {
+    const t = withThree();
+    const aId = placesForDay(t, 1)[0].id;
+    expect(ids(movePlace(t, aId, 1, 99), 1)).toEqual(['B', 'C', 'A']);
+  });
+
+  it('не мутирует исходник и игнорирует неизвестный id', () => {
+    const t = withThree();
+    expect(movePlace(t, 'нет-такого', 1, 0)).toBe(t);
+    movePlace(t, placeId(t), 2, 0);
+    expect(ids(t, 1)).toEqual(['A', 'B', 'C']);
+  });
+  function placeId(t: ReturnType<typeof withThree>) { return placesForDay(t, 1)[0].id; }
 });
 
 describe('createPlace — новые поля', () => {
