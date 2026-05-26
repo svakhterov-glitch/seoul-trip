@@ -78,7 +78,8 @@ components/
   trips/                  — TripsHeader, TripsGrid, NewTripForm (список/создание)
   planner/                — экран поездки:
     PlannerHeader, TripCover, DayTabs, DayForm, Timeline, PlaceCard,
-    PlaceForm, TripMap (Leaflet), CitySkyline (запасная обложка), badges
+    PlaceForm, TripMap (Leaflet), Inbox (инбокс ссылок),
+    CitySkyline (запасная обложка), badges
 lib/
   entities.ts             — модель + фабрики + иммутабельные мутации
   trips.ts                — доступ к таблице trips (Supabase)
@@ -87,6 +88,7 @@ lib/
   validation.ts           — валидация форм (вход, новая поездка)
   placeValidation.ts      — валидация формы места
   days.ts                 — даты и каркас дней (buildDays, formatDateRange…)
+  parseLink.ts            — фронтовый разбор вставленной ссылки (координаты/имя из URL карт)
   tripMeta.ts             — нормализация списка спутников
   cityCovers.ts           — реестр картинок-обложек по городам (public/covers/)
   dayColors.ts            — палитра цветов дней для карты
@@ -113,9 +115,13 @@ companions[], coverImage, currency, categories[], days[], places[], inbox[] }`
   `categories[].key`. `buildDays` строит каркас: день 1 — `start`/«Прилёт»,
   последний — `final`/«Вылет».
 - `Place { id, dayNumber, order, name, coords, time, desc, price, image, by,
-  kind, note, photo, source }` — `order` задаёт ручной порядок в дне (время —
-  необязательная подпись). `kind` — формат из `PLACE_KINDS`. Места без `coords`
-  не попадают на карту. `dayNumber` 1..N — дни; `0`/`null` — вне дней.
+  kind, note, photo, source, sourceUrl }` — `order` задаёт ручной порядок в дне
+  (время — необязательная подпись). `kind` — формат из `PLACE_KINDS`. Места без
+  `coords` не попадают на карту. `dayNumber` 1..N — дни; `0`/`null` — вне дней.
+  `sourceUrl` — исходная ссылка, если место добавлено из инбокса (иначе `''`).
+- `InboxLink { id, url, name, coords, source, createdAt }` — неразобранная
+  ссылка в `inbox[]`. `addInboxLink` парсит URL (`parseLink`), `addPlaceFromInbox`
+  переносит её в день как `Place` (с `source:'link'` и `sourceUrl`).
 - `Category { key, label, color }` — цвет (HEX) хранится в данных, применяется
   inline (вкладки дней, бейджи, линия маршрута на карте).
 

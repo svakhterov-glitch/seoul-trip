@@ -9,12 +9,13 @@ import { getTrip, updateTrip } from '@/lib/trips';
 import {
   type TripDoc, type Coords, type PlaceInput,
   ensureTripDefaults, addPlaceToTrip, updatePlaceInTrip, removePlaceFromTrip, updateTripMeta,
-  updateDay, addCategory, movePlace,
+  updateDay, addCategory, movePlace, addInboxLink, removeInboxLink, addPlaceFromInbox,
 } from '@/lib/entities';
 import { formatDateRange } from '@/lib/days';
 import { PlannerHeader } from '@/components/planner/PlannerHeader';
 import { TripCover, type TripCoverSave } from '@/components/planner/TripCover';
 import { DayTabs } from '@/components/planner/DayTabs';
+import { Inbox } from '@/components/planner/Inbox';
 import { Timeline } from '@/components/planner/Timeline';
 import { type DaySave } from '@/components/planner/DayForm';
 import { PlaceForm } from '@/components/planner/PlaceForm';
@@ -25,7 +26,8 @@ const TripMap = dynamic(() => import('@/components/planner/TripMap').then((m) =>
 type FormState =
   | { mode: 'closed' }
   | { mode: 'add'; dayNumber: number }
-  | { mode: 'edit'; id: string };
+  | { mode: 'edit'; id: string }
+  | { mode: 'fromInbox'; linkId: string; dayNumber: number };
 
 function PlannerInner() {
   const router = useRouter();
@@ -82,8 +84,24 @@ function PlannerInner() {
       ? addPlaceToTrip(trip, form.dayNumber, input)
       : form.mode === 'edit'
         ? updatePlaceInTrip(trip, form.id, { ...input })
-        : trip;
+        : form.mode === 'fromInbox'
+          ? addPlaceFromInbox(trip, form.linkId, form.dayNumber, input)
+          : trip;
     if (await save(next)) closeForm();
+  }
+
+  function handleAddLink(url: string) {
+    if (!trip) return;
+    save(addInboxLink(trip, url));
+  }
+  function handleRemoveLink(id: string) {
+    if (!trip) return;
+    save(removeInboxLink(trip, id));
+  }
+  function openPlaceFromInbox(linkId: string, dayNumber: number) {
+    const link = trip?.inbox.find((l) => l.id === linkId);
+    setDraftCoords(link?.coords ?? null);
+    setForm({ mode: 'fromInbox', linkId, dayNumber });
   }
 
   function handleDelete(placeId: string) {
@@ -132,9 +150,12 @@ function PlannerInner() {
   }
 
   const editing = form.mode === 'edit' ? trip.places.find((p) => p.id === form.id) : undefined;
+  const fromLink = form.mode === 'fromInbox' ? trip.inbox.find((l) => l.id === form.linkId) : undefined;
   const initial: PlaceInput | undefined = editing
     ? { name: editing.name, coords: editing.coords, time: editing.time, desc: editing.desc, price: editing.price, image: editing.image, kind: editing.kind, by: editing.by, note: editing.note }
-    : undefined;
+    : fromLink
+      ? { name: fromLink.name, coords: fromLink.coords, time: '', desc: '', price: null, image: '', kind: '', by: '', note: '' }
+      : undefined;
 
   return (
     <main>
@@ -151,6 +172,9 @@ function PlannerInner() {
           busy={busy}
           onSave={handleCoverSave}
         />
+
+        <Inbox links={trip.inbox} days={trip.days} busy={busy}
+          onAddLink={handleAddLink} onRemoveLink={handleRemoveLink} onPlace={openPlaceFromInbox} />
 
         <DayTabs days={trip.days} categories={trip.categories} activeDay={activeDay} onSelect={setActiveDay} />
 
@@ -171,7 +195,7 @@ function PlannerInner() {
         <div className={picking ? styles.modalHidden : styles.modal}>
           <div className={styles.modalInner}>
             <PlaceForm
-              key={form.mode === 'edit' ? form.id : 'add'}
+              key={form.mode === 'edit' ? form.id : form.mode === 'fromInbox' ? `inbox_${form.linkId}` : 'add'}
               coords={draftCoords}
               initial={initial}
               busy={busy}

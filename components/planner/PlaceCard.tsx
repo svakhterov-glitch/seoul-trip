@@ -55,6 +55,10 @@ export function PlaceCard({ place, category, onSelect, onEdit, onDelete }: Props
                 <PersonBadge name={place.by} />
               </div>
             )}
+            {place.sourceUrl && (
+              <a className={styles.source} href={place.sourceUrl} target="_blank" rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}>источник ↗</a>
+            )}
           </div>
         </div>
       </div>

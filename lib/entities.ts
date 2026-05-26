@@ -1,4 +1,5 @@
 import { buildDays } from '@/lib/days';
+import { parseLink } from '@/lib/parseLink';
 
 export interface Category {
   key: string;
@@ -69,6 +70,18 @@ export interface Place {
   note: string;
   photo: string;
   source: string;
+  /** Исходная ссылка, если место добавлено из инбокса (иначе ''). */
+  sourceUrl: string;
+}
+
+/** Неразобранная ссылка в инбоксе поездки. */
+export interface InboxLink {
+  id: string;
+  url: string;
+  name: string;          // разобранное название ('' если не вышло)
+  coords: Coords | null; // координаты из map-ссылки, иначе null
+  source: string;        // 'google' | 'kakao' | 'instagram' | 'other'
+  createdAt: string;     // ISO-время добавления
 }
 
 /** Данные формы места (без id/order/dayNumber — их проставляют мутации). */
@@ -101,7 +114,7 @@ export interface TripDoc {
   categories: Category[];
   days: Day[];
   places: Place[];
-  inbox: unknown[];
+  inbox: InboxLink[];
 }
 
 export interface CreateTripInput {
@@ -142,6 +155,7 @@ export function createPlace(data: Partial<Place> = {}): Place {
     note: data.note || '',
     photo: data.photo || '📍',
     source: data.source || 'manual',
+    sourceUrl: data.sourceUrl || '',
   };
 }
 
@@ -220,12 +234,14 @@ export function ensureTripDefaults(trip: TripDoc): TripDoc {
   const needDays = days.length === 0;
   const needCompanions = !Array.isArray(trip.companions);
   const needCover = typeof trip.coverImage !== 'string';
-  if (!needDays && !needCompanions && !needCover) return trip;
+  const needInbox = !Array.isArray(trip.inbox);
+  if (!needDays && !needCompanions && !needCover && !needInbox) return trip;
   return {
     ...trip,
     days: needDays ? buildDays(trip.startDate, trip.endDate) : days,
     companions: needCompanions ? [] : trip.companions,
     coverImage: needCover ? '' : trip.coverImage,
+    inbox: needInbox ? [] : trip.inbox,
   };
 }
 
@@ -309,4 +325,45 @@ export function addCategory(trip: TripDoc, input: { label: string; color: string
   const key = newId('cat');
   const category: Category = { key, label: input.label.trim(), color: input.color };
   return { trip: { ...trip, categories: [...trip.categories, category] }, key };
+}
+
+/* ---------- инбокс неразобранных ссылок ---------- */
+
+/** Добавить ссылку в инбокс (свежие — сверху). Пустой URL игнорируется. */
+export function addInboxLink(trip: TripDoc, url: string): TripDoc {
+  const u = (url || '').trim();
+  if (!u) return trip;
+  const parsed = parseLink(u);
+  const link: InboxLink = {
+    id: newId('link'),
+    url: u,
+    name: parsed.name,
+    coords: parsed.coords,
+    source: parsed.source,
+    createdAt: new Date().toISOString(),
+  };
+  return { ...trip, inbox: [link, ...trip.inbox] };
+}
+
+/** Удалить ссылку из инбокса. */
+export function removeInboxLink(trip: TripDoc, id: string): TripDoc {
+  return { ...trip, inbox: trip.inbox.filter((l) => l.id !== id) };
+}
+
+/**
+ * Перенести ссылку из инбокса в день: создать место (с `source:'link'` и
+ * `sourceUrl` из ссылки) и убрать ссылку из инбокса. Одно сохранение.
+ * Неизвестный `linkId` → trip без изменений.
+ */
+export function addPlaceFromInbox(trip: TripDoc, linkId: string, dayNumber: number, input: PlaceInput): TripDoc {
+  const link = trip.inbox.find((l) => l.id === linkId);
+  if (!link) return trip;
+  const place = createPlace({
+    ...input,
+    dayNumber,
+    order: maxOrderInDay(trip, dayNumber) + 1,
+    source: 'link',
+    sourceUrl: link.url,
+  });
+  return { ...trip, places: [...trip.places, place], inbox: trip.inbox.filter((l) => l.id !== linkId) };
 }

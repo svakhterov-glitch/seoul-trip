@@ -3,6 +3,7 @@ import {
   createTripDoc, DEFAULT_CATEGORIES, createPlace, getPlaceKind, PLACE_KINDS,
   ensureDays, ensureTripDefaults, updateTripMeta, placesForDay, getDay, lastDayNumber,
   addPlaceToTrip, updatePlaceInTrip, removePlaceFromTrip, movePlace, updateDay, addCategory, getCategory,
+  addInboxLink, removeInboxLink, addPlaceFromInbox,
 } from '@/lib/entities';
 
 describe('createTripDoc', () => {
@@ -170,6 +171,52 @@ describe('movePlace', () => {
     expect(ids(t, 1)).toEqual(['A', 'B', 'C']);
   });
   function placeId(t: ReturnType<typeof withThree>) { return placesForDay(t, 1)[0].id; }
+});
+
+describe('инбокс ссылок', () => {
+  const base = () => createTripDoc({ title: 'X', country: 'Y', city: 'Z', startDate: '2026-06-07', endDate: '2026-06-09' });
+
+  it('createPlace по умолчанию sourceUrl пустой', () => {
+    expect(createPlace().sourceUrl).toBe('');
+  });
+
+  it('addInboxLink разбирает map-ссылку и кладёт в начало', () => {
+    let t = addInboxLink(base(), 'https://www.instagram.com/p/Cabc/');
+    t = addInboxLink(t, 'https://www.google.com/maps/place/Onion/@37.5,127.0');
+    expect(t.inbox).toHaveLength(2);
+    expect(t.inbox[0]).toMatchObject({ name: 'Onion', coords: [37.5, 127.0], source: 'google' }); // свежая сверху
+    expect(t.inbox[1]).toMatchObject({ source: 'instagram', coords: null });
+    expect(t.inbox[0].id).not.toBe(t.inbox[1].id);
+  });
+
+  it('addInboxLink игнорирует пустой URL', () => {
+    expect(addInboxLink(base(), '   ').inbox).toHaveLength(0);
+  });
+
+  it('removeInboxLink удаляет ссылку', () => {
+    const t = addInboxLink(base(), 'https://someblog.com/x');
+    const id = t.inbox[0].id;
+    expect(removeInboxLink(t, id).inbox).toHaveLength(0);
+  });
+
+  it('addPlaceFromInbox создаёт место с sourceUrl и убирает ссылку', () => {
+    const t = addInboxLink(base(), 'https://www.google.com/maps/place/Onion/@37.5,127.0');
+    const link = t.inbox[0];
+    const r = addPlaceFromInbox(t, link.id, 2, { name: 'Onion', coords: [37.5, 127.0], time: '', desc: '', price: null, image: '' });
+    expect(r.inbox).toHaveLength(0);
+    const place = placesForDay(r, 2)[0];
+    expect(place).toMatchObject({ name: 'Onion', dayNumber: 2, order: 0, source: 'link', sourceUrl: link.url });
+  });
+
+  it('addPlaceFromInbox с неизвестным id ничего не меняет', () => {
+    const t = addInboxLink(base(), 'https://someblog.com/x');
+    expect(addPlaceFromInbox(t, 'нет', 1, { name: 'A', coords: [1, 2], time: '', desc: '', price: null, image: '' })).toBe(t);
+  });
+
+  it('ensureTripDefaults чинит inbox-не-массив', () => {
+    const broken = { ...base(), inbox: undefined as unknown as [] };
+    expect(Array.isArray(ensureTripDefaults(broken).inbox)).toBe(true);
+  });
 });
 
 describe('createPlace — новые поля', () => {
