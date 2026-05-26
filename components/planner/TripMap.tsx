@@ -3,7 +3,8 @@
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { type TripDoc, getCategory, placesForDay, allDayPlaces, lastDayNumber, type Coords } from '@/lib/entities';
+import { type TripDoc, placesForDay, lastDayNumber, type Coords } from '@/lib/entities';
+import { dayColor } from '@/lib/dayColors';
 import styles from './TripMap.module.css';
 
 interface Props {
@@ -15,10 +16,10 @@ interface Props {
   onPlaceClick: (id: string) => void;
 }
 
-function pinIcon(label: string | number) {
+function pinIcon(label: string | number, color: string) {
   return L.divIcon({
     className: '',
-    html: `<div class="${styles.pin}"><span>${label}</span></div>`,
+    html: `<div class="${styles.pin}" style="background:${color}"><span>${label}</span></div>`,
     iconSize: [34, 34], iconAnchor: [17, 34], popupAnchor: [0, -30],
   });
 }
@@ -81,30 +82,34 @@ export function TripMap({ trip, day, picking, draftCoords, onMapClick, onPlaceCl
     mLayer.clearLayers();
     rLayer.clearLayers();
 
-    const order = placesForDay(trip, day).filter((p) => p.coords);
-    const shown = (day === 0 ? allDayPlaces(trip) : placesForDay(trip, day)).filter((p) => p.coords);
+    const bounds: Coords[] = [];
 
-    shown.forEach((p) => {
-      const label = day === 0 ? (p.dayNumber ?? '') : order.indexOf(p) + 1;
-      const m = L.marker(p.coords as Coords, { icon: pinIcon(label) });
-      m.bindPopup(`<b>${p.name}</b>${p.time ? ' · ' + p.time : ''}${p.desc ? '<br>' + p.desc : ''}`);
-      m.on('click', () => placeCb.current(p.id));
-      m.addTo(mLayer);
-    });
-
-    const last = lastDayNumber(trip);
-    if (day === 0) {
-      const pts = trip.places.filter((p) => (p.dayNumber ?? 0) >= 1 && (p.dayNumber ?? 0) < last && p.coords).map((p) => p.coords as Coords);
-      if (pts.length > 1) L.polyline(pts, { color: '#0f1b3d', weight: 3, opacity: 0.5, dashArray: '7 9' }).addTo(rLayer);
-    } else {
+    // Один день рисуем своим цветом: маркеры (нумерация по порядку) + соединяющий маршрут.
+    const drawDay = (dn: number, labelByOrder: boolean) => {
+      const order = placesForDay(trip, dn).filter((p) => p.coords);
+      if (!order.length) return;
+      const color = dayColor(dn);
+      order.forEach((p, idx) => {
+        const label = labelByOrder ? idx + 1 : dn;
+        const m = L.marker(p.coords as Coords, { icon: pinIcon(label, color) });
+        m.bindPopup(`<b>${p.name}</b>${p.time ? ' · ' + p.time : ''}${p.desc ? '<br>' + p.desc : ''}`);
+        m.on('click', () => placeCb.current(p.id));
+        m.addTo(mLayer);
+        bounds.push(p.coords as Coords);
+      });
       const pts = order.map((p) => p.coords as Coords);
       if (pts.length > 1) {
-        const col = getCategory(trip, trip.days.find((d) => d.number === day)?.cat ?? null)?.color;
-        L.polyline(pts, { color: col || '#0f1b3d', weight: 4, opacity: 0.75 }).addTo(rLayer);
+        L.polyline(pts, { color, weight: day === 0 ? 3.5 : 4, opacity: 0.75 }).addTo(rLayer);
       }
+    };
+
+    if (day === 0) {
+      const last = lastDayNumber(trip);
+      for (let dn = 1; dn <= last; dn++) drawDay(dn, false); // обзор: метка = номер дня
+    } else {
+      drawDay(day, true); // один день: метка = порядок в дне
     }
 
-    const bounds = shown.map((p) => p.coords as Coords);
     if (bounds.length) {
       const animate = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       map.fitBounds(L.latLngBounds(bounds).pad(0.18), { animate });
