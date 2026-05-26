@@ -60,6 +60,8 @@ export interface TripDoc {
   endDate: string;
   lead: string;
   note: string;
+  /** Спутники: с кем едем (список имён). */
+  companions: string[];
   currency: string;
   categories: Category[];
   days: Day[];
@@ -115,6 +117,7 @@ export function createTripDoc(input: CreateTripInput): TripDoc {
     endDate: input.endDate,
     lead: '',
     note: '',
+    companions: [],
     currency: 'RUB',
     categories: DEFAULT_CATEGORIES,
     days: buildDays(input.startDate, input.endDate),
@@ -167,6 +170,34 @@ function maxOrderInDay(trip: TripDoc, dayNumber: number): number {
 export function ensureDays(trip: TripDoc): TripDoc {
   if (trip.days.length > 0) return trip;
   return { ...trip, days: buildDays(trip.startDate, trip.endDate) };
+}
+
+/**
+ * Привести старую поездку к актуальной форме: догенерировать дни и проставить
+ * недостающие поля (companions). Возвращает тот же объект, если всё на месте.
+ */
+export function ensureTripDefaults(trip: TripDoc): TripDoc {
+  const days = Array.isArray(trip.days) ? trip.days : [];
+  const needDays = days.length === 0;
+  const needCompanions = !Array.isArray(trip.companions);
+  if (!needDays && !needCompanions) return trip;
+  return {
+    ...trip,
+    days: needDays ? buildDays(trip.startDate, trip.endDate) : days,
+    companions: needCompanions ? [] : trip.companions,
+  };
+}
+
+/** Поля обложки, редактируемые пользователем. */
+export interface TripMetaPatch {
+  title?: string;
+  lead?: string;
+  companions?: string[];
+}
+
+/** Иммутабельно обновить мету поездки (название/описание/спутники). */
+export function updateTripMeta(trip: TripDoc, patch: TripMetaPatch): TripDoc {
+  return { ...trip, ...patch };
 }
 
 export function addPlaceToTrip(trip: TripDoc, dayNumber: number, input: PlaceInput): TripDoc {

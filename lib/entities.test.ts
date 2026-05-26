@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   createTripDoc, DEFAULT_CATEGORIES,
-  ensureDays, placesForDay, getDay, lastDayNumber,
+  ensureDays, ensureTripDefaults, updateTripMeta, placesForDay, getDay, lastDayNumber,
   addPlaceToTrip, updatePlaceInTrip, removePlaceFromTrip,
 } from '@/lib/entities';
 
@@ -51,6 +51,45 @@ describe('ensureDays', () => {
   it('не трогает поездку с днями', () => {
     const t = createTripDoc({ title: 'X', country: 'Y', city: 'Z', startDate: '2026-06-07', endDate: '2026-06-09' });
     expect(ensureDays(t)).toBe(t);
+  });
+});
+
+describe('createTripDoc — спутники', () => {
+  it('новая поездка имеет пустой список спутников', () => {
+    const t = createTripDoc({ title: 'X', country: 'Y', city: 'Z', startDate: '2026-06-07', endDate: '2026-06-09' });
+    expect(t.companions).toEqual([]);
+  });
+});
+
+describe('ensureTripDefaults', () => {
+  const make = () => createTripDoc({ title: 'X', country: 'Y', city: 'Z', startDate: '2026-06-07', endDate: '2026-06-09' });
+
+  it('проставляет companions старой поездке без этого поля', () => {
+    const t = make();
+    const old = { ...t } as Record<string, unknown>;
+    delete old.companions;
+    const fixed = ensureTripDefaults(old as never);
+    expect(fixed.companions).toEqual([]);
+  });
+  it('догенерирует дни, если их нет', () => {
+    const fixed = ensureTripDefaults({ ...make(), days: [] });
+    expect(fixed.days).toHaveLength(3);
+  });
+  it('не трогает уже корректную поездку', () => {
+    const t = make();
+    expect(ensureTripDefaults(t)).toBe(t);
+  });
+});
+
+describe('updateTripMeta', () => {
+  const make = () => createTripDoc({ title: 'X', country: 'Y', city: 'Z', startDate: '2026-06-07', endDate: '2026-06-09' });
+
+  it('меняет название, описание и спутников, не трогая остального', () => {
+    const t = make();
+    const next = updateTripMeta(t, { title: 'Сеул', lead: 'Весна', companions: ['Аня'] });
+    expect(next).toMatchObject({ title: 'Сеул', lead: 'Весна', companions: ['Аня'] });
+    expect(next.city).toBe(t.city);
+    expect(t.title).toBe('X'); // исходник не мутирован
   });
 });
 
