@@ -3,7 +3,7 @@ import {
   createTripDoc, DEFAULT_CATEGORIES, createPlace, getPlaceKind, PLACE_KINDS,
   ensureDays, ensureTripDefaults, updateTripMeta, placesForDay, getDay, lastDayNumber,
   addPlaceToTrip, updatePlaceInTrip, removePlaceFromTrip, movePlace, updateDay, addCategory, getCategory,
-  addInboxLink, removeInboxLink, addPlaceFromInbox,
+  addInboxLink, removeInboxLink, updateInboxLink, addPlaceFromInbox,
 } from '@/lib/entities';
 
 describe('createTripDoc', () => {
@@ -211,6 +211,19 @@ describe('инбокс ссылок', () => {
   it('addPlaceFromInbox с неизвестным id ничего не меняет', () => {
     const t = addInboxLink(base(), 'https://someblog.com/x');
     expect(addPlaceFromInbox(t, 'нет', 1, { name: 'A', coords: [1, 2], time: '', desc: '', price: null, image: '' })).toBe(t);
+  });
+
+  it('updateInboxLink дописывает координаты и имя после разбора', () => {
+    const t = addInboxLink(base(), 'https://maps.app.goo.gl/abc'); // короткая → coords null
+    const id = t.inbox[0].id;
+    const r = updateInboxLink(t, id, { coords: [37.58, 126.98], name: 'Кёнбоккун' });
+    expect(r.inbox[0]).toMatchObject({ coords: [37.58, 126.98], name: 'Кёнбоккун' });
+    expect(r).not.toBe(t); // иммутабельно
+  });
+
+  it('updateInboxLink с неизвестным id ничего не меняет', () => {
+    const t = addInboxLink(base(), 'https://someblog.com/x');
+    expect(updateInboxLink(t, 'нет', { coords: [1, 2] })).toBe(t);
   });
 
   it('ensureTripDefaults чинит inbox-не-массив', () => {

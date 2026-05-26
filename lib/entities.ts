@@ -351,6 +351,15 @@ export function removeInboxLink(trip: TripDoc, id: string): TripDoc {
 }
 
 /**
+ * Дописать в ссылку инбокса результат разбора (имя/координаты с сервера).
+ * Неизвестный id → trip без изменений. Используется после `resolveLink`.
+ */
+export function updateInboxLink(trip: TripDoc, id: string, patch: Partial<Pick<InboxLink, 'name' | 'coords'>>): TripDoc {
+  if (!trip.inbox.some((l) => l.id === id)) return trip;
+  return { ...trip, inbox: trip.inbox.map((l) => (l.id === id ? { ...l, ...patch } : l)) };
+}
+
+/**
  * Перенести ссылку из инбокса в день: создать место (с `source:'link'` и
  * `sourceUrl` из ссылки) и убрать ссылку из инбокса. Одно сохранение.
  * Неизвестный `linkId` → trip без изменений.

@@ -11,7 +11,9 @@
 import { json, preflight } from "../_shared/cors.ts";
 
 const ANTHROPIC_KEY = Deno.env.get("ANTHROPIC_API_KEY") ?? "";
-const MODEL = Deno.env.get("ANTHROPIC_MODEL") ?? "claude-sonnet-4-6";
+// Самая дешёвая Claude — текста на разбор мало (заголовок + фрагмент), хватает.
+// ИИ включается, только если задан ANTHROPIC_API_KEY; иначе работает бесплатный путь.
+const MODEL = Deno.env.get("ANTHROPIC_MODEL") ?? "claude-haiku-4-5";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return preflight();
@@ -24,8 +26,8 @@ Deno.serve(async (req) => {
     const finalUrl = res.url || url;
     const html = await res.text();
 
-    // 2. координаты и имя из самого URL (Google/Kakao Maps)
-    let coords = coordsFromUrl(finalUrl) ?? coordsFromUrl(url);
+    // 2. координаты и имя из самого URL (Google/Kakao/Яндекс Maps)
+    let coords = coordsFor(finalUrl) ?? coordsFor(url);
     let name = nameFromUrl(finalUrl) ?? "";
 
     // 3. имя из страницы (og:title / <title>), если из URL не вышло
@@ -50,12 +52,27 @@ Deno.serve(async (req) => {
   }
 });
 
+// Координаты из URL карт. Яндекс отдаёт `долгота,широта` — переставляем
+// в наш порядок [широта, долгота]; Google/Kakao уже дают `широта,долгота`.
+function coordsFor(u: string): [number, number] | null {
+  if (/yandex/i.test(u)) return coordsFromYandex(u);
+  return coordsFromUrl(u);
+}
+
 function coordsFromUrl(u: string): [number, number] | null {
   let m = u.match(/link\/map\/[^,]+,(-?\d+\.\d+),(-?\d+\.\d+)/);
   if (m) return [+m[1], +m[2]];
-  m = u.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/) || u.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/)
+  // !3d!4d — координаты самого маркера (точнее, чем @ — центр карты).
+  m = u.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/)
+    || u.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/)
     || u.match(/[?&](?:q|ll|query)=(-?\d+\.\d+),\s*(-?\d+\.\d+)/);
   return m ? [+m[1], +m[2]] : null;
+}
+
+function coordsFromYandex(u: string): [number, number] | null {
+  const m = u.match(/[?&](?:ll|pt)=(-?\d+\.\d+)(?:,|%2C)(-?\d+\.\d+)/i)
+    || u.match(/whatshere\[point\]=(-?\d+\.\d+)(?:,|%2C)(-?\d+\.\d+)/i);
+  return m ? [+m[2], +m[1]] : null;
 }
 
 function nameFromUrl(u: string): string {

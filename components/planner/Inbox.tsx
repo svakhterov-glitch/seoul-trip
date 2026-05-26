@@ -8,6 +8,7 @@ interface Props {
   links: InboxLink[];
   days: Day[];
   busy?: boolean;
+  resolving?: string[]; // id ссылок, которые сейчас разбираются на сервере
   onAddLink: (url: string) => void;
   onRemoveLink: (id: string) => void;
   onPlace: (linkId: string, dayNumber: number) => void;
@@ -17,7 +18,7 @@ const SOURCE_LABEL: Record<string, string> = {
   google: 'Google Maps', kakao: 'Kakao', yandex: 'Яндекс.Карты', instagram: 'Instagram', other: 'Ссылка',
 };
 
-export function Inbox({ links, days, busy = false, onAddLink, onRemoveLink, onPlace }: Props) {
+export function Inbox({ links, days, busy = false, resolving = [], onAddLink, onRemoveLink, onPlace }: Props) {
   const [url, setUrl] = useState('');
   const [open, setOpen] = useState(true);
   const [menuFor, setMenuFor] = useState<string | null>(null);
@@ -54,13 +55,17 @@ export function Inbox({ links, days, busy = false, onAddLink, onRemoveLink, onPl
             <p className={styles.hint}>Ссылки попадут сюда «не разобранными» — потом перенесёте в нужный день.</p>
           ) : (
             <ul className={styles.list}>
-              {links.map((l) => (
+              {links.map((l) => {
+                const isResolving = resolving.includes(l.id);
+                return (
                 <li key={l.id} className={styles.item}>
                   <div className={styles.info}>
                     <span className={styles.chip}>{SOURCE_LABEL[l.source] ?? 'Ссылка'}</span>
+                    {l.coords && <span className={styles.located} title="Место найдено на карте">📍</span>}
                     <a className={styles.name} href={l.url} target="_blank" rel="noopener noreferrer" title={l.url}>
                       {l.name || l.url}
                     </a>
+                    {isResolving && <span className={styles.resolving} role="status">разбираю…</span>}
                   </div>
                   <div className={styles.actions}>
                     <div className={styles.dayPick}>
@@ -88,7 +93,8 @@ export function Inbox({ links, days, busy = false, onAddLink, onRemoveLink, onPl
                     >✕</button>
                   </div>
                 </li>
-              ))}
+                );
+              })}
             </ul>
           )}
         </div>

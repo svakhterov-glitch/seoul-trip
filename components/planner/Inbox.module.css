@@ -49,6 +49,8 @@
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .name:hover { text-decoration: underline; }
+.located { flex: 0 0 auto; font-size: 13px; line-height: 1; }
+.resolving { flex: 0 0 auto; font-size: 12px; font-weight: 600; color: var(--accent); white-space: nowrap; }
 
 .actions { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
 .dayPick { position: relative; }

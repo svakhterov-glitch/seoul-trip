@@ -18,6 +18,11 @@ describe('parseLink — координаты из URL карт', () => {
     expect(parseLink('https://maps.google.com/?q=37.5,127.0').coords).toEqual([37.5, 127.0]);
   });
 
+  it('Google: при наличии и @, и !3d!4d берёт маркер (точнее центра)', () => {
+    const r = parseLink('https://www.google.com/maps/place/X/@37.5796,126.9675,17z/data=!3d37.5796!4d126.977');
+    expect(r.coords).toEqual([37.5796, 126.977]); // маркер !4d, а не центр @
+  });
+
   it('Kakao link/map/имя,lat,lng', () => {
     const r = parseLink('https://kko.to/link/map/Onion,37.123,127.456');
     expect(r.coords).toEqual([37.123, 127.456]);

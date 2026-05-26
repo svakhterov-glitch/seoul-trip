@@ -9,8 +9,9 @@ import { getTrip, updateTrip } from '@/lib/trips';
 import {
   type TripDoc, type Coords, type PlaceInput,
   ensureTripDefaults, addPlaceToTrip, updatePlaceInTrip, removePlaceFromTrip, updateTripMeta,
-  updateDay, addCategory, movePlace, addInboxLink, removeInboxLink, addPlaceFromInbox,
+  updateDay, addCategory, movePlace, addInboxLink, removeInboxLink, updateInboxLink, addPlaceFromInbox,
 } from '@/lib/entities';
+import { resolveLink } from '@/lib/resolveLink';
 import { formatDateRange } from '@/lib/days';
 import { PlannerHeader } from '@/components/planner/PlannerHeader';
 import { TripCover, type TripCoverSave } from '@/components/planner/TripCover';
@@ -42,7 +43,11 @@ function PlannerInner() {
   const [draftCoords, setDraftCoords] = useState<Coords | null>(null);
   const [picking, setPicking] = useState(false);
   const [busy, setBusy] = useState(false);
+  // id ссылок, которые сейчас разбираются на сервере (показываем «разбираю…»)
+  const [resolving, setResolving] = useState<string[]>([]);
   const mapRef = useRef<HTMLDivElement>(null);
+  // Свежий документ для патча после async-разбора (state мог уйти вперёд).
+  const tripRef = useRef<TripDoc | null>(null);
 
   useEffect(() => {
     if (session.status === 'anon') { router.replace('/'); return; }
@@ -52,6 +57,7 @@ function PlannerInner() {
       const fixed = ensureTripDefaults(t);
       if (fixed !== t) await updateTrip(getSupabase(), fixed);
       setTrip(fixed);
+      tripRef.current = fixed;
     }).catch(() => setNotFound(true));
   }, [session.status, id, router]);
 
@@ -69,6 +75,7 @@ function PlannerInner() {
     try {
       await updateTrip(getSupabase(), next);
       setTrip(next);
+      tripRef.current = next;
       return true;
     } catch {
       alert('Не удалось сохранить. Попробуйте ещё раз.');
@@ -90,9 +97,25 @@ function PlannerInner() {
     if (await save(next)) closeForm();
   }
 
-  function handleAddLink(url: string) {
+  async function handleAddLink(url: string) {
     if (!trip) return;
-    save(addInboxLink(trip, url));
+    const next = addInboxLink(trip, url);
+    const link = next.inbox[0]; // свежая ссылка — сверху
+    if (!link || !(await save(next))) return;
+    // Авто-разбор на сервере, если координат из URL не вышло (короткая ссылка,
+    // Instagram, блог). Карты с координатами в URL уже разобраны на фронте.
+    if (link.coords) return;
+    setResolving((r) => [...r, link.id]);
+    const resolved = await resolveLink(link.url);
+    setResolving((r) => r.filter((x) => x !== link.id));
+    const base = tripRef.current;
+    if (!resolved || !base || !base.inbox.some((l) => l.id === link.id)) return;
+    if (resolved.coords || (resolved.name && !link.name)) {
+      save(updateInboxLink(base, link.id, {
+        coords: resolved.coords ?? link.coords,
+        name: resolved.name || link.name,
+      }));
+    }
   }
   function handleRemoveLink(id: string) {
     if (!trip) return;
@@ -173,7 +196,7 @@ function PlannerInner() {
           onSave={handleCoverSave}
         />
 
-        <Inbox links={trip.inbox} days={trip.days} busy={busy}
+        <Inbox links={trip.inbox} days={trip.days} busy={busy} resolving={resolving}
           onAddLink={handleAddLink} onRemoveLink={handleRemoveLink} onPlace={openPlaceFromInbox} />
 
         <DayTabs days={trip.days} categories={trip.categories} activeDay={activeDay} onSelect={setActiveDay} />

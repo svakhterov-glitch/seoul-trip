@@ -11,8 +11,8 @@ export interface ParsedLink {
 function coordsFromUrl(u: string): Coords | null {
   let m = u.match(/link\/map\/[^,]+,(-?\d+\.\d+),(-?\d+\.\d+)/); // Kakao
   if (m) return [+m[1], +m[2]];
-  m = u.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/)              // Google @lat,lng
-    || u.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/)         // Google data=!3d!4d
+  m = u.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/)           // Google маркер (точнее центра)
+    || u.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/)              // Google @lat,lng (центр карты)
     || u.match(/[?&](?:q|ll|query)=(-?\d+\.\d+),\s*(-?\d+\.\d+)/); // ?q=lat,lng
   return m ? [+m[1], +m[2]] : null;
 }
