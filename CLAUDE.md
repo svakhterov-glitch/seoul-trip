@@ -6,171 +6,201 @@
 
 ## Что это
 
-Веб-планировщик путешествий. Стартовал как лендинг поездки в Сеул, растёт в
-продукт: создаёшь поездку (перелёт + даты → календарь дней), наполняешь дни
-местами (вручную, позже — ссылками и через ИИ), настраиваешь категории и
-переменные поездки. Текущая витрина — готовая поездка «Сеул».
+**TripsPlan** — веб-планировщик путешествий. Пользователь регистрируется,
+создаёт поездку (страна/город + даты → каркас календаря дней) и наполняет дни
+местами: вручную (ввод + точка на карте), позже — по ссылкам и через ИИ.
+Готовая поездка «Сеул» — пример результата работы сервиса.
 
 ## Стек и запуск
 
-- **Чистый HTML + CSS + ванильный JavaScript (ES-модули). Сборки нет.**
-- Карта — [Leaflet](https://leafletjs.com/) + тайлы OpenStreetMap (CDN).
-- Хранение — `localStorage` (за интерфейсом, см. ниже).
+- **Next.js 15 (App Router) + React 19 + TypeScript.** Статический экспорт
+  (`output: 'export'` → каталог `out/`), без серверного рантайма.
+- **Стили — CSS Modules** (`*.module.css` рядом с компонентом) + глобальный
+  `app/globals.css` (CSS-переменные в `:root`). Шрифт — Manrope (`next/font`).
+- **Хранение и вход — Supabase** (Auth + таблица `trips` с документом в JSONB,
+  защита через RLS). Ключи — в `.env.local` (`NEXT_PUBLIC_SUPABASE_*`).
+- **Карта** — [Leaflet](https://leafletjs.com/) + тайлы OpenStreetMap.
+- **Тесты** — Vitest + Testing Library (jsdom).
 
 ```bash
-npm run dev      # поднять локальный сервер (npx serve) → http://localhost:3000
-npm run check    # проверка синтаксиса всех JS-модулей (наш мини-CI)
+npm run dev      # дев-сервер Next → http://localhost:3000
+npm run build    # статическая сборка в out/
+npm test         # прогон тестов (vitest run) — наш мини-CI
+npm run lint     # next lint
 ```
 
-Можно и просто открыть `index.html` в браузере (нужен интернет для Leaflet/тайлов).
+Для запуска нужен `.env.local` с ключами Supabase (шаблон —
+`.env.local.example`). Без них клиент Supabase бросит ошибку при первом вызове.
 
-## Архитектура (важно сохранять)
+## Архитектура
 
-Слоистая, с чёткими границами — чтобы позже подключить бэкенд (Supabase) и ИИ
-без переписывания:
+Слоистая, границы между UI / данными / моделью сохраняем — чтобы менять
+хранилище и подключать ИИ без переписывания.
 
 ```
-UI (js/ui/*) → Store (js/store) → Repository (js/data) → Model (js/model)
-                                   AI-сервис (js/ai) — отдельно, за интерфейсом
+app/ (страницы, 'use client') → components/ (UI) → lib/ (модель + доступ к данным)
+                                                    Supabase (Auth + БД)
 ```
 
-**Три правила, которые нельзя нарушать:**
+- **`lib/entities.ts` — модель.** Чистые типы (`TripDoc`, `Day`, `Place`,
+  `Category`), фабрики (`createTripDoc`, `createPlace`, `createDay`) и
+  **иммутабельные мутации**, возвращающие НОВЫЙ документ (`addPlaceToTrip`,
+  `updatePlaceInTrip`, `removePlaceFromTrip`, `updateDay`, `updateTripMeta`,
+  `addCategory`, `ensureTripDefaults`). Никакого I/O — только данные.
+- **`lib/trips.ts` — доступ к данным.** Все обращения к таблице `trips` через
+  Supabase: `listTrips`, `getTrip`, `createTrip`, `updateTrip`. Только этот файл
+  знает про форму строк БД (`{ id, data, … }`).
+- **`lib/auth.ts` / `lib/useSession.ts`** — вход/регистрация/выход и хук сессии.
+- **Страницы (`app/**/page.tsx`)** держат состояние поездки в `useState`,
+  применяют мутацию из `entities`, затем сохраняют через `updateTrip` и кладут
+  результат обратно в состояние (паттерн: `save(next)` в планировщике).
 
-1. **UI никогда не трогает `localStorage` напрямую** — только через Store →
-   Repository. Замена хранилища на Supabase = новая реализация `Repository`.
-2. **Методы Repository асинхронны (`async`)** уже сейчас, хотя localStorage
-   синхронный — чтобы переход на сеть не менял сигнатуры.
-3. **ИИ-генерация спрятана за интерфейсом `AiService`** (`js/ai`), сейчас
-   mock-реализация. Меняется только реализация, не вызовы.
+**Правила, которые держим:**
 
-Поток данных: UI вызывает методы `Store` → `Store` меняет поездку, сохраняет
-через `Repository` и через `subscribe`/`_emit` уведомляет подписчиков →
-`render(store)` в `app.js` перерисовывает всё из состояния.
+1. **UI не ходит в Supabase напрямую** — только через `lib/trips.ts` (данные) и
+   `lib/auth.ts` (вход). Смена хранилища = переписать эти файлы, не страницы.
+2. **Мутации поездки иммутабельны и живут в `entities.ts`.** Компоненты их
+   вызывают, но не меняют документ на месте.
+3. **ИИ-генерация (когда дойдём) — за интерфейсом сервиса**, как и доступ к БД.
 
 ## Карта файлов
 
 ```
-index.html              — каркас: #view-app (поездка) и #view-page (страницы-роуты)
-css/styles.css          — все стили (CSS-переменные в :root)
-js/
-  app.js                — точка входа: собирает слои, роутинг, общий render()
-  model/
-    entities.js         — формы данных и фабрики (createTrip/Place/Day/Category…),
-                          помощники: getDay, getCategory, placesForDay,
-                          normalizeDayOrders, tripPeople, byOptions
-    days.js             — генерация каркаса дней, формат дат (addDays, formatDateRu,
-                          formatDateRange, buildDays)
-    config.js           — DEFAULT_CATEGORIES (стартовый набор категорий)
-    seed.seoul.js       — готовая поездка «Сеул» (она же seed «опыта»)
-  data/
-    repository.js       — контракт хранилища (JSDoc)
-    localStorageRepo.js — реализация на localStorage (async)
-  store/store.js        — состояние + подписка + мутации (addPlace, updateDay,
-                          setDayOrder, moveToDayEnd, updateTrip, setCategories…)
-  ai/
-    aiService.js        — контракт generateItinerary()
-    mockAiService.js    — заглушка (отдаёт места из seed)
-  ui/
-    hero.js             — шапка из данных поездки + полоса показателей
-    tripBar.js          — выбор поездки + «Настройки» + «Новая поездка»
-    calendar.js         — вкладки дней (tablist, доступность)
-    timeline.js         — расписание дня, карточки мест, строки начала/конца дня
-    placeForm.js        — панель добавления/редактирования места
-    dayForm.js          — встроенная форма настройки дня
-    settingsForm.js     — страница «Настройки поездки» (#/settings)
-    tripForm.js         — страница «Новая поездка» (#/new)
-    dnd.js              — drag-and-drop мест (порядок внутри дня, перенос между днями)
-    map.js              — карта Leaflet (маркеры, маршрут, выбор точки кликом)
-    helpers.js          — бейджи (категория/цена/автор), ссылка Kakao
-  config.js             — опц. подгрузка config.local.js (иначе локальный режим)
-  data/supabaseRepo.js  — Repository через Supabase REST (тот же контракт)
-  ai/apiAiService.js    — AiService через edge-функцию (настоящий Claude)
-  services/resolveLink.js — клиент edge-функции «чтения» ссылок
-supabase/                — БД и серверные функции (стандартная структура)
-  migrations/            — схема БД: trips (jsonb) + RLS + индексы
-  functions/             — resolve-link, generate-itinerary, trends (Deno)
-  config.toml            — конфиг CLI (функции без verify_jwt)
-  README.md              — деплой через GitHub (2 способа), ключи
-.github/workflows/deploy-supabase.yml — авто-деплой функций/миграций по пушу
-config.local.example.js — шаблон конфига (копировать в config.local.js)
-PLAN.md                 — видение продукта и план по этапам
+app/
+  layout.tsx              — корневой layout, шрифт, метаданные
+  page.tsx                — лендинг + вход/регистрация (/)
+  globals.css             — глобальные стили и CSS-переменные
+  app/page.tsx            — список «Мои поездки» (/app)
+  app/new/page.tsx        — создание поездки (/app/new)
+  app/trip/page.tsx       — планировщик поездки (/app/trip/?id=…) ← основной экран
+components/
+  landing/                — SiteHeader, Hero, Steps, AuthCard (экран входа)
+  trips/                  — TripsHeader, TripsGrid, NewTripForm (список/создание)
+  planner/                — экран поездки:
+    PlannerHeader, TripCover, DayTabs, DayForm, Timeline, PlaceCard,
+    PlaceForm, TripMap (Leaflet), CitySkyline (запасная обложка), badges
+lib/
+  entities.ts             — модель + фабрики + иммутабельные мутации
+  trips.ts                — доступ к таблице trips (Supabase)
+  auth.ts, useSession.ts  — вход и хук сессии
+  authErrors.ts           — перевод ошибок Supabase Auth в русский текст
+  validation.ts           — валидация форм (вход, новая поездка)
+  placeValidation.ts      — валидация формы места
+  days.ts                 — даты и каркас дней (buildDays, formatDateRange…)
+  tripMeta.ts             — нормализация списка спутников
+  cityCovers.ts           — реестр картинок-обложек по городам (public/covers/)
+  dayColors.ts            — палитра цветов дней для карты
+  skyline.ts              — детерминированный пиксель-скайлайн (запасная обложка)
+  supabase/client.ts      — синглтон клиента Supabase (читает env)
+supabase/                 — серверная часть (БД + Edge Functions, см. ниже)
+  migrations/             — схема: таблица trips (jsonb) + RLS + триггеры
+  functions/              — resolve-link, generate-itinerary, trends (Deno) — на будущее
+deploy/                   — скрипты развёртывания на VPS (setup/update/cron)
+legacy/                   — прежняя ванильная HTML/CSS/JS-версия (НЕ используется)
+docs/superpowers/         — планы и спеки этапов миграции
+PLAN.md                   — видение продукта и этапы
 ```
+
+`@/*` в импортах = корень проекта (`tsconfig.json` paths).
 
 ## Модель данных (суть)
 
-`Trip { id, title, city, country, startDate, endDate, lead, note, travelers,
-people[], currency, budget, interests[], pace, categories[], hotel{name,coords},
-flights[], days[], places[], inbox[] }`
+`TripDoc { id, title, country, city, startDate, endDate, lead, note,
+companions[], coverImage, currency, categories[], days[], places[], inbox[] }`
+— весь документ хранится в колонке `data` (JSONB) строки таблицы `trips`.
 
-- `Day { number, date, cat, title, sub, start, end }` — `cat` ссылается на
-  `categories[].key`; `start`/`end` — время дня.
-- `Place { id, dayNumber, order, type, name, coords, time, photo, price, by,
-  desc, history, source }` — `order` задаёт ручной порядок в дне (время —
-  необязательная подпись). `type`: `hotel`|`airport`|null. `dayNumber:0` —
-  отель (база). Места без `coords` не попадают на карту.
+- `Day { number, date, cat, title, sub }` — `cat` ссылается на
+  `categories[].key`. `buildDays` строит каркас: день 1 — `start`/«Прилёт»,
+  последний — `final`/«Вылет».
+- `Place { id, dayNumber, order, name, coords, time, desc, price, image, by,
+  kind, note, photo, source }` — `order` задаёт ручной порядок в дне (время —
+  необязательная подпись). `kind` — формат из `PLACE_KINDS`. Места без `coords`
+  не попадают на карту. `dayNumber` 1..N — дни; `0`/`null` — вне дней.
 - `Category { key, label, color }` — цвет (HEX) хранится в данных, применяется
-  inline (вкладки, бейджи, линия маршрута).
+  inline (вкладки дней, бейджи, линия маршрута на карте).
 
-## Роутинг (хэш)
+## Роутинг (Next App Router)
 
-`app.js` слушает `hashchange`. `#/new` — страница создания поездки, `#/settings`
-(алиас `#/categories`) — настройки поездки. Иначе — основной вид. Страницы
-рисуются в `#view-page`, основной вид — `#view-app`.
+- `/` — лендинг с формой входа/регистрации. После входа → `/app`.
+- `/app` — список поездок (если пусто → редирект на `/app/new`).
+- `/app/new` — создание поездки.
+- `/app/trip/?id=<tripId>` — планировщик. `id` берётся из query (`useSearchParams`,
+  поэтому обёрнут в `<Suspense>`).
+
+Страницы требуют сессии: `useSession()` → при `anon` редирект на `/`.
 
 ## Соглашения
 
-- Язык интерфейса и комментариев — русский.
-- Новые экраны — в едином визуальном языке (тёмно-синий + коралловый акцент,
-  белые скруглённые карточки). Применяем frontend-design и web-design-guidelines.
-- Доступность: интерактивные элементы фокусируемы и работают с клавиатуры;
-  уважать `prefers-reduced-motion`; `touch-action: manipulation`.
-- Цвета — через CSS-переменные в `:root`.
+- Язык интерфейса и комментариев — **русский**.
+- Визуальный язык: тёмно-синий фон + коралловый акцент, белые скруглённые
+  карточки. Новые экраны — в том же стиле; применяем навыки **frontend-design**
+  и **web-design-guidelines**.
+- Доступность: интерактив фокусируем и работает с клавиатуры; уважать
+  `prefers-reduced-motion`; `touch-action: manipulation`.
+- Цвета и отступы — через CSS-переменные в `app/globals.css`.
+- Каждый компонент — `.tsx` + соседний `.module.css`. Клиентские компоненты
+  начинаются с `'use client'`.
+- На каждую новую чистую функцию/мутацию в `lib/` — тест рядом (`*.test.ts`).
 
-## Персистентность
+## Персистентность и вход
 
-`app.js` грузит сохранённую поездку, если она есть, иначе кладёт seed Сеула.
-Правки пользователя сохраняются между перезагрузками. `createTrip` подставляет
-дефолты для отсутствующих полей — старые сохранённые поездки совместимы.
+- Вход обязателен: данные пишутся в Supabase под `user_id` текущего
+  пользователя (RLS пускает к своим строкам только владельца).
+- Поездка целиком сериализуется в JSONB (`data`). Загрузка — `getTrip`,
+  сохранение — `updateTrip(doc)` (перезапись всего документа).
+- `ensureTripDefaults` приводит старые сохранённые поездки к актуальной форме
+  (догенерирует дни, проставляет `companions`/`coverImage`) — при загрузке, если
+  что-то изменилось, тихо пересохраняет.
 
 ## Грабли (уже наступали)
 
-- **Сигнатуры помощников.** `catBadge(trip, key)` и `priceBadge(price, currency)`
-  принимают поездку/валюту. Меняя сигнатуру помощника — проверь ВСЕ вызовы
-  (`grep`), включая попап карты (`map.js`).
-- **Обработчики по id.** Формы ищут элементы по `#id`. Если у элемента нет `id`,
-  `querySelector` вернёт `null` и навешивание упадёт, оставив остальные кнопки
-  без обработчиков. Давать `id` или искать по классу.
-- **Кнопка внутри `<label>`.** Клик по кнопке внутри `<label>` перехватывается
-  меткой. Интерактив выносить из `<label>`.
-- **Скрытая карта.** После показа ранее скрытого вида звать
-  `map.invalidateSize()` (см. `route()`), иначе тайлы «серые».
+- **Leaflet и SSR.** `TripMap` подключается через
+  `dynamic(() => import(...), { ssr: false })` — Leaflet трогает `window`.
+  Не импортировать карту статически в серверный код.
+- **Скрытая/перерисованная карта** требует `map.invalidateSize()`, иначе тайлы
+  «серые». Карта в `out/` отдаётся статикой — следить при показе ранее скрытого.
+- **`output: 'export'` + `trailingSlash: true`.** Нет серверного рантайма:
+  никаких route handlers / server actions / `next/image`-оптимизации
+  (`images.unoptimized`). Динамику читаем на клиенте (query, Supabase).
+- **`useSearchParams` требует `<Suspense>`** при статическом экспорте — см.
+  обёртку в `app/app/trip/page.tsx`.
+- **Сигнатуры помощников бейджей.** Меняя `CatBadge`/`priceBadge` — проверь ВСЕ
+  вызовы (`grep`), включая попап карты (`TripMap`).
+- **Мутации иммутабельны.** Не мутируй `trip`/`places` на месте — используй
+  функции из `entities.ts`, они возвращают новый документ; иначе React не
+  перерисует и сохранение уйдёт «мимо».
 
-## Бэкенд (опционально, выключен по умолчанию)
+## Supabase (БД + серверные функции)
 
-Каркас, готовый «подключить ключи». **По умолчанию выключен**: без
-`config.local.js` приложение работает локально (localStorage + MockAiService),
-поведение не меняется.
+- **Схема** — `supabase/migrations/*_init.sql`: таблица `trips` (jsonb `data`),
+  RLS по `user_id = auth.uid()`, триггер `updated_at`, индекс по FK. Применять
+  через Supabase Dashboard → SQL Editor.
+- **Edge Functions** (`supabase/functions/`, Deno/TypeScript) — каркас на
+  будущее (`resolve-link` — разбор ссылок, `generate-itinerary` — ИИ-маршрут,
+  `trends`). Пока фронтом не используются. `npm test` их не проверяет.
+- **Секреты не коммитим**: `.env.local`, `.env.production` — в `.gitignore`.
+  `config.local.js` — legacy-артефакт прежней версии, в Next не используется.
 
-- **Включение** — скопировать `config.local.example.js` → `config.local.js`,
-  вписать Supabase и/или `functionsUrl`. Тогда `app.js` сам выбирает
-  `SupabaseRepository` вместо localStorage и `ApiAiService` вместо mock, а
-  разбор ссылок идёт через функцию `resolve-link` (с откатом на фронт).
-- **Секреты не коммитим**: `config.local.js`, `.env` — в `.gitignore`. Ключи
-  функций — в секретах Supabase (`supabase secrets set …`).
-- **Контракты те же**: `Repository` и `AiService` не менялись — поэтому смена
-  локального на облачное не трогает UI/Store.
-- **TODO для боевого использования**: экран входа (Supabase Auth) — RLS требует
-  пользовательский JWT. Без входа работают только функции (ссылки/ИИ), но не
-  синхронизация БД. Подробности — `supabase/README.md`.
-- Функции в `supabase/functions/` — Deno (TypeScript), `npm run check` их не проверяет
-  (он только для `js/`).
+## Развёртывание
+
+Прод — VPS (`194.87.243.143`, домен **tripsplan.ru**, HTTPS, nginx отдаёт `out/`).
+
+- `deploy/setup.next.sh` — первичная настройка сервера (Node LTS, nginx, сборка).
+- `deploy/update.sh` — пуллит `origin/main` и пересобирает, только если код
+  изменился; запускается по cron каждые ~2 минуты (`enable-autoupdate.sh`).
+- `.env.production` на сервере (вне git) хранит ключи Supabase и переживает
+  `git reset --hard`.
+
+Итого: **пуш в `main` → авто-деплой** на сервере без ручных действий.
 
 ## Как добавить типичное
 
-- **Поле места** — в `createPlace` (`entities.js`) + в форму `placeForm.js` + в
-  отрисовку `timeline.js`/`map.js`.
-- **Переменную поездки** — в `createTrip` + раздел в `settingsForm.js` + при
-  необходимости в `hero.js`/где используется.
-- **Новую страницу-роут** — ветка в `route()` (`app.js`) + рендер-модуль в
-  `js/ui`, который рисует в `#view-page`.
-- **Содержимое поездки Сеул** — `js/model/seed.seoul.js`.
+- **Поле места** — в `Place`/`PlaceInput` и `createPlace` (`entities.ts`) + в
+  форму `PlaceForm.tsx` + в отрисовку `PlaceCard.tsx`/`TripMap.tsx`.
+- **Переменную поездки** — в `TripDoc` и `createTripDoc` (`entities.ts`) +
+  мутацию (если редактируется) + UI (`TripCover`/планировщик) + тест.
+- **Новую страницу** — каталог в `app/` с `page.tsx` (`'use client'` + проверка
+  сессии) + компоненты в `components/` + соседние `.module.css`.
+- **Содержимое поездки «Сеул»** — это обычная поездка в БД (seed), не файл в
+  коде. Прежний seed лежит в `legacy/js/model/seed.seoul.js` для справки.
+```
