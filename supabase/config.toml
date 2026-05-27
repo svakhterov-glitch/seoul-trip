@@ -6,6 +6,9 @@ project_id = "seoul-trip"
 [functions.resolve-link]
 verify_jwt = false
 
+[functions.search-places]
+verify_jwt = false
+
 [functions.generate-itinerary]
 verify_jwt = false
 

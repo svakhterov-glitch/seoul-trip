@@ -8,8 +8,9 @@
 
 **TripsPlan** — веб-планировщик путешествий. Пользователь регистрируется,
 создаёт поездку (страна/город + даты → каркас календаря дней) и наполняет дни
-местами: вручную (ввод + точка на карте) и по ссылкам (инбокс + серверный
-разбор с фото/описанием); ИИ-сборка маршрута — следующий этап.
+местами: вручную (ввод + точка на карте), по ссылкам (инбокс + серверный
+разбор с фото/описанием) и поиском по названию в пределах города (ИИ + геокодер
+предлагают кандидатов, пользователь выбирает); ИИ-сборка маршрута — следующий этап.
 Готовая поездка «Сеул» — пример результата работы сервиса.
 
 ## Стек и запуск
@@ -91,8 +92,9 @@ lib/
   validation.ts           — валидация форм (вход, новая поездка)
   placeValidation.ts      — валидация формы места
   days.ts                 — даты и каркас дней (buildDays, formatDateRange…)
-  parseLink.ts            — фронтовый разбор ссылки (координаты/имя из URL карт, без сети)
+  parseLink.ts            — фронтовый разбор ссылки + isLink (ссылка vs поисковый запрос)
   resolveLink.ts          — сервис серверного разбора ссылки (зовёт edge-функцию resolve-link)
+  searchPlaces.ts         — сервис поиска места по названию (edge-функция search-places) + placeMapsUrl
   tripMeta.ts             — нормализация списка спутников
   cityCovers.ts           — реестр картинок-обложек по городам (public/covers/)
   dayColors.ts            — палитра цветов дней для карты
@@ -100,7 +102,7 @@ lib/
   supabase/client.ts      — синглтон клиента Supabase (читает env)
 supabase/                 — серверная часть (БД + Edge Functions, см. ниже)
   migrations/             — схема: таблица trips (jsonb) + RLS + триггеры
-  functions/              — resolve-link (ЗАДЕПЛОЕН, используется), generate-itinerary, trends (Deno)
+  functions/              — resolve-link (ЗАДЕПЛОЕН), search-places (НУЖЕН ДЕПЛОЙ), generate-itinerary, trends (Deno)
 deploy/                   — скрипты развёртывания на VPS (setup/update/cron)
 legacy/                   — прежняя ванильная HTML/CSS/JS-версия (НЕ используется)
 docs/superpowers/         — планы и спеки этапов миграции
@@ -124,11 +126,15 @@ companions[], coverImage, currency, categories[], days[], places[], inbox[] }`
   `coords` не попадают на карту. `dayNumber` 1..N — дни; `0`/`null` — вне дней.
   `sourceUrl` — исходная ссылка, если место добавлено из инбокса (иначе `''`).
 - `InboxLink { id, url, name, coords, desc, image, source, createdAt }` —
-  неразобранная ссылка в `inbox[]`. `addInboxLink` парсит URL фронтом
-  (`parseLink`), затем планировщик асинхронно дозапрашивает сервер
-  (`resolveLink` → edge-функция) и `updateInboxLink` дописывает `coords/name/
-  desc/image`. `addPlaceFromInbox` переносит ссылку в день как `Place` (с
-  `source:'link'` и `sourceUrl`); `desc/image` подставляются в форму места.
+  запись инбокса в `inbox[]` (ссылка ИЛИ найденное по названию место).
+  **Ссылка:** `addInboxLink` парсит URL фронтом (`parseLink`), затем планировщик
+  асинхронно дозапрашивает сервер (`resolveLink` → edge-функция) и
+  `updateInboxLink` дописывает `coords/name/desc/image`. **Поиск по названию:**
+  ввод без URL (`isLink`=false) уходит в `searchPlaces` → edge-функция
+  `search-places` возвращает кандидатов; пользователь выбирает один, и
+  `addInboxPlace` кладёт его в инбокс уже разобранным (`source:'search'`,
+  `url`=Google Maps поиск). `addPlaceFromInbox` переносит любую запись в день как
+  `Place` (с `source:'link'` и `sourceUrl`); `desc/image` идут в форму места.
 - `Category { key, label, color }` — цвет (HEX) хранится в данных, применяется
   inline (вкладки дней, бейджи, линия маршрута на карте).
 
@@ -205,6 +211,12 @@ companions[], coverImage, currency, categories[], days[], places[], inbox[] }`
     пишет краткое описание + гео-запрос через **Haiku** (`claude-haiku-4-5`),
     иначе работает базовый разбор. Нет точного маркера → геокодит по имени
     (Nominatim). Зовётся с фронта через `lib/resolveLink.ts`.
+  - **`search-places` — НУЖЕН ДЕПЛОЙ.** Принимает `{query, city, country}`,
+    при ключе `ANTHROPIC_API_KEY` просит Haiku предложить до 5 реальных мест
+    (имя + описание + гео-запрос), геокодит каждое (Nominatim, по очереди —
+    лимит ~1 запрос/сек) и возвращает `{candidates:[{name,address,desc,coords}]}`;
+    без ключа — прямой поиск Nominatim. Зовётся с фронта через `lib/searchPlaces.ts`.
+    Деплой так же, как resolve-link: `... functions deploy search-places ...`.
   - `generate-itinerary` (ИИ-маршрут), `trends` — каркас на будущее.
   - **Деплой функции** (Docker НЕ нужен): `SUPABASE_ACCESS_TOKEN=<sbp-токен> npx
     -y supabase functions deploy resolve-link --project-ref wcipnwgniynriazvqucn`.

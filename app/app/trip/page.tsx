@@ -9,14 +9,16 @@ import { getTrip, updateTrip } from '@/lib/trips';
 import {
   type TripDoc, type Coords, type PlaceInput,
   ensureTripDefaults, addPlaceToTrip, updatePlaceInTrip, removePlaceFromTrip, updateTripMeta,
-  updateDay, addCategory, movePlace, addInboxLink, removeInboxLink, updateInboxLink, addPlaceFromInbox,
+  updateDay, addCategory, movePlace, addInboxLink, removeInboxLink, updateInboxLink, addPlaceFromInbox, addInboxPlace,
 } from '@/lib/entities';
 import { resolveLink } from '@/lib/resolveLink';
+import { isLink } from '@/lib/parseLink';
+import { searchPlaces, placeMapsUrl, type PlaceCandidate } from '@/lib/searchPlaces';
 import { formatDateRange } from '@/lib/days';
 import { PlannerHeader } from '@/components/planner/PlannerHeader';
 import { TripCover, type TripCoverSave } from '@/components/planner/TripCover';
 import { DayTabs } from '@/components/planner/DayTabs';
-import { Inbox } from '@/components/planner/Inbox';
+import { Inbox, type SearchState } from '@/components/planner/Inbox';
 import { Timeline } from '@/components/planner/Timeline';
 import { type DaySave } from '@/components/planner/DayForm';
 import { PlaceForm } from '@/components/planner/PlaceForm';
@@ -45,6 +47,8 @@ function PlannerInner() {
   const [busy, setBusy] = useState(false);
   // id ссылок, которые сейчас разбираются на сервере (показываем «разбираю…»)
   const [resolving, setResolving] = useState<string[]>([]);
+  // активный поиск места по названию (панель выбора кандидатов в инбоксе)
+  const [search, setSearch] = useState<SearchState | null>(null);
   const mapRef = useRef<HTMLDivElement>(null);
   // Свежий документ для патча после async-разбора (state мог уйти вперёд).
   const tripRef = useRef<TripDoc | null>(null);
@@ -95,6 +99,41 @@ function PlannerInner() {
           ? addPlaceFromInbox(trip, form.linkId, form.dayNumber, input)
           : trip;
     if (await save(next)) closeForm();
+  }
+
+  // Единый ввод инбокса: ссылка → разбор как раньше; текст → поиск места по названию.
+  async function handleAdd(textInput: string) {
+    if (!trip) return;
+    const t = textInput.trim();
+    if (!t) return;
+    if (isLink(t)) { await handleAddLink(t); return; }
+
+    setSearch({ query: t, status: 'loading', candidates: [] });
+    const list = await searchPlaces(t, trip.city, trip.country);
+    const base = tripRef.current;
+    if (!base) { setSearch(null); return; }
+    // Одно совпадение — сразу в инбокс, без выбора. Иначе показываем кандидатов.
+    if (list.length === 1) {
+      setSearch(null);
+      await save(addInboxPlace(base, { ...list[0], url: placeMapsUrl(list[0].name, base.city) }));
+      return;
+    }
+    setSearch({ query: t, status: 'done', candidates: list });
+  }
+
+  function handlePickCandidate(c: PlaceCandidate) {
+    const base = tripRef.current;
+    if (!base) return;
+    setSearch(null);
+    save(addInboxPlace(base, { ...c, url: placeMapsUrl(c.name, base.city) }));
+  }
+
+  function handleAddRaw() {
+    const base = tripRef.current;
+    if (!base || !search) return;
+    const name = search.query;
+    setSearch(null);
+    save(addInboxPlace(base, { name, coords: null, desc: '' }));
   }
 
   async function handleAddLink(url: string) {
@@ -198,8 +237,9 @@ function PlannerInner() {
           onSave={handleCoverSave}
         />
 
-        <Inbox links={trip.inbox} days={trip.days} busy={busy} resolving={resolving}
-          onAddLink={handleAddLink} onRemoveLink={handleRemoveLink} onPlace={openPlaceFromInbox} />
+        <Inbox links={trip.inbox} days={trip.days} busy={busy} resolving={resolving} search={search}
+          onAdd={handleAdd} onRemoveLink={handleRemoveLink} onPlace={openPlaceFromInbox}
+          onPickCandidate={handlePickCandidate} onAddRaw={handleAddRaw} onDismissSearch={() => setSearch(null)} />
 
         <DayTabs days={trip.days} categories={trip.categories} activeDay={activeDay} onSelect={setActiveDay} />
 

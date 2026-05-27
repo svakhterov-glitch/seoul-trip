@@ -3,7 +3,7 @@ import {
   createTripDoc, DEFAULT_CATEGORIES, createPlace, getPlaceKind, PLACE_KINDS,
   ensureDays, ensureTripDefaults, updateTripMeta, placesForDay, getDay, lastDayNumber,
   addPlaceToTrip, updatePlaceInTrip, removePlaceFromTrip, movePlace, updateDay, addCategory, getCategory,
-  addInboxLink, removeInboxLink, updateInboxLink, addPlaceFromInbox,
+  addInboxLink, removeInboxLink, updateInboxLink, addPlaceFromInbox, addInboxPlace,
 } from '@/lib/entities';
 
 describe('createTripDoc', () => {
@@ -225,6 +225,20 @@ describe('инбокс ссылок', () => {
   it('updateInboxLink с неизвестным id ничего не меняет', () => {
     const t = addInboxLink(base(), 'https://someblog.com/x');
     expect(updateInboxLink(t, 'нет', { coords: [1, 2] })).toBe(t);
+  });
+
+  it('addInboxPlace кладёт найденное место с source=search и координатами', () => {
+    const t = addInboxPlace(base(), { name: 'Кёнбоккун', coords: [37.58, 126.98], desc: 'Дворец', url: 'https://maps/x' });
+    expect(t.inbox).toHaveLength(1);
+    expect(t.inbox[0]).toMatchObject({ name: 'Кёнбоккун', coords: [37.58, 126.98], desc: 'Дворец', source: 'search', url: 'https://maps/x', image: '' });
+    expect(t.inbox[0].id).toBeTruthy();
+  });
+
+  it('addInboxPlace кладёт свежее место в начало и игнорирует пустое имя', () => {
+    let t = addInboxLink(base(), 'https://someblog.com/x');
+    t = addInboxPlace(t, { name: 'Onion', coords: [37.5, 127.0] });
+    expect(t.inbox[0]).toMatchObject({ name: 'Onion', source: 'search' }); // свежее сверху
+    expect(addInboxPlace(t, { name: '   ', coords: [1, 2] })).toBe(t);     // пустое имя — без изменений
   });
 
   it('ensureTripDefaults чинит inbox-не-массив', () => {

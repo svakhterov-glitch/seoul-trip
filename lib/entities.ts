@@ -331,21 +331,45 @@ export function addCategory(trip: TripDoc, input: { label: string; color: string
 
 /* ---------- инбокс неразобранных ссылок ---------- */
 
+/** Собрать запись инбокса (общий конструктор для ссылок и найденных мест). */
+function makeInboxLink(entry: Omit<InboxLink, 'id' | 'createdAt'>): InboxLink {
+  return { id: newId('link'), createdAt: new Date().toISOString(), ...entry };
+}
+
 /** Добавить ссылку в инбокс (свежие — сверху). Пустой URL игнорируется. */
 export function addInboxLink(trip: TripDoc, url: string): TripDoc {
   const u = (url || '').trim();
   if (!u) return trip;
   const parsed = parseLink(u);
-  const link: InboxLink = {
-    id: newId('link'),
-    url: u,
-    name: parsed.name,
-    coords: parsed.coords,
-    desc: '',
-    image: '',
-    source: parsed.source,
-    createdAt: new Date().toISOString(),
-  };
+  const link = makeInboxLink({ url: u, name: parsed.name, coords: parsed.coords, desc: '', image: '', source: parsed.source });
+  return { ...trip, inbox: [link, ...trip.inbox] };
+}
+
+/** Найденное по названию место — то, что выбрал пользователь из кандидатов. */
+export interface InboxPlaceInput {
+  name: string;
+  coords: Coords | null;
+  desc?: string;
+  image?: string;
+  /** Ссылка «открыть на карте» (генерим из имени+города); может быть ''. */
+  url?: string;
+}
+
+/**
+ * Добавить в инбокс место, найденное поиском по названию (а не из ссылки).
+ * Уже разобрано: имя/координаты заданы, источник `search`. Пустое имя игнор.
+ */
+export function addInboxPlace(trip: TripDoc, place: InboxPlaceInput): TripDoc {
+  const name = (place.name || '').trim();
+  if (!name) return trip;
+  const link = makeInboxLink({
+    url: place.url || '',
+    name,
+    coords: place.coords ?? null,
+    desc: place.desc || '',
+    image: place.image || '',
+    source: 'search',
+  });
   return { ...trip, inbox: [link, ...trip.inbox] };
 }
 

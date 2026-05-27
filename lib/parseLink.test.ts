@@ -1,5 +1,27 @@
 import { describe, it, expect } from 'vitest';
-import { parseLink } from '@/lib/parseLink';
+import { parseLink, isLink } from '@/lib/parseLink';
+
+describe('isLink — ссылка vs поисковый запрос', () => {
+  it('http(s) — ссылка', () => {
+    expect(isLink('https://maps.app.goo.gl/abc')).toBe(true);
+    expect(isLink('http://x.com')).toBe(true);
+  });
+  it('голый домен без пробелов — ссылка', () => {
+    expect(isLink('kko.to/link/map/x')).toBe(true);
+    expect(isLink('maps.app.goo.gl/abcd')).toBe(true);
+    expect(isLink('cafe.com')).toBe(true);
+  });
+  it('название места — запрос, не ссылка', () => {
+    expect(isLink('Кёнбоккун')).toBe(false);     // нет домена
+    expect(isLink('Cafe Onion Seongsu')).toBe(false); // пробелы → запрос
+    expect(isLink('경복궁')).toBe(false);          // хангыль, не домен
+    expect(isLink('Cafe 5.5')).toBe(false);       // пробел → запрос, хоть и с точкой
+  });
+  it('пустая строка — не ссылка', () => {
+    expect(isLink('')).toBe(false);
+    expect(isLink('   ')).toBe(false);
+  });
+});
 
 describe('parseLink — координаты из URL карт', () => {
   it('Google @lat,lng + имя из /place/', () => {

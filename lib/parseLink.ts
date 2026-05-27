@@ -35,6 +35,19 @@ function nameFromUrl(u: string): string {
   try { return decodeURIComponent(raw).trim(); } catch { return raw.trim(); }
 }
 
+/**
+ * Похож ли ввод на ссылку, а не на поисковый запрос по названию? Ссылка —
+ * это `http(s)://…` или голый домен без пробелов (`kko.to/…`, `maps.app.goo.gl/…`).
+ * Текст с пробелами или без точки-домена (`Кёнбоккун`, `Cafe Onion`) — это запрос.
+ */
+export function isLink(text: string): boolean {
+  const t = (text || '').trim();
+  if (!t) return false;
+  if (/^https?:\/\//i.test(t)) return true;
+  if (/\s/.test(t)) return false; // в названиях мест бывают пробелы — это запрос
+  return /^[a-z0-9-]+(\.[a-z0-9-]+)+(\/|\?|$)/i.test(t); // голый домен: foo.com, foo.com/bar
+}
+
 /** Тип ссылки по домену — для иконки/чипа. */
 function sourceFromUrl(u: string): string {
   const s = u.toLowerCase();
