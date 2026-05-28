@@ -19,7 +19,7 @@ describe('demoMediaFor', () => {
   });
 
   it('каждое место имеет живую ссылку на источник, валидную рубрику и сегмент', () => {
-    expect(SEOUL_MEDIA_DEMO.length).toBeGreaterThanOrEqual(6);
+    expect(SEOUL_MEDIA_DEMO.length).toBeGreaterThanOrEqual(12);
     for (const item of SEOUL_MEDIA_DEMO) {
       expect(item.name).toBeTruthy();
       expect(item.sourceUrl).toMatch(/^https:\/\//);
@@ -28,5 +28,12 @@ describe('demoMediaFor', () => {
       expect(getPlaceKind(item.segment)).not.toBeNull();
       expect(item.coords).not.toBeNull();
     }
+  });
+
+  it('источники разнообразны (≥3 издания) и все рубрики представлены', () => {
+    const sources = new Set(SEOUL_MEDIA_DEMO.map((i) => i.source));
+    expect(sources.size).toBeGreaterThanOrEqual(3);
+    const rubrics = new Set(SEOUL_MEDIA_DEMO.map((i) => i.rubric));
+    for (const r of RUBRICS) expect(rubrics.has(r)).toBe(true);
   });
 });
