@@ -3,3 +3,7 @@
 .tabOn { background: var(--navy); border-color: var(--navy); color: #fff; }
 .dnum { font-weight: 700; }
 .ddate { font-size: 11px; opacity: .8; }
+
+/* Вкладка «Медиа» — отдельный режим (подсказки из медиа), акцентная рамка. */
+.media { justify-content: center; border-color: var(--accent); color: var(--accent); }
+.media.tabOn { background: var(--accent); border-color: var(--accent); color: #fff; }

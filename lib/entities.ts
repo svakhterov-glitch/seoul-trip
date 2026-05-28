@@ -345,7 +345,7 @@ export function addInboxLink(trip: TripDoc, url: string): TripDoc {
   return { ...trip, inbox: [link, ...trip.inbox] };
 }
 
-/** Найденное по названию место — то, что выбрал пользователь из кандидатов. */
+/** Уже разобранное место для инбокса (из поиска по названию или из доски «Медиа»). */
 export interface InboxPlaceInput {
   name: string;
   coords: Coords | null;
@@ -353,11 +353,14 @@ export interface InboxPlaceInput {
   image?: string;
   /** Ссылка «открыть на карте» (генерим из имени+города); может быть ''. */
   url?: string;
+  /** Источник: 'search' (поиск по названию) или 'media' (доска «Медиа»). */
+  source?: string;
 }
 
 /**
- * Добавить в инбокс место, найденное поиском по названию (а не из ссылки).
- * Уже разобрано: имя/координаты заданы, источник `search`. Пустое имя игнор.
+ * Добавить в инбокс уже разобранное место (имя/координаты заданы) — из поиска по
+ * названию (`source:'search'`) или из доски «Медиа» (`source:'media'`). Пустое
+ * имя игнорируется.
  */
 export function addInboxPlace(trip: TripDoc, place: InboxPlaceInput): TripDoc {
   const name = (place.name || '').trim();
@@ -368,7 +371,7 @@ export function addInboxPlace(trip: TripDoc, place: InboxPlaceInput): TripDoc {
     coords: place.coords ?? null,
     desc: place.desc || '',
     image: place.image || '',
-    source: 'search',
+    source: place.source || 'search',
   });
   return { ...trip, inbox: [link, ...trip.inbox] };
 }

@@ -241,6 +241,11 @@ describe('инбокс ссылок', () => {
     expect(addInboxPlace(t, { name: '   ', coords: [1, 2] })).toBe(t);     // пустое имя — без изменений
   });
 
+  it('addInboxPlace принимает source (media из доски «Медиа»)', () => {
+    const t = addInboxPlace(base(), { name: 'Smth', coords: [1, 2], source: 'media', desc: 'из гида' });
+    expect(t.inbox[0]).toMatchObject({ name: 'Smth', source: 'media', desc: 'из гида' });
+  });
+
   it('ensureTripDefaults чинит inbox-не-массив', () => {
     const broken = { ...base(), inbox: undefined as unknown as [] };
     expect(Array.isArray(ensureTripDefaults(broken).inbox)).toBe(true);

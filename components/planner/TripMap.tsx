@@ -3,17 +3,22 @@
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { type TripDoc, placesForDay, lastDayNumber, type Coords } from '@/lib/entities';
+import { type TripDoc, placesForDay, lastDayNumber, getPlaceKind, type Coords } from '@/lib/entities';
 import { dayColor } from '@/lib/dayColors';
+import { type MediaItem, rubricMeta } from '@/lib/media';
+import { MEDIA_TAB } from './DayTabs';
 import styles from './TripMap.module.css';
 
 interface Props {
   trip: TripDoc;
-  day: number;             // 0 = весь маршрут
+  day: number;             // 0 = весь маршрут, -1 (MEDIA_TAB) = доска «Медиа»
   picking: boolean;        // режим выбора точки
   draftCoords: Coords | null;
   onMapClick: (coords: Coords) => void;
   onPlaceClick: (id: string) => void;
+  media?: MediaItem[];     // метки доски «Медиа» (рисуются при day === MEDIA_TAB)
+  highlightId?: string | null; // подсвеченная медиа-метка (синхрон с витриной)
+  onMediaClick?: (id: string) => void;
 }
 
 function pinIcon(label: string | number, color: string) {
@@ -24,7 +29,23 @@ function pinIcon(label: string | number, color: string) {
   });
 }
 
-export function TripMap({ trip, day, picking, draftCoords, onMapClick, onPlaceClick }: Props) {
+function mediaIcon(item: MediaItem, on: boolean) {
+  const color = rubricMeta(item.rubric).color;
+  const emoji = getPlaceKind(item.segment)?.emoji ?? '📍';
+  const cls = `${styles.mediaPin}${on ? ' ' + styles.mediaPinOn : ''}`;
+  const size = on ? 40 : 30;
+  return L.divIcon({
+    className: '',
+    html: `<div class="${cls}" style="background:${color}"><span>${emoji}</span></div>`,
+    iconSize: [size, size], iconAnchor: [size / 2, size / 2], popupAnchor: [0, -size / 2 - 2],
+  });
+}
+
+function esc(s: string): string {
+  return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+export function TripMap({ trip, day, picking, draftCoords, onMapClick, onPlaceClick, media, highlightId, onMediaClick }: Props) {
   const elRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markerLayer = useRef<L.LayerGroup | null>(null);
@@ -36,6 +57,13 @@ export function TripMap({ trip, day, picking, draftCoords, onMapClick, onPlaceCl
   pickingRef.current = picking;
   const placeCb = useRef(onPlaceClick);
   placeCb.current = onPlaceClick;
+  const mediaCb = useRef(onMediaClick);
+  mediaCb.current = onMediaClick;
+  // подсветка медиа-метки: ref (для первичной отрисовки) + карта маркеров по id
+  const highlightRef = useRef<string | null>(highlightId ?? null);
+  highlightRef.current = highlightId ?? null;
+  const mediaMarkers = useRef<Map<string, L.Marker>>(new Map());
+  const mediaItemsRef = useRef<MediaItem[]>([]);
 
   // инициализация карты один раз
   useEffect(() => {
@@ -81,8 +109,30 @@ export function TripMap({ trip, day, picking, draftCoords, onMapClick, onPlaceCl
     if (!map || !mLayer || !rLayer) return;
     mLayer.clearLayers();
     rLayer.clearLayers();
+    mediaMarkers.current.clear();
 
     const bounds: Coords[] = [];
+
+    // Режим доски «Медиа»: круглые метки (цвет = рубрика, эмодзи = сегмент), без маршрута.
+    if (day === MEDIA_TAB) {
+      mediaItemsRef.current = media ?? [];
+      (media ?? []).forEach((it) => {
+        if (!it.coords) return;
+        const on = highlightRef.current === it.id;
+        const m = L.marker(it.coords, { icon: mediaIcon(it, on), zIndexOffset: on ? 1000 : 0 });
+        m.bindPopup(`<b>${esc(it.name)}</b>${it.blurb ? '<br>' + esc(it.blurb) : ''}`);
+        m.on('click', () => mediaCb.current?.(it.id));
+        m.addTo(mLayer);
+        mediaMarkers.current.set(it.id, m);
+        bounds.push(it.coords);
+      });
+      if (bounds.length) {
+        const animate = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        map.fitBounds(L.latLngBounds(bounds).pad(0.18), { animate });
+      }
+      setTimeout(() => map.invalidateSize(), 0);
+      return;
+    }
 
     // Один день рисуем своим цветом: маркеры (нумерация по порядку) + соединяющий маршрут.
     const drawDay = (dn: number, labelByOrder: boolean) => {
@@ -115,7 +165,19 @@ export function TripMap({ trip, day, picking, draftCoords, onMapClick, onPlaceCl
       map.fitBounds(L.latLngBounds(bounds).pad(0.18), { animate });
     }
     setTimeout(() => map.invalidateSize(), 0);
-  }, [trip, day]);
+  }, [trip, day, media]);
+
+  // Подсветка медиа-метки при наведении/клике в витрине (без перерисовки слоя).
+  useEffect(() => {
+    if (day !== MEDIA_TAB) return;
+    mediaItemsRef.current.forEach((it) => {
+      const m = mediaMarkers.current.get(it.id);
+      if (!m) return;
+      const on = highlightId === it.id;
+      m.setIcon(mediaIcon(it, on));
+      m.setZIndexOffset(on ? 1000 : 0);
+    });
+  }, [highlightId, day]);
 
   return <div ref={elRef} className={styles.map} aria-label="Карта поездки" />;
 }

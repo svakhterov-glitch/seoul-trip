@@ -14,12 +14,15 @@ import {
 import { resolveLink } from '@/lib/resolveLink';
 import { isLink } from '@/lib/parseLink';
 import { searchPlaces, placeMapsUrl, type PlaceCandidate } from '@/lib/searchPlaces';
+import { fetchMediaBoard } from '@/lib/mediaBoard';
+import { type MediaItem } from '@/lib/media';
 import { formatDateRange } from '@/lib/days';
 import { PlannerHeader } from '@/components/planner/PlannerHeader';
 import { TripCover, type TripCoverSave } from '@/components/planner/TripCover';
-import { DayTabs } from '@/components/planner/DayTabs';
+import { DayTabs, MEDIA_TAB } from '@/components/planner/DayTabs';
 import { Inbox, type SearchState } from '@/components/planner/Inbox';
 import { Timeline } from '@/components/planner/Timeline';
+import { MediaBoard } from '@/components/planner/MediaBoard';
 import { type DaySave } from '@/components/planner/DayForm';
 import { PlaceForm } from '@/components/planner/PlaceForm';
 import styles from './page.module.css';
@@ -49,6 +52,10 @@ function PlannerInner() {
   const [resolving, setResolving] = useState<string[]>([]);
   // активный поиск места по названию (панель выбора кандидатов в инбоксе)
   const [search, setSearch] = useState<SearchState | null>(null);
+  // доска «Медиа»: подборка трендовых мест (null — ещё не загружали), подсветка метки
+  const [mediaItems, setMediaItems] = useState<MediaItem[] | null>(null);
+  const [mediaLoading, setMediaLoading] = useState(false);
+  const [highlightId, setHighlightId] = useState<string | null>(null);
   const mapRef = useRef<HTMLDivElement>(null);
   // Свежий документ для патча после async-разбора (state мог уйти вперёд).
   const tripRef = useRef<TripDoc | null>(null);
@@ -72,6 +79,15 @@ function PlannerInner() {
       mapRef.current.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'center' });
     }
   }, [picking]);
+
+  // доска «Медиа» подгружается лениво при первом открытии вкладки
+  useEffect(() => {
+    if (activeDay !== MEDIA_TAB || !trip || mediaItems !== null || mediaLoading) return;
+    setMediaLoading(true);
+    fetchMediaBoard(trip.city, trip.country)
+      .then((list) => setMediaItems(list))
+      .finally(() => setMediaLoading(false));
+  }, [activeDay, trip, mediaItems, mediaLoading]);
 
   // низкоуровневое сохранение документа без закрытия форм
   async function save(next: TripDoc): Promise<boolean> {
@@ -134,6 +150,15 @@ function PlannerInner() {
     const name = search.query;
     setSearch(null);
     save(addInboxPlace(base, { name, coords: null, desc: '' }));
+  }
+
+  function handleAddFromMedia(item: MediaItem) {
+    const base = tripRef.current;
+    if (!base) return;
+    save(addInboxPlace(base, {
+      name: item.name, coords: item.coords, desc: item.blurb,
+      source: 'media', url: item.coords ? placeMapsUrl(item.name, base.city) : '',
+    }));
   }
 
   async function handleAddLink(url: string) {
@@ -241,18 +266,26 @@ function PlannerInner() {
           onAdd={handleAdd} onRemoveLink={handleRemoveLink} onPlace={openPlaceFromInbox}
           onPickCandidate={handlePickCandidate} onAddRaw={handleAddRaw} onDismissSearch={() => setSearch(null)} />
 
-        <DayTabs days={trip.days} categories={trip.categories} activeDay={activeDay} onSelect={setActiveDay} />
+        <DayTabs days={trip.days} categories={trip.categories} activeDay={activeDay}
+          onSelect={(d) => { setActiveDay(d); setHighlightId(null); }} />
 
         <div className={styles.mapSection} ref={mapRef}>
           <TripMap trip={trip} day={activeDay} picking={picking} draftCoords={draftCoords}
             onMapClick={(c) => { setDraftCoords(c); setPicking(false); }}
-            onPlaceClick={openEdit} />
+            onPlaceClick={openEdit}
+            media={activeDay === MEDIA_TAB ? (mediaItems ?? []) : undefined}
+            highlightId={highlightId} onMediaClick={setHighlightId} />
         </div>
 
-        <Timeline trip={trip} day={activeDay} categories={trip.categories} busy={busy}
-          onAddPlace={openAdd} onEditPlace={openEdit} onDeletePlace={handleDelete}
-          onSelectPlace={() => { /* выбор места — на будущее (центрирование карты) */ }}
-          onSaveDay={handleSaveDay} onMovePlace={handleMovePlace} />
+        {activeDay === MEDIA_TAB ? (
+          <MediaBoard items={mediaItems ?? []} loading={mediaLoading} highlightId={highlightId} busy={busy}
+            onHover={setHighlightId} onAdd={handleAddFromMedia} />
+        ) : (
+          <Timeline trip={trip} day={activeDay} categories={trip.categories} busy={busy}
+            onAddPlace={openAdd} onEditPlace={openEdit} onDeletePlace={handleDelete}
+            onSelectPlace={() => { /* выбор места — на будущее (центрирование карты) */ }}
+            onSaveDay={handleSaveDay} onMovePlace={handleMovePlace} />
+        )}
       </div>
 
       {/* Форма места — модалка. В режиме выбора точки прячем (не размонтируя, чтобы сохранить ввод). */}

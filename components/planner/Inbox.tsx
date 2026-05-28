@@ -28,7 +28,7 @@ interface Props {
 
 const SOURCE_LABEL: Record<string, string> = {
   google: 'Google Maps', kakao: 'Kakao', yandex: 'Яндекс.Карты', instagram: 'Instagram',
-  search: 'Поиск', other: 'Ссылка',
+  search: 'Поиск', media: 'Медиа', other: 'Ссылка',
 };
 
 export function Inbox({

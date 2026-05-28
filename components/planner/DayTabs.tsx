@@ -3,6 +3,9 @@
 import type { Day, Category } from '@/lib/entities';
 import styles from './DayTabs.module.css';
 
+/** Сентинел вкладки «Медиа» (доска трендовых мест) — слева от «Весь маршрут». */
+export const MEDIA_TAB = -1;
+
 interface Props {
   days: Day[];
   categories: Category[];
@@ -13,6 +16,9 @@ interface Props {
 export function DayTabs({ days, categories, activeDay, onSelect }: Props) {
   return (
     <div className={styles.tabs} role="tablist" aria-label="Дни поездки">
+      <button type="button" role="tab" aria-selected={activeDay === MEDIA_TAB}
+        className={`${activeDay === MEDIA_TAB ? styles.tabOn : styles.tab} ${styles.media}`}
+        onClick={() => onSelect(MEDIA_TAB)}>✨ Медиа</button>
       <button type="button" role="tab" aria-selected={activeDay === 0}
         className={activeDay === 0 ? styles.tabOn : styles.tab}
         onClick={() => onSelect(0)}>Весь маршрут</button>

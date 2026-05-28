@@ -2,3 +2,16 @@
 .pin { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; background: var(--accent); color: #fff; font-weight: 700; font-size: 13px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); border: 2px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,.3); }
 .pin span { transform: rotate(45deg); }
 .draft { background: var(--navy); }
+
+/* Метка доски «Медиа»: круг (цвет = рубрика) + эмодзи сегмента. Отличается от
+   дневных пинов-капель. Подсвеченная (mediaPinOn) — крупнее, с белым кольцом. */
+.mediaPin {
+  display: flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 50%; color: #fff; font-size: 15px;
+  border: 2px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,.35);
+  transition: width .12s, height .12s, box-shadow .12s;
+}
+.mediaPinOn {
+  width: 40px; height: 40px; font-size: 20px;
+  box-shadow: 0 0 0 4px rgba(255,255,255,.7), 0 3px 12px rgba(0,0,0,.45);
+}
