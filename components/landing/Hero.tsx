@@ -5,15 +5,16 @@ export function Hero({ children }: { children: React.ReactNode }) {
     <section className={styles.hero}>
       <div className={styles.split}>
         <div>
-          <h1 className={styles.title}>Маршрут путешествия — по дням и по часам</h1>
+          <h1 className={styles.title}>Вся поездка — в одном маршруте, а не в десяти вкладках</h1>
           <p className={styles.lead}>
-            Введите перелёт и даты — TripsPlan построит календарь поездки. Наполняйте
-            дни местами: вручную, по ссылкам из блогов и карт или с помощью ИИ. Всё на одной карте.
+            Укажите перелёт и даты — и получите готовый календарь по дням. Кидайте ссылки
+            из блогов и карт, ищите места по названию, а сборку маршрута доверьте ИИ.
+            Всё — на одной карте.
           </p>
           <div className={styles.pills}>
             <span className={styles.pill}>Бесплатно</span>
-            <span className={styles.pill}>Синхронизация между устройствами</span>
-            <span className={styles.pill}>Карта и расписание</span>
+            <span className={styles.pill}>С любого устройства</span>
+            <span className={styles.pill}>Маршрут на карте</span>
           </div>
         </div>
         <div>{children}</div>

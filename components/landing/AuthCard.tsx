@@ -56,7 +56,7 @@ export function AuthCard({ initialMode, onSubmit, serverError, busy }: Props) {
       </button>
 
       <p className={styles.fine}>
-        Регистрируясь, вы создаёте личный аккаунт — поездки видны только вам.
+        Бесплатно. Личный аккаунт — поездки видны только вам.
       </p>
     </form>
   );
