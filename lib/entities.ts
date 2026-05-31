@@ -72,6 +72,12 @@ export interface Place {
   source: string;
   /** Исходная ссылка, если место добавлено из инбокса (иначе ''). */
   sourceUrl: string;
+  /** ISO-дата упоминания в источнике (для ИИ-маршрута: «актуальность»). '' если нет. */
+  sourceDate: string;
+  /** Сезон-пометка от ИИ под даты поездки (напр. «в эти даты — клёны»). '' если нет. */
+  seasonNote: string;
+  /** Район/кластер места — для группировки по дням и подписи. '' если нет. */
+  district: string;
 }
 
 /** Неразобранная ссылка в инбоксе поездки. */
@@ -158,6 +164,9 @@ export function createPlace(data: Partial<Place> = {}): Place {
     photo: data.photo || '📍',
     source: data.source || 'manual',
     sourceUrl: data.sourceUrl || '',
+    sourceDate: data.sourceDate || '',
+    seasonNote: data.seasonNote || '',
+    district: data.district || '',
   };
 }
 
@@ -406,4 +415,62 @@ export function addPlaceFromInbox(trip: TripDoc, linkId: string, dayNumber: numb
     sourceUrl: link.url,
   });
   return { ...trip, places: [...trip.places, place], inbox: trip.inbox.filter((l) => l.id !== linkId) };
+}
+
+/* ---------- ИИ-маршрут (этап 4): применение черновика ---------- */
+
+/** Одно место из черновика ИИ-маршрута (edge-функция `generate-itinerary`). */
+export interface ItineraryDraftPlace {
+  dayNumber: number;        // в какой день ИИ предложил поставить
+  name: string;
+  coords: Coords | null;    // точка после геокодинга (может быть null)
+  desc: string;
+  price: PlacePrice;
+  kind: string;             // ключ PLACE_KINDS
+  by: string;               // источник: издание/блогер («Time Out Seoul»)
+  sourceUrl: string;        // ссылка на материал-источник
+  sourceDate: string;       // ISO-дата упоминания (актуальность)
+  seasonNote: string;       // пометка под сезон поездки
+  district: string;         // район/кластер (раскладка по дням)
+}
+
+/** Черновик ИИ-маршрута: места, уже распределённые по дням. */
+export interface ItineraryDraft {
+  places: ItineraryDraftPlace[];
+}
+
+/**
+ * Применить черновик ИИ-маршрута: добавить предложенные места (`source:'ai'`) в
+ * указанные дни, ДОПОЛНЯЯ существующие. Места, уже разложенные тобой руками, не
+ * трогаются — новые приписываются после них (`order` продолжает нумерацию дня).
+ * Дни вне каркаса (число < 1 или > последнего дня) отбрасываются. Иммутабельно.
+ */
+export function applyItinerary(trip: TripDoc, draft: ItineraryDraft): TripDoc {
+  const last = lastDayNumber(trip);
+  const nextOrder = new Map<number, number>();
+  const additions: Place[] = [];
+  for (const dp of draft.places) {
+    const day = dp.dayNumber;
+    if (!Number.isInteger(day) || day < 1 || day > last) continue;
+    if (!(dp.name || '').trim()) continue;
+    const base = nextOrder.has(day) ? nextOrder.get(day)! : maxOrderInDay(trip, day) + 1;
+    nextOrder.set(day, base + 1);
+    additions.push(createPlace({
+      dayNumber: day,
+      order: base,
+      name: dp.name,
+      coords: dp.coords ?? null,
+      desc: dp.desc || '',
+      price: dp.price ?? null,
+      kind: dp.kind || '',
+      by: dp.by || '',
+      source: 'ai',
+      sourceUrl: dp.sourceUrl || '',
+      sourceDate: dp.sourceDate || '',
+      seasonNote: dp.seasonNote || '',
+      district: dp.district || '',
+    }));
+  }
+  if (additions.length === 0) return trip;
+  return { ...trip, places: [...trip.places, ...additions] };
 }

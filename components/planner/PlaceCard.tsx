@@ -47,6 +47,7 @@ export function PlaceCard({ place, category, onSelect, onEdit, onDelete }: Props
           <div className={styles.main}>
             <div className={styles.name}>{place.name}</div>
             {place.desc && <div className={styles.desc}>{place.desc}</div>}
+            {place.seasonNote && <div className={styles.season}>🗓 {place.seasonNote}</div>}
             {place.note && <div className={styles.note}>💬 {place.note}</div>}
             {hasBadges && (
               <div className={styles.badges}>

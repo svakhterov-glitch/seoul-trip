@@ -10,14 +10,17 @@ import {
   type TripDoc, type Coords, type PlaceInput,
   ensureTripDefaults, addPlaceToTrip, updatePlaceInTrip, removePlaceFromTrip, updateTripMeta,
   updateDay, addCategory, movePlace, addInboxLink, removeInboxLink, updateInboxLink, addPlaceFromInbox, addInboxPlace,
+  applyItinerary,
 } from '@/lib/entities';
 import { resolveLink } from '@/lib/resolveLink';
 import { isLink } from '@/lib/parseLink';
 import { searchPlaces, placeMapsUrl, type PlaceCandidate } from '@/lib/searchPlaces';
+import { generateItinerary, type ItineraryPace } from '@/lib/generateItinerary';
 import { fetchMediaBoard } from '@/lib/mediaBoard';
 import { type MediaItem } from '@/lib/media';
-import { formatDateRange } from '@/lib/days';
+import { formatDateRange, daysBetween } from '@/lib/days';
 import { PlannerHeader } from '@/components/planner/PlannerHeader';
+import { AiItinerary } from '@/components/planner/AiItinerary';
 import { TripCover, type TripCoverSave } from '@/components/planner/TripCover';
 import { DayTabs, MEDIA_TAB } from '@/components/planner/DayTabs';
 import { Inbox, type SearchState } from '@/components/planner/Inbox';
@@ -52,6 +55,8 @@ function PlannerInner() {
   const [resolving, setResolving] = useState<string[]>([]);
   // активный поиск места по названию (панель выбора кандидатов в инбоксе)
   const [search, setSearch] = useState<SearchState | null>(null);
+  // идёт сборка ИИ-маршрута на сервере (несколько минут)
+  const [generating, setGenerating] = useState(false);
   // доска «Медиа»: подборка трендовых мест (null — ещё не загружали), подсветка метки
   const [mediaItems, setMediaItems] = useState<MediaItem[] | null>(null);
   const [mediaLoading, setMediaLoading] = useState(false);
@@ -203,6 +208,28 @@ function PlannerInner() {
     save(movePlace(trip, placeId, targetDay, targetIndex));
   }
 
+  // ИИ собирает маршрут на сервере (живой поиск + проверка + раскладка по дням),
+  // затем результат дополняет дни поездки (ручные места не трогаются).
+  async function handleGenerate(pace: ItineraryPace, interests: string[]) {
+    const base = tripRef.current;
+    if (!base || generating) return;
+    setGenerating(true);
+    try {
+      const draft = await generateItinerary({
+        city: base.city, country: base.country,
+        startDate: base.startDate, endDate: base.endDate,
+        days: daysBetween(base.startDate, base.endDate),
+        pace, interests,
+      });
+      const fresh = tripRef.current;
+      if (!fresh) return;
+      if (!draft) { alert('Не удалось собрать маршрут. Попробуйте ещё раз чуть позже.'); return; }
+      if (await save(applyItinerary(fresh, draft))) setActiveDay(0);
+    } finally {
+      setGenerating(false);
+    }
+  }
+
   function handleCoverSave(patch: TripCoverSave) {
     if (!trip) return;
     save(updateTripMeta(trip, patch));
@@ -265,6 +292,8 @@ function PlannerInner() {
         <Inbox links={trip.inbox} days={trip.days} busy={busy} resolving={resolving} search={search}
           onAdd={handleAdd} onRemoveLink={handleRemoveLink} onPlace={openPlaceFromInbox}
           onPickCandidate={handlePickCandidate} onAddRaw={handleAddRaw} onDismissSearch={() => setSearch(null)} />
+
+        <AiItinerary busy={busy} generating={generating} onGenerate={handleGenerate} />
 
         <DayTabs days={trip.days} categories={trip.categories} activeDay={activeDay}
           onSelect={(d) => { setActiveDay(d); setHighlightId(null); }} />
