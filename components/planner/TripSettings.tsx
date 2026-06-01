@@ -110,7 +110,10 @@ export function TripSettings({ startDate, endDate, flights, hotels, busy = false
               <label className={styles.field}>
                 <span className={styles.lbl}>Название</span>
                 <input className={styles.input} value={h.name} disabled={busy} placeholder="Lotte Hotel Seoul"
-                  onChange={(e) => patchHotel(h.id, { name: e.target.value })} />
+                  onChange={(e) => patchHotel(h.id, { name: e.target.value, coords: null })} />
+                <span className={styles.fieldHint}>
+                  {h.coords ? '📍 найден на карте' : 'лучше по-английски / как в брони — тогда найдётся на карте'}
+                </span>
               </label>
               <div className={styles.grid}>
                 <label className={styles.field}>

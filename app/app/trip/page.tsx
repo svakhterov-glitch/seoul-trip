@@ -16,6 +16,7 @@ import { resolveLink } from '@/lib/resolveLink';
 import { isLink } from '@/lib/parseLink';
 import { searchPlaces, placeMapsUrl, type PlaceCandidate } from '@/lib/searchPlaces';
 import { generateItinerary, type ItineraryPace } from '@/lib/generateItinerary';
+import { geocodeQueries } from '@/lib/geocode';
 import { fetchMediaBoard, fetchMoreMedia } from '@/lib/mediaBoard';
 import { type MediaItem } from '@/lib/media';
 import { formatDateRange, daysBetween } from '@/lib/days';
@@ -317,9 +318,19 @@ function PlannerInner() {
     save(updateTripMeta(trip, patch));
   }
 
-  function handleSaveLogistics(flights: Flight[], hotels: Hotel[]) {
+  async function handleSaveLogistics(flights: Flight[], hotels: Hotel[]) {
     if (!trip) return;
-    save(setHotels(setFlights(trip, flights), hotels));
+    // Геокодим отели без координат по названию (+ город), чтобы показать на карте.
+    const need = hotels.filter((h) => h.name.trim() && !h.coords);
+    let withCoords = hotels;
+    if (need.length) {
+      // По самому имени: кириллический город Nominatim не находит, а названия
+      // отелей обычно самодостаточны (бренд + город уже в названии).
+      const coords = await geocodeQueries(need.map((h) => h.name));
+      const byId = new Map(need.map((h, i) => [h.id, coords[i]] as const));
+      withCoords = hotels.map((h) => (byId.has(h.id) ? { ...h, coords: byId.get(h.id) ?? h.coords } : h));
+    }
+    save(setHotels(setFlights(trip, flights), withCoords));
   }
   function handleClearItinerary() {
     if (!trip) return;
@@ -395,7 +406,8 @@ function PlannerInner() {
             onMapClick={(c) => { setDraftCoords(c); setPicking(false); }}
             onPlaceClick={openEdit}
             media={activeDay === MEDIA_TAB ? (mediaItems ?? []) : undefined}
-            highlightId={highlightId} onMediaClick={setHighlightId} />
+            highlightId={highlightId} onMediaClick={setHighlightId}
+            hotels={activeDay === MEDIA_TAB ? undefined : trip.hotels} />
         </div>
 
         {activeDay === MEDIA_TAB ? (

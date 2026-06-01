@@ -3,7 +3,8 @@
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { type TripDoc, placesForDay, lastDayNumber, getPlaceKind, type Coords } from '@/lib/entities';
+import { type TripDoc, type Hotel, placesForDay, lastDayNumber, getPlaceKind, type Coords } from '@/lib/entities';
+import { addDays } from '@/lib/days';
 import { dayColor } from '@/lib/dayColors';
 import { kindColor } from '@/lib/kindColors';
 import { type MediaItem, rubricMeta } from '@/lib/media';
@@ -20,6 +21,7 @@ interface Props {
   media?: MediaItem[];     // метки доски «Медиа» (рисуются при day === MEDIA_TAB)
   highlightId?: string | null; // подсвеченная медиа-метка (синхрон с витриной)
   onMediaClick?: (id: string) => void;
+  hotels?: Hotel[];        // отели с координатами — метки 🏨 на карте
 }
 
 function pinIcon(label: string | number, color: string) {
@@ -28,6 +30,22 @@ function pinIcon(label: string | number, color: string) {
     html: `<div class="${styles.pin}" style="background:${color}"><span>${label}</span></div>`,
     iconSize: [34, 34], iconAnchor: [17, 34], popupAnchor: [0, -30],
   });
+}
+
+function hotelIcon() {
+  return L.divIcon({
+    className: '',
+    html: `<div class="${styles.hotelPin}"><span>🏨</span></div>`,
+    iconSize: [30, 30], iconAnchor: [15, 30], popupAnchor: [0, -28],
+  });
+}
+
+/** Отель виден в дне, если проживание покрывает его дату (или даты не заданы). */
+function hotelOnDay(h: Hotel, iso: string): boolean {
+  if (!h.checkIn && !h.checkOut) return true;
+  if (h.checkIn && iso < h.checkIn) return false;
+  if (h.checkOut && iso > h.checkOut) return false;
+  return true;
 }
 
 function mediaIcon(item: MediaItem, on: boolean) {
@@ -46,7 +64,7 @@ function esc(s: string): string {
   return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-export function TripMap({ trip, day, picking, draftCoords, onMapClick, onPlaceClick, media, highlightId, onMediaClick }: Props) {
+export function TripMap({ trip, day, picking, draftCoords, onMapClick, onPlaceClick, media, highlightId, onMediaClick, hotels }: Props) {
   const elRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markerLayer = useRef<L.LayerGroup | null>(null);
@@ -163,12 +181,23 @@ export function TripMap({ trip, day, picking, draftCoords, onMapClick, onPlaceCl
       drawDay(day, true); // один день: метка = порядок в дне
     }
 
+    // Метки отелей: в обзоре — все; в отдельном дне — те, чьё проживание покрывает его дату.
+    const iso = day >= 1 ? addDays(trip.startDate, day - 1) : '';
+    (hotels ?? []).forEach((h) => {
+      if (!h.coords) return;
+      if (day >= 1 && !hotelOnDay(h, iso)) return;
+      const m = L.marker(h.coords, { icon: hotelIcon() });
+      m.bindPopup(`<b>🏨 ${esc(h.name)}</b>`);
+      m.addTo(mLayer);
+      bounds.push(h.coords);
+    });
+
     if (bounds.length) {
       const animate = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       map.fitBounds(L.latLngBounds(bounds).pad(0.18), { animate });
     }
     setTimeout(() => map.invalidateSize(), 0);
-  }, [trip, day, media]);
+  }, [trip, day, media, hotels]);
 
   // Подсветка медиа-метки при наведении/клике в витрине (без перерисовки слоя).
   useEffect(() => {
