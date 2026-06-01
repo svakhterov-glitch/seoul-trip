@@ -155,14 +155,16 @@ function PlannerInner() {
       .finally(() => setSuggestLoading(false));
   }, [activeDay, layerSug, trip, suggestions, suggestLoading]);
 
-  // Авто-разбор предложки (фото/описание/координаты) — один раз при открытии вкладки.
+  // Авто-разбор предложки (фото/координаты) — один раз: при открытии её вкладки
+  // ИЛИ при включении слоя «Предложка» на маршруте (иначе метки без точки не видны).
   useEffect(() => {
-    if (activeDay !== INBOX_TAB || !suggestions || autoProcessedRef.current) return;
+    const active = activeDay === INBOX_TAB || (activeDay === 0 && layerSug);
+    if (!active || !suggestions || autoProcessedRef.current) return;
     if (rawSuggestionCount(suggestions) === 0) return;
     autoProcessedRef.current = true;
     handleProcessSuggestions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeDay, suggestions]);
+  }, [activeDay, layerSug, suggestions]);
 
   // низкоуровневое сохранение документа без закрытия форм
   async function save(next: TripDoc): Promise<boolean> {
@@ -576,6 +578,18 @@ function PlannerInner() {
       ? { name: fromLink.name, coords: fromLink.coords, time: '', desc: fromLink.desc ?? '', price: null, image: fromLink.image ?? '', kind: '', by: '', note: '' }
       : undefined;
 
+  // Имена мест, уже разложенных по дням, — чтобы слои показывали только то, чего
+  // ещё НЕТ в маршруте (фильтр «рядом, но не добавлено»).
+  const routeNames = new Set(
+    trip.places.filter((p) => (p.dayNumber ?? 0) >= 1).map((p) => p.name.trim().toLowerCase()),
+  );
+  const norm = (s: string) => (s || '').trim().toLowerCase();
+  // Метки слоёв для карты (с координатами; для наложения на маршрут — без уже добавленных).
+  const sugAllMarkers = (suggestions ?? []).filter((s) => s.coords)
+    .map((s) => ({ id: s.id, name: s.name, coords: s.coords as Coords, kind: s.kind }));
+  const sugLayerMarkers = sugAllMarkers.filter((s) => !routeNames.has(norm(s.name)));
+  const mediaLayerMarkers = (mediaItems ?? []).filter((m) => m.coords && !routeNames.has(norm(m.name)));
+
   return (
     <main>
       <PlannerHeader title={trip.title} startDate={trip.startDate} endDate={trip.endDate} />
@@ -608,11 +622,11 @@ function PlannerInner() {
             <span className={styles.layersLabel}>Слои на карте:</span>
             <button type="button" className={layerMedia ? styles.layerOn : styles.layer}
               aria-pressed={layerMedia} onClick={() => setLayerMedia((v) => !v)}>
-              ✨ Медиа{mediaLoading && layerMedia ? '…' : ''}
+              ✨ Медиа{layerMedia ? (mediaLoading ? '…' : ` (${mediaLayerMarkers.length})`) : ''}
             </button>
             <button type="button" className={layerSug ? styles.layerOn : styles.layer}
               aria-pressed={layerSug} onClick={() => setLayerSug((v) => !v)}>
-              ✨ Предложка{layerSug ? ` (${(suggestions ?? []).filter((s) => s.coords).length})` : ''}
+              ✨ Предложка{layerSug ? (processingSug ? '…' : ` (${sugLayerMarkers.length})`) : ''}
             </button>
           </div>
         )}
@@ -629,10 +643,10 @@ function PlannerInner() {
               }
             }}
             onPlaceClick={openEdit}
-            media={(activeDay === MEDIA_TAB || (activeDay === 0 && layerMedia)) ? (mediaItems ?? []) : undefined}
-            suggestions={(activeDay === INBOX_TAB || (activeDay === 0 && layerSug))
-              ? (suggestions ?? []).filter((s) => s.coords).map((s) => ({ id: s.id, name: s.name, coords: s.coords as Coords, kind: s.kind }))
-              : undefined}
+            media={activeDay === MEDIA_TAB ? (mediaItems ?? [])
+              : (activeDay === 0 && layerMedia) ? mediaLayerMarkers : undefined}
+            suggestions={activeDay === INBOX_TAB ? sugAllMarkers
+              : (activeDay === 0 && layerSug) ? sugLayerMarkers : undefined}
             highlightId={highlightId} onMediaClick={setHighlightId}
             hotels={trip.hotels} />
         </div>
