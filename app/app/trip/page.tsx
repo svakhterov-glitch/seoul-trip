@@ -11,12 +11,13 @@ import {
   ensureTripDefaults, addPlaceToTrip, updatePlaceInTrip, removePlaceFromTrip, updateTripMeta,
   updateDay, addCategory, movePlace, addInboxLink, removeInboxLink, updateInboxLink, addPlaceFromInbox, addInboxPlace,
   applyItinerary, setFlights, setHotels, clearItinerary, togglePlaceLock, placesForDay, getCategory,
-  addChecklistItem, toggleChecklistItem, removeChecklistItem, type Flight, type Hotel,
+  addChecklistItem, toggleChecklistItem, removeChecklistItem, type Flight, type Hotel, type Place,
 } from '@/lib/entities';
 import { resolveLink } from '@/lib/resolveLink';
 import { isLink } from '@/lib/parseLink';
 import { searchPlaces, placeMapsUrl, type PlaceCandidate } from '@/lib/searchPlaces';
 import { generateItinerary, type ItineraryPace } from '@/lib/generateItinerary';
+import { suggestChecklist } from '@/lib/suggestChecklist';
 import { geocodeQueries } from '@/lib/geocode';
 import { fetchMediaBoard, fetchMoreMedia } from '@/lib/mediaBoard';
 import { type MediaItem } from '@/lib/media';
@@ -262,6 +263,11 @@ function PlannerInner() {
     if (!trip) return;
     save(removeChecklistItem(trip, placeId, itemId));
   }
+  function handleSuggestChecklist(place: Place): Promise<string[]> {
+    const base = tripRef.current;
+    if (!base) return Promise.resolve([]);
+    return suggestChecklist({ name: place.name, city: base.city, country: base.country, kind: place.kind });
+  }
 
   // ИИ добирает места в конкретный день (дополняет, не пересобирает; без повторов).
   async function handleAiAddDay(dayNumber: number) {
@@ -455,7 +461,8 @@ function PlannerInner() {
             onSaveDay={handleSaveDay} onMovePlace={handleMovePlace}
             onOpenSettings={() => setSettingsOpen(true)}
             onToggleLock={handleToggleLock} onAiAddDay={handleAiAddDay} generatingDay={generatingDay}
-            onAddChecklist={handleAddChecklist} onToggleChecklist={handleToggleChecklist} onRemoveChecklist={handleRemoveChecklist} />
+            onAddChecklist={handleAddChecklist} onToggleChecklist={handleToggleChecklist} onRemoveChecklist={handleRemoveChecklist}
+            onSuggestChecklist={handleSuggestChecklist} />
         )}
       </div>
 

@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.trends]
 verify_jwt = false
+
+[functions.suggest-checklist]
+verify_jwt = false

@@ -48,7 +48,15 @@
 .mapLink:hover { border-color: var(--accent); color: var(--accent); }
 
 .checklist { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
-.clTitle { font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 8px; }
+.clHead { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.clTitle { font-size: 12px; font-weight: 700; color: var(--muted); }
+.clSuggest { flex: 0 0 auto; border: 1px solid #9a55c9; color: #9a55c9; background: #fff; border-radius: 999px; padding: 4px 10px; font-size: 12px; font-weight: 700; cursor: pointer; }
+.clSuggest:hover:not(:disabled) { background: #9a55c9; color: #fff; }
+.clSuggest:disabled { opacity: .55; cursor: default; }
+.clSug { list-style: none; margin: 0 0 10px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; background: #f7f2fb; border: 1px solid #e6d6f3; border-radius: 10px; }
+.clSugItem { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--text); }
+.clSugAdd { flex: 0 0 auto; width: 24px; height: 24px; border: 1px solid #9a55c9; color: #9a55c9; background: #fff; border-radius: 7px; font-size: 15px; font-weight: 700; cursor: pointer; line-height: 1; }
+.clSugAdd:hover { background: #9a55c9; color: #fff; }
 .clList { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .clItem { display: flex; align-items: center; gap: 8px; }
 .clLabel { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; font-size: 14px; color: var(--text); cursor: pointer; }

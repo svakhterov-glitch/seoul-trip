@@ -16,20 +16,42 @@ interface Props {
   onAddChecklist?: (placeId: string, text: string) => void;
   onToggleChecklist?: (placeId: string, itemId: string) => void;
   onRemoveChecklist?: (placeId: string, itemId: string) => void;
+  onSuggestChecklist?: (place: Place) => Promise<string[]>;
 }
 
-export function PlaceCard({ place, category, onSelect, onEdit, onDelete, onToggleLock, onAddChecklist, onToggleChecklist, onRemoveChecklist }: Props) {
+export function PlaceCard({ place, category, onSelect, onEdit, onDelete, onToggleLock, onAddChecklist, onToggleChecklist, onRemoveChecklist, onSuggestChecklist }: Props) {
   const emoji = getPlaceKind(place.kind)?.emoji || place.photo || '📍';
   const stripe = category?.color || '#cbd2e6';
   const maps = placeMapLinks(place.name, place.coords);
   const checklist = place.checklist ?? [];
   const [newItem, setNewItem] = useState('');
+  const [suggesting, setSuggesting] = useState(false);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
 
   function addItem() {
     const t = newItem.trim();
     if (!t || !onAddChecklist) return;
     onAddChecklist(place.id, t);
     setNewItem('');
+  }
+
+  async function suggest() {
+    if (!onSuggestChecklist || suggesting) return;
+    setSuggesting(true);
+    try {
+      const items = await onSuggestChecklist(place);
+      const have = new Set(checklist.map((i) => i.text.toLowerCase()));
+      const fresh = items.filter((t) => !have.has(t.toLowerCase()));
+      setSuggestions(fresh);
+      if (items.length && !fresh.length) setSuggestions([]); // всё уже есть
+    } finally {
+      setSuggesting(false);
+    }
+  }
+
+  function acceptSuggestion(text: string) {
+    onAddChecklist?.(place.id, text);
+    setSuggestions((s) => s.filter((x) => x !== text));
   }
   const hasBadges = !!place.kind || (place.price !== null && place.price !== undefined) || !!place.by;
 
@@ -105,7 +127,24 @@ export function PlaceCard({ place, category, onSelect, onEdit, onDelete, onToggl
             </div>
             {onAddChecklist && (
               <div className={styles.checklist} onClick={(e) => e.stopPropagation()}>
-                <div className={styles.clTitle}>✓ Чеклист — что посмотреть / купить</div>
+                <div className={styles.clHead}>
+                  <span className={styles.clTitle}>✓ Чеклист — что посмотреть / купить</span>
+                  {onSuggestChecklist && (
+                    <button type="button" className={styles.clSuggest} onClick={suggest} disabled={suggesting}>
+                      {suggesting ? '✨ Думаю…' : '✨ Предложить'}
+                    </button>
+                  )}
+                </div>
+                {suggestions.length > 0 && (
+                  <ul className={styles.clSug}>
+                    {suggestions.map((t) => (
+                      <li key={t} className={styles.clSugItem}>
+                        <button type="button" className={styles.clSugAdd} onClick={() => acceptSuggestion(t)}>＋</button>
+                        <span>{t}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
                 {checklist.length > 0 && (
                   <ul className={styles.clList}>
                     {checklist.map((it) => (
