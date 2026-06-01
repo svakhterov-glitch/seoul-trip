@@ -1,0 +1,20 @@
+.tile {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px; border-radius: 12px;
+  background: #eef2fb; border: 1px solid #d9e1f3;
+  border-left: 4px solid var(--navy);
+  cursor: pointer;
+}
+.tile:hover { background: #e7edfa; }
+.tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.flightIn, .flightOut { border-left-color: var(--navy); }
+.hotelIn, .hotelOut { border-left-color: #159a93; background: #e9f5f3; border-color: #cfe9e5; }
+.hotelIn:hover, .hotelOut:hover { background: #ddf0ec; }
+
+.emoji { font-size: 22px; line-height: 1; }
+.body { flex: 1; min-width: 0; }
+.label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.title { font-size: 15px; font-weight: 700; color: var(--navy); }
+.sub { font-size: 13px; color: var(--muted); margin-top: 1px; }
+.lock { font-size: 13px; opacity: .5; }

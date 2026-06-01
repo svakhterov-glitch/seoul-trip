@@ -22,6 +22,7 @@ interface Props {
   dateRange: string;
   busy: boolean;
   onSave: (patch: TripCoverSave) => void;
+  onOpenSettings?: () => void;
 }
 
 /** Картинка-обложка (своя или городская) с откатом на процедурный скайлайн. */
@@ -34,7 +35,7 @@ function CoverArt({ image, city }: { image: string; city: string }) {
   return <CitySkyline city={city} />;
 }
 
-export function TripCover({ city, title, lead, companions, coverImage, dateRange, busy, onSave }: Props) {
+export function TripCover({ city, title, lead, companions, coverImage, dateRange, busy, onSave, onOpenSettings }: Props) {
   const [editing, setEditing] = useState(false);
   const [fTitle, setFTitle] = useState(title);
   const [fLead, setFLead] = useState(lead);
@@ -87,9 +88,14 @@ export function TripCover({ city, title, lead, companions, coverImage, dateRange
 
         {!editing ? (
           <>
-            <button type="button" className={styles.editBtn} onClick={open} aria-label="Редактировать обложку">
-              ✏️ Редактировать
-            </button>
+            <div className={styles.topBtns}>
+              <button type="button" className={styles.editBtn} onClick={open} aria-label="Редактировать обложку">
+                ✏️ Редактировать
+              </button>
+              <button type="button" className={styles.editBtn} onClick={onOpenSettings} aria-label="Настройки поездки">
+                ⚙️ Настройки
+              </button>
+            </div>
             <h1 className={styles.title}>{title || 'Без названия'}</h1>
             <div className={styles.dates}>{dateRange}</div>
             {lead && <p className={styles.lead}>{lead}</p>}

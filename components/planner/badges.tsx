@@ -1,4 +1,5 @@
 import { type Category, type PlacePrice, getPlaceKind } from '@/lib/entities';
+import { kindColor } from '@/lib/kindColors';
 import styles from './badges.module.css';
 
 export function CatBadge({ category }: { category: Category | null }) {
@@ -11,7 +12,13 @@ export function CatBadge({ category }: { category: Category | null }) {
 export function KindBadge({ kind }: { kind: string }) {
   const k = getPlaceKind(kind);
   if (!k) return null;
-  return <span className={styles.kind}>{k.emoji} {k.label}</span>;
+  const c = kindColor(kind);
+  // Цвет по типу (как у меток на карте дня): лёгкая заливка + цветные рамка/текст.
+  return (
+    <span className={styles.kind} style={{ color: c, borderColor: c, background: `${c}1a` }}>
+      {k.emoji} {k.label}
+    </span>
+  );
 }
 
 export function PersonBadge({ name }: { name: string }) {

@@ -43,8 +43,11 @@ Deno.serve(async (req) => {
     const days = Math.max(1, Math.min(30, Number(body.days) || 1));
     const pace = String(body.pace ?? "moderate");
     const interests: string[] = Array.isArray(body.interests) ? body.interests.map(String) : [];
+    const restFirstDay = body.restFirstDay !== false; // по умолчанию — да
+    const arrival = String(body.arrival ?? "");
+    const departure = String(body.departure ?? "");
 
-    const prompt = buildPrompt({ city, country, startDate, endDate, days, pace, interests });
+    const prompt = buildPrompt({ city, country, startDate, endDate, days, pace, interests, restFirstDay, arrival, departure });
 
     const r = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -88,6 +91,7 @@ Deno.serve(async (req) => {
 interface PromptArgs {
   city: string; country: string; startDate: string; endDate: string;
   days: number; pace: string; interests: string[];
+  restFirstDay: boolean; arrival: string; departure: string;
 }
 
 function buildPrompt(a: PromptArgs): string {
@@ -118,8 +122,14 @@ function buildPrompt(a: PromptArgs): string {
    пометка (≤80 симв.), чем место уместно/неуместно в эти даты ('' если нейтрально).
 4) ГЕОГРАФИЯ. Один день ≈ один район/кластер: близкие места — в один день, без
    мотания через весь город и обратно. Укажи "district" (район) каждому месту.
-5) ТЕМП и ДНИ. Держи темп: ${paceHint}. День 1 (прилёт) и день ${a.days} (вылет) —
-   лёгкие (1–2 близких к центру места). Распредели "dayNumber" 1..${a.days}.
+5) ТЕМП и ДНИ. Держи темп: ${paceHint}. Распредели "dayNumber" 1..${a.days}.
+   ${a.restFirstDay
+      ? "День 1 — СПОКОЙНЫЙ (отдых после прилёта): максимум 1–2 лёгких места рядом с центром/отелем, никакого насыщенного маршрута."
+      : "День 1 (прилёт) — умеренный, ближе к центру."}
+   День ${a.days} (вылет) — лёгкий (1–2 близких к центру места).
+6) ВРЕМЯ. Проставь каждому месту "time" — час визита в формате "HH:MM" (например
+   "10:30"), по порядку в течение дня, с разумными промежутками на дорогу и еду
+   (обед ~13:00, ужин ~19:00).${a.arrival ? ` Прилёт: ${a.arrival} — в день прилёта НЕ ставь места раньше прилёта (дай ~2–3 ч на дорогу/заселение).` : ""}${a.departure ? ` Вылет: ${a.departure} — в день вылета НЕ ставь места после (дай ~3 ч на дорогу в аэропорт).` : ""}
 
 ПОИСК: сделай НЕ БОЛЕЕ 2 веб-поисков. После них НЕ проси дополнительных поисков и
 НЕ пиши фраз вроде «позволь собрать»/«нужны ещё поиски» — ОБЯЗАТЕЛЬНО сразу, в ЭТОМ
@@ -129,7 +139,7 @@ function buildPrompt(a: PromptArgs): string {
 ФОРМАТ ОТВЕТА: верни ТОЛЬКО JSON-массив. БЕЗ вступления, БЕЗ пояснений, БЕЗ
 markdown-ограждений (никаких \`\`\`). Первый символ ответа — «[», последний — «]».
 Каждый объект:
-[{"dayNumber":1,"name":"Дворец Кёнбоккун","geo":"Gyeongbokgung Palace, Seoul, South Korea","district":"Чонно-гу","kind":"food|museum|nature|sight|shop|fun|bar|other","desc":"1 фраза по-русски","price":"free"|1|2|3,"by":"Time Out Seoul","sourceUrl":"https://...","sourceDate":"2026-03-01","seasonNote":"в июне — зелень"}]`;
+[{"dayNumber":1,"time":"10:30","name":"Дворец Кёнбоккун","geo":"Gyeongbokgung Palace, Seoul, South Korea","district":"Чонно-гу","kind":"food|museum|nature|sight|shop|fun|bar|other","desc":"1 фраза по-русски","price":"free"|1|2|3,"by":"Time Out Seoul","sourceUrl":"https://...","sourceDate":"2026-03-01","seasonNote":"в июне — зелень"}]`;
 }
 
 // Собрать текстовый ответ из блоков (web_search возвращает смешанный content).

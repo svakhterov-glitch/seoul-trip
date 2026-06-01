@@ -1,5 +1,6 @@
 import { getSupabase } from '@/lib/supabase/client';
-import type { Coords, ItineraryDraft, ItineraryDraftPlace, PlacePrice } from '@/lib/entities';
+import type { ItineraryDraft, ItineraryDraftPlace, PlacePrice } from '@/lib/entities';
+import { toCoords, geocodeQueries } from '@/lib/geocode';
 
 /** Темп дня, который пользователь задаёт перед сборкой. */
 export type ItineraryPace = 'relaxed' | 'moderate' | 'packed';
@@ -12,18 +13,15 @@ export interface GenerateItineraryInput {
   days: number;          // число дней в каркасе (для раскладки)
   pace: ItineraryPace;
   interests: string[];   // ключи PLACE_KINDS или свободные слова
+  restFirstDay: boolean; // первый день — спокойный (отдых)
+  arrival?: string;      // 'YYYY-MM-DD HH:MM' прилёта ('' если не задано)
+  departure?: string;    // 'YYYY-MM-DD HH:MM' вылета ('' если не задано)
 }
 
 function toPrice(v: unknown): PlacePrice {
   if (v === 'free' || v === 1 || v === 2 || v === 3) return v;
   if (typeof v === 'number') { const n = Math.round(v); return (n >= 1 && n <= 3 ? (n as PlacePrice) : null); }
   return null;
-}
-
-function toCoords(v: unknown): Coords | null {
-  return Array.isArray(v) && v.length === 2 && typeof v[0] === 'number' && typeof v[1] === 'number'
-    ? [v[0], v[1]] as Coords
-    : null;
 }
 
 /**
@@ -55,6 +53,7 @@ function normalizePlace(raw: unknown): DraftCandidate | null {
   if (!name || !Number.isFinite(day) || day < 1) return null;
   return {
     dayNumber: day,
+    time: typeof r.time === 'string' ? r.time.trim() : '',
     name: cleanItineraryText(name),
     coords: toCoords(r.coords),
     desc: cleanItineraryText(r.desc),
@@ -69,19 +68,6 @@ function normalizePlace(raw: unknown): DraftCandidate | null {
   };
 }
 
-/** Геокодинг списка запросов через edge-функцию `geocode` (Nominatim, троттлинг). */
-async function geocodeQueries(queries: string[]): Promise<(Coords | null)[]> {
-  if (queries.length === 0) return [];
-  try {
-    const { data, error } = await getSupabase().functions.invoke('geocode', { body: { queries } });
-    if (error || !data || (data as { error?: string }).error) return queries.map(() => null);
-    const list = (data as { coords?: unknown }).coords;
-    if (!Array.isArray(list)) return queries.map(() => null);
-    return queries.map((_, i) => toCoords(list[i]));
-  } catch {
-    return queries.map(() => null);
-  }
-}
 
 /**
  * Собрать черновик ИИ-маршрута на сервере (edge-функция `generate-itinerary`):
@@ -103,6 +89,9 @@ export async function generateItinerary(input: GenerateItineraryInput): Promise<
         days: input.days,
         pace: input.pace,
         interests: input.interests,
+        restFirstDay: input.restFirstDay,
+        arrival: input.arrival || '',
+        departure: input.departure || '',
       },
     });
     if (error || !data || (data as { error?: string }).error) return null;

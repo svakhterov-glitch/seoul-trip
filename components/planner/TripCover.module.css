@@ -27,11 +27,14 @@
   text-shadow: 4px 4px 0 rgba(15,27,61,0.35); margin-bottom: 6px;
 }
 
+.topBtns {
+  position: absolute; top: 16px; right: 20px; z-index: 2;
+  display: flex; gap: 8px;
+}
 .editBtn {
-  position: absolute; top: 16px; right: 20px;
   background: rgba(255,255,255,0.94); color: var(--navy);
   border: 0; border-radius: 9px; padding: 7px 12px; font-size: 13px; font-weight: 700;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow); cursor: pointer;
 }
 .editBtn:hover { background: #fff; }
 .editBtn:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
@@ -72,5 +75,5 @@
 @media (max-width: 560px) {
   .content { min-height: 240px; padding: 18px; }
   .banner { border-radius: 14px; }
-  .editBtn { top: 12px; right: 14px; }
+  .topBtns { top: 12px; right: 14px; }
 }

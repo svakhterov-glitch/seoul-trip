@@ -80,6 +80,24 @@ export interface Place {
   district: string;
 }
 
+/** Перелёт (туда/обратно). Минимальный набор полей. */
+export interface Flight {
+  direction: 'out' | 'back';  // 'out' — прилёт (туда), 'back' — вылет (обратно)
+  airport: string;            // аэропорт (напр. «ICN Инчхон»)
+  date: string;               // YYYY-MM-DD
+  time: string;               // HH:MM
+  flightNo: string;           // номер рейса ('' если не задан)
+}
+
+/** Отель/проживание. Отелей может быть несколько. */
+export interface Hotel {
+  id: string;
+  name: string;
+  coords: Coords | null;      // точка на карте (необязательно)
+  checkIn: string;            // YYYY-MM-DD ('' если не задано)
+  checkOut: string;           // YYYY-MM-DD ('' если не задано)
+}
+
 /** Неразобранная ссылка в инбоксе поездки. */
 export interface InboxLink {
   id: string;
@@ -123,6 +141,10 @@ export interface TripDoc {
   days: Day[];
   places: Place[];
   inbox: InboxLink[];
+  /** Перелёты (туда/обратно) — закреплённые данные, правятся в настройках. */
+  flights: Flight[];
+  /** Отели/проживание — закреплённые данные, правятся в настройках. */
+  hotels: Hotel[];
 }
 
 export interface CreateTripInput {
@@ -187,6 +209,8 @@ export function createTripDoc(input: CreateTripInput): TripDoc {
     days: buildDays(input.startDate, input.endDate),
     places: [],
     inbox: [],
+    flights: [],
+    hotels: [],
   };
 }
 
@@ -246,13 +270,17 @@ export function ensureTripDefaults(trip: TripDoc): TripDoc {
   const needCompanions = !Array.isArray(trip.companions);
   const needCover = typeof trip.coverImage !== 'string';
   const needInbox = !Array.isArray(trip.inbox);
-  if (!needDays && !needCompanions && !needCover && !needInbox) return trip;
+  const needFlights = !Array.isArray(trip.flights);
+  const needHotels = !Array.isArray(trip.hotels);
+  if (!needDays && !needCompanions && !needCover && !needInbox && !needFlights && !needHotels) return trip;
   return {
     ...trip,
     days: needDays ? buildDays(trip.startDate, trip.endDate) : days,
     companions: needCompanions ? [] : trip.companions,
     coverImage: needCover ? '' : trip.coverImage,
     inbox: needInbox ? [] : trip.inbox,
+    flights: needFlights ? [] : trip.flights,
+    hotels: needHotels ? [] : trip.hotels,
   };
 }
 
@@ -267,6 +295,37 @@ export interface TripMetaPatch {
 /** Иммутабельно обновить мету поездки (название/описание/спутники). */
 export function updateTripMeta(trip: TripDoc, patch: TripMetaPatch): TripDoc {
   return { ...trip, ...patch };
+}
+
+/* ---------- перелёт и отели (закреплённые данные поездки) ---------- */
+
+export function createHotel(data: Partial<Hotel> = {}): Hotel {
+  return {
+    id: data.id || newId('hotel'),
+    name: data.name || '',
+    coords: data.coords ?? null,
+    checkIn: data.checkIn || '',
+    checkOut: data.checkOut || '',
+  };
+}
+
+/** Заменить список перелётов (правится только в настройках). */
+export function setFlights(trip: TripDoc, flights: Flight[]): TripDoc {
+  return { ...trip, flights };
+}
+
+/** Заменить список отелей (правится только в настройках). */
+export function setHotels(trip: TripDoc, hotels: Hotel[]): TripDoc {
+  return { ...trip, hotels };
+}
+
+/**
+ * Полностью очистить маршрут: убрать ВСЕ места. Перелёт, отели, дни, категории и
+ * инбокс не трогаем (это не «маршрут»). Иммутабельно.
+ */
+export function clearItinerary(trip: TripDoc): TripDoc {
+  if (trip.places.length === 0) return trip;
+  return { ...trip, places: [] };
 }
 
 export function addPlaceToTrip(trip: TripDoc, dayNumber: number, input: PlaceInput): TripDoc {
@@ -422,6 +481,7 @@ export function addPlaceFromInbox(trip: TripDoc, linkId: string, dayNumber: numb
 /** Одно место из черновика ИИ-маршрута (edge-функция `generate-itinerary`). */
 export interface ItineraryDraftPlace {
   dayNumber: number;        // в какой день ИИ предложил поставить
+  time: string;             // час визита 'HH:MM' ('' если без времени)
   name: string;
   coords: Coords | null;    // точка после геокодинга (может быть null)
   desc: string;
@@ -458,6 +518,7 @@ export function applyItinerary(trip: TripDoc, draft: ItineraryDraft): TripDoc {
     additions.push(createPlace({
       dayNumber: day,
       order: base,
+      time: dp.time || '',
       name: dp.name,
       coords: dp.coords ?? null,
       desc: dp.desc || '',

@@ -1,11 +1,16 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { type TripDoc, type Category, getCategory, placesForDay } from '@/lib/entities';
+import { type TripDoc, type Category, type Flight, type Hotel, getCategory, placesForDay } from '@/lib/entities';
+import { addDays, formatDateRu } from '@/lib/days';
 import { PlaceCard } from './PlaceCard';
+import { LogisticsTile } from './LogisticsTile';
 import { CatBadge } from './badges';
 import { DayForm, type DaySave } from './DayForm';
 import styles from './Timeline.module.css';
+
+/** Закреплённые плитки (перелёт/отели) дня: сверху — прилёт/заселение, снизу — выезд/вылет. */
+interface DayLogistics { top: React.ReactNode[]; bottom: React.ReactNode[]; }
 
 interface Props {
   trip: TripDoc;
@@ -19,12 +24,23 @@ interface Props {
   onSaveDay?: (dayNumber: number, patch: DaySave) => void;
   /** Перенос места: внутри дня (порядок) или в другой день. */
   onMovePlace?: (placeId: string, targetDay: number, targetIndex: number) => void;
+  /** Открыть настройки поездки (правка перелёта/отелей по клику на их плитки). */
+  onOpenSettings?: () => void;
+}
+
+function flightSub(f: Flight): string {
+  return [f.time, f.flightNo && `рейс ${f.flightNo}`].filter(Boolean).join(' · ');
+}
+function hotelStaySub(h: Hotel): string {
+  const a = h.checkIn ? formatDateRu(h.checkIn) : '';
+  const b = h.checkOut ? formatDateRu(h.checkOut) : '';
+  return a && b ? `${a} – ${b}` : (a || b);
 }
 
 interface DragState { id: string; pointerId: number; }
 interface DropAt { day: number; index: number; displayIndex: number; }
 
-export function Timeline({ trip, day, categories = [], busy = false, onAddPlace, onEditPlace, onDeletePlace, onSelectPlace, onSaveDay, onMovePlace }: Props) {
+export function Timeline({ trip, day, categories = [], busy = false, onAddPlace, onEditPlace, onDeletePlace, onSelectPlace, onSaveDay, onMovePlace, onOpenSettings }: Props) {
   const [editDay, setEditDay] = useState<number | null>(null);
   const [drag, setDrag] = useState<DragState | null>(null);
   const [dropAt, setDropAt] = useState<DropAt | null>(null);
@@ -34,6 +50,33 @@ export function Timeline({ trip, day, categories = [], busy = false, onAddPlace,
   const days = day === 0 ? trip.days : trip.days.filter((d) => d.number === day);
   const visibleNums = days.map((d) => d.number);
   const dndOn = !!onMovePlace;
+
+  // Закреплённые плитки перелёта/отелей по дням (по ISO-дате дня).
+  const isoOf = (n: number) => addDays(trip.startDate, n - 1);
+  const dayByIso = (iso: string) => trip.days.find((d) => isoOf(d.number) === iso)?.number;
+  const lastNum = trip.days.length ? trip.days[trip.days.length - 1].number : 1;
+  const outF = trip.flights.find((f) => f.direction === 'out');
+  const backF = trip.flights.find((f) => f.direction === 'back');
+  const outDay = outF ? (dayByIso(outF.date) ?? 1) : null;
+  const backDay = backF ? (dayByIso(backF.date) ?? lastNum) : null;
+
+  function logisticsFor(dayNumber: number): DayLogistics {
+    const top: React.ReactNode[] = [];
+    const bottom: React.ReactNode[] = [];
+    if (outF && outDay === dayNumber)
+      top.push(<LogisticsTile key="fin" kind="flight-in" title={outF.airport || 'Аэропорт'} subtitle={flightSub(outF)} onEdit={onOpenSettings} />);
+    trip.hotels.forEach((h) => {
+      const inDay = h.checkIn ? (dayByIso(h.checkIn) ?? 1) : 1; // без даты/вне диапазона — на день 1
+      if (inDay === dayNumber) top.push(<LogisticsTile key={`hin_${h.id}`} kind="hotel-in" title={h.name} subtitle={hotelStaySub(h)} onEdit={onOpenSettings} />);
+    });
+    trip.hotels.forEach((h) => {
+      if (h.checkOut && dayByIso(h.checkOut) === dayNumber)
+        bottom.push(<LogisticsTile key={`hout_${h.id}`} kind="hotel-out" title={h.name} subtitle={formatDateRu(h.checkOut)} onEdit={onOpenSettings} />);
+    });
+    if (backF && backDay === dayNumber)
+      bottom.push(<LogisticsTile key="fout" kind="flight-out" title={backF.airport || 'Аэропорт'} subtitle={flightSub(backF)} onEdit={onOpenSettings} />);
+    return { top, bottom };
+  }
 
   const wrapRef = useRef<HTMLDivElement>(null);
   // Источник правды во время жеста — ref'ы (обновляются синхронно, без задержки render).
@@ -132,6 +175,7 @@ export function Timeline({ trip, day, categories = [], busy = false, onAddPlace,
         const places = placesForDay(trip, d.number);
         const cat = getCategory(trip, d.cat);
         const dropHere = drag && dropAt?.day === d.number ? dropAt.displayIndex : null;
+        const log = logisticsFor(d.number);
         return (
           <section key={d.number} className={styles.daySec} data-day-sec={d.number}>
             {editDay === d.number ? (
@@ -155,6 +199,7 @@ export function Timeline({ trip, day, categories = [], busy = false, onAddPlace,
                 </div>
               </div>
             )}
+            {log.top.length > 0 && <div className={styles.logistics}>{log.top}</div>}
             {places.length === 0 ? (
               <div className={`${styles.empty} ${dropHere === 0 ? styles.emptyDrop : ''}`}>
                 На этот день пока ничего не запланировано. Добавьте место кнопкой выше.
@@ -198,6 +243,7 @@ export function Timeline({ trip, day, categories = [], busy = false, onAddPlace,
                 ))}
               </div>
             )}
+            {log.bottom.length > 0 && <div className={styles.logistics}>{log.bottom}</div>}
           </section>
         );
       })}

@@ -44,8 +44,14 @@
 .chip:disabled, .chipOn:disabled { opacity: .5; cursor: default; }
 .chip:focus-visible, .chipOn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
+.rest {
+  display: flex; align-items: flex-start; gap: 9px; margin-top: 16px;
+  font-size: 13.5px; line-height: 1.45; color: var(--text); cursor: pointer;
+}
+.rest input { margin-top: 2px; accent-color: var(--accent); width: 16px; height: 16px; flex: 0 0 auto; }
+
 .go {
-  margin-top: 16px; width: 100%; padding: 11px 16px; border-radius: 11px;
+  margin-top: 14px; width: 100%; padding: 11px 16px; border-radius: 11px;
   border: 1px solid var(--accent); background: var(--accent); color: #fff;
   font-size: 15px; font-weight: 700;
 }

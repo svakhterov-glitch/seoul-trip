@@ -5,6 +5,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { type TripDoc, placesForDay, lastDayNumber, getPlaceKind, type Coords } from '@/lib/entities';
 import { dayColor } from '@/lib/dayColors';
+import { kindColor } from '@/lib/kindColors';
 import { type MediaItem, rubricMeta } from '@/lib/media';
 import { MEDIA_TAB } from './DayTabs';
 import styles from './TripMap.module.css';
@@ -134,15 +135,17 @@ export function TripMap({ trip, day, picking, draftCoords, onMapClick, onPlaceCl
       return;
     }
 
-    // Один день рисуем своим цветом: маркеры (нумерация по порядку) + соединяющий маршрут.
-    const drawDay = (dn: number, labelByOrder: boolean) => {
+    // Обзор: метка = номер дня, цвет = день. Отдельный день: метка = порядок,
+    // цвет = ТИП места (дифференциация внутри дня), маршрут — в цвете дня.
+    const drawDay = (dn: number, singleDay: boolean) => {
       const order = placesForDay(trip, dn).filter((p) => p.coords);
       if (!order.length) return;
       const color = dayColor(dn);
       order.forEach((p, idx) => {
-        const label = labelByOrder ? idx + 1 : dn;
-        const m = L.marker(p.coords as Coords, { icon: pinIcon(label, color) });
-        m.bindPopup(`<b>${p.name}</b>${p.time ? ' · ' + p.time : ''}${p.desc ? '<br>' + p.desc : ''}`);
+        const label = singleDay ? idx + 1 : dn;
+        const m = L.marker(p.coords as Coords, { icon: pinIcon(label, singleDay ? kindColor(p.kind) : color) });
+        const kindLabel = getPlaceKind(p.kind)?.label;
+        m.bindPopup(`<b>${p.name}</b>${p.time ? ' · ' + p.time : ''}${kindLabel ? ' · ' + kindLabel : ''}${p.desc ? '<br>' + p.desc : ''}`);
         m.on('click', () => placeCb.current(p.id));
         m.addTo(mLayer);
         bounds.push(p.coords as Coords);

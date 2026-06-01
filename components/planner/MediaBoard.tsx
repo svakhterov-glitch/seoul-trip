@@ -10,14 +10,16 @@ interface Props {
   loading: boolean;
   highlightId: string | null;
   busy?: boolean;
+  refreshing?: boolean;
   onHover: (id: string | null) => void;
   onAdd: (item: MediaItem) => void;
+  onRefresh?: () => void;
 }
 
 type Filter = 'all' | MediaRubric;
 
 /** Витрина доски «Медиа»: квадратные плитки + фильтр по рубрикам (он же легенда). */
-export function MediaBoard({ items, loading, highlightId, busy = false, onHover, onAdd }: Props) {
+export function MediaBoard({ items, loading, highlightId, busy = false, refreshing = false, onHover, onAdd, onRefresh }: Props) {
   const [filter, setFilter] = useState<Filter>('all');
   const shown = filter === 'all' ? items : items.filter((i) => i.rubric === filter);
 
@@ -25,6 +27,11 @@ export function MediaBoard({ items, loading, highlightId, busy = false, onHover,
     <section className={styles.wrap} aria-label="Медиа — трендовые места">
       <div className={styles.head}>
         <span className={styles.title}>✨ Медиа · что советуют гиды</span>
+        {onRefresh && (
+          <button type="button" className={styles.refresh} onClick={onRefresh} disabled={refreshing || loading}>
+            {refreshing ? '🔄 Ищу новые…' : '🔄 Обновить'}
+          </button>
+        )}
         {items.length > 0 && (
           <div className={styles.filters} role="group" aria-label="Фильтр по рубрикам">
             <button type="button" className={`${styles.filter} ${filter === 'all' ? styles.filterOn : ''}`} onClick={() => setFilter('all')}>Все</button>

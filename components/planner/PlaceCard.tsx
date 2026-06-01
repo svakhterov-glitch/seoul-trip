@@ -1,6 +1,7 @@
 'use client';
 
 import { type Place, type Category, getPlaceKind } from '@/lib/entities';
+import { placeMapLinks } from '@/lib/mapLinks';
 import { PriceBadge, KindBadge, PersonBadge } from './badges';
 import styles from './PlaceCard.module.css';
 
@@ -15,6 +16,7 @@ interface Props {
 export function PlaceCard({ place, category, onSelect, onEdit, onDelete }: Props) {
   const emoji = getPlaceKind(place.kind)?.emoji || place.photo || '📍';
   const stripe = category?.color || '#cbd2e6';
+  const maps = placeMapLinks(place.name, place.coords);
   const hasBadges = !!place.kind || (place.price !== null && place.price !== undefined) || !!place.by;
 
   return (
@@ -60,6 +62,15 @@ export function PlaceCard({ place, category, onSelect, onEdit, onDelete }: Props
               <a className={styles.source} href={place.sourceUrl} target="_blank" rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}>источник ↗</a>
             )}
+            <div className={styles.maps}>
+              <span className={styles.mapsLabel}>На карте:</span>
+              <a className={styles.mapLink} href={maps.kakao} target="_blank" rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}>Kakao</a>
+              <a className={styles.mapLink} href={maps.naver} target="_blank" rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}>Naver</a>
+              <a className={styles.mapLink} href={maps.google} target="_blank" rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}>Google</a>
+            </div>
           </div>
         </div>
       </div>

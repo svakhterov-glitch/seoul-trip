@@ -8,7 +8,7 @@ import styles from './AiItinerary.module.css';
 interface Props {
   busy?: boolean;        // идёт сохранение
   generating?: boolean;  // идёт сборка на сервере
-  onGenerate: (pace: ItineraryPace, interests: string[]) => void;
+  onGenerate: (pace: ItineraryPace, interests: string[], restFirstDay: boolean) => void;
 }
 
 const PACES: { key: ItineraryPace; label: string; hint: string }[] = [
@@ -24,6 +24,7 @@ export function AiItinerary({ busy = false, generating = false, onGenerate }: Pr
   const [open, setOpen] = useState(false);
   const [pace, setPace] = useState<ItineraryPace>('moderate');
   const [interests, setInterests] = useState<string[]>([]);
+  const [restFirstDay, setRestFirstDay] = useState(true);
 
   function toggle(key: string) {
     setInterests((cur) => (cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key]));
@@ -75,8 +76,14 @@ export function AiItinerary({ busy = false, generating = false, onGenerate }: Pr
             </div>
           </div>
 
+          <label className={styles.rest}>
+            <input type="checkbox" checked={restFirstDay} disabled={disabled}
+              onChange={(e) => setRestFirstDay(e.target.checked)} />
+            <span>Первый день — спокойный (отдых после прилёта, без насыщенного маршрута)</span>
+          </label>
+
           <button type="button" className={styles.go}
-            onClick={() => onGenerate(pace, interests)} disabled={disabled}>
+            onClick={() => onGenerate(pace, interests, restFirstDay)} disabled={disabled}>
             {generating ? 'Собираю маршрут…' : 'Собрать маршрут'}
           </button>
           <p className={styles.note}>

@@ -9,7 +9,7 @@ const base = { title: 'Сеул', country: 'Корея', city: 'Сеул', start
 function draft(places: Partial<ItineraryDraft['places'][number]>[]): ItineraryDraft {
   return {
     places: places.map((p) => ({
-      dayNumber: 1, name: 'X', coords: null, desc: '', price: null, kind: '',
+      dayNumber: 1, time: '', name: 'X', coords: null, desc: '', price: null, kind: '',
       by: '', sourceUrl: '', sourceDate: '', seasonNote: '', district: '', ...p,
     })),
   };

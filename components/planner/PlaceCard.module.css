@@ -37,6 +37,13 @@
 .badges { display: flex; gap: 8px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); flex-wrap: wrap; }
 .source { display: inline-block; margin-top: 12px; font-size: 13px; font-weight: 600; color: var(--accent); text-decoration: none; }
 .source:hover { text-decoration: underline; }
+.maps { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.mapsLabel { font-size: 12px; color: var(--muted); font-weight: 600; }
+.mapLink {
+  font-size: 12px; font-weight: 700; color: var(--navy);
+  border: 1px solid var(--line); border-radius: 999px; padding: 4px 11px; background: #fff;
+}
+.mapLink:hover { border-color: var(--accent); color: var(--accent); }
 
 @media (max-width: 560px) {
   .item { grid-template-columns: 42px 1fr; gap: 8px; }

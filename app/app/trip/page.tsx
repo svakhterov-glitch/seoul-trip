@@ -10,17 +10,18 @@ import {
   type TripDoc, type Coords, type PlaceInput,
   ensureTripDefaults, addPlaceToTrip, updatePlaceInTrip, removePlaceFromTrip, updateTripMeta,
   updateDay, addCategory, movePlace, addInboxLink, removeInboxLink, updateInboxLink, addPlaceFromInbox, addInboxPlace,
-  applyItinerary,
+  applyItinerary, setFlights, setHotels, clearItinerary, type Flight, type Hotel,
 } from '@/lib/entities';
 import { resolveLink } from '@/lib/resolveLink';
 import { isLink } from '@/lib/parseLink';
 import { searchPlaces, placeMapsUrl, type PlaceCandidate } from '@/lib/searchPlaces';
 import { generateItinerary, type ItineraryPace } from '@/lib/generateItinerary';
-import { fetchMediaBoard } from '@/lib/mediaBoard';
+import { fetchMediaBoard, fetchMoreMedia } from '@/lib/mediaBoard';
 import { type MediaItem } from '@/lib/media';
 import { formatDateRange, daysBetween } from '@/lib/days';
 import { PlannerHeader } from '@/components/planner/PlannerHeader';
 import { AiItinerary } from '@/components/planner/AiItinerary';
+import { TripSettings } from '@/components/planner/TripSettings';
 import { TripCover, type TripCoverSave } from '@/components/planner/TripCover';
 import { DayTabs, MEDIA_TAB } from '@/components/planner/DayTabs';
 import { Inbox, type SearchState } from '@/components/planner/Inbox';
@@ -57,9 +58,12 @@ function PlannerInner() {
   const [search, setSearch] = useState<SearchState | null>(null);
   // идёт сборка ИИ-маршрута на сервере (несколько минут)
   const [generating, setGenerating] = useState(false);
+  // открыта модалка настроек поездки (перелёт/отели/очистка)
+  const [settingsOpen, setSettingsOpen] = useState(false);
   // доска «Медиа»: подборка трендовых мест (null — ещё не загружали), подсветка метки
   const [mediaItems, setMediaItems] = useState<MediaItem[] | null>(null);
   const [mediaLoading, setMediaLoading] = useState(false);
+  const [mediaRefreshing, setMediaRefreshing] = useState(false);
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const mapRef = useRef<HTMLDivElement>(null);
   // Свежий документ для патча после async-разбора (state мог уйти вперёд).
@@ -157,6 +161,23 @@ function PlannerInner() {
     save(addInboxPlace(base, { name, coords: null, desc: '' }));
   }
 
+  // «Обновить Медиа»: живой поиск новых мест, докладываем к показанным (без дублей).
+  async function handleRefreshMedia() {
+    if (!trip || mediaRefreshing) return;
+    setMediaRefreshing(true);
+    try {
+      const current = mediaItems ?? [];
+      const more = await fetchMoreMedia(trip.city, trip.country, current);
+      if (more.length) {
+        const seen = new Set(current.map((m) => m.name.toLowerCase()));
+        const fresh = more.filter((m) => !seen.has(m.name.toLowerCase()));
+        if (fresh.length) setMediaItems([...current, ...fresh]);
+      }
+    } finally {
+      setMediaRefreshing(false);
+    }
+  }
+
   function handleAddFromMedia(item: MediaItem) {
     const base = tripRef.current;
     if (!base) return;
@@ -210,16 +231,20 @@ function PlannerInner() {
 
   // ИИ собирает маршрут на сервере (живой поиск + проверка + раскладка по дням),
   // затем результат дополняет дни поездки (ручные места не трогаются).
-  async function handleGenerate(pace: ItineraryPace, interests: string[]) {
+  async function handleGenerate(pace: ItineraryPace, interests: string[], restFirstDay: boolean) {
     const base = tripRef.current;
     if (!base || generating) return;
     setGenerating(true);
     try {
+      const outF = base.flights.find((f) => f.direction === 'out');
+      const backF = base.flights.find((f) => f.direction === 'back');
       const draft = await generateItinerary({
         city: base.city, country: base.country,
         startDate: base.startDate, endDate: base.endDate,
         days: daysBetween(base.startDate, base.endDate),
-        pace, interests,
+        pace, interests, restFirstDay,
+        arrival: outF?.date ? `${outF.date}${outF.time ? ' ' + outF.time : ''}` : '',
+        departure: backF?.date ? `${backF.date}${backF.time ? ' ' + backF.time : ''}` : '',
       });
       const fresh = tripRef.current;
       if (!fresh) return;
@@ -233,6 +258,15 @@ function PlannerInner() {
   function handleCoverSave(patch: TripCoverSave) {
     if (!trip) return;
     save(updateTripMeta(trip, patch));
+  }
+
+  function handleSaveLogistics(flights: Flight[], hotels: Hotel[]) {
+    if (!trip) return;
+    save(setHotels(setFlights(trip, flights), hotels));
+  }
+  function handleClearItinerary() {
+    if (!trip) return;
+    save(clearItinerary(trip));
   }
 
   function handleSaveDay(dayNumber: number, patch: DaySave) {
@@ -287,6 +321,7 @@ function PlannerInner() {
           dateRange={formatDateRange(trip.startDate, trip.endDate)}
           busy={busy}
           onSave={handleCoverSave}
+          onOpenSettings={() => setSettingsOpen(true)}
         />
 
         <Inbox links={trip.inbox} days={trip.days} busy={busy} resolving={resolving} search={search}
@@ -308,12 +343,13 @@ function PlannerInner() {
 
         {activeDay === MEDIA_TAB ? (
           <MediaBoard items={mediaItems ?? []} loading={mediaLoading} highlightId={highlightId} busy={busy}
-            onHover={setHighlightId} onAdd={handleAddFromMedia} />
+            refreshing={mediaRefreshing} onHover={setHighlightId} onAdd={handleAddFromMedia} onRefresh={handleRefreshMedia} />
         ) : (
           <Timeline trip={trip} day={activeDay} categories={trip.categories} busy={busy}
             onAddPlace={openAdd} onEditPlace={openEdit} onDeletePlace={handleDelete}
             onSelectPlace={() => { /* выбор места — на будущее (центрирование карты) */ }}
-            onSaveDay={handleSaveDay} onMovePlace={handleMovePlace} />
+            onSaveDay={handleSaveDay} onMovePlace={handleMovePlace}
+            onOpenSettings={() => setSettingsOpen(true)} />
         )}
       </div>
 
@@ -333,6 +369,14 @@ function PlannerInner() {
             />
           </div>
         </div>
+      )}
+
+      {settingsOpen && (
+        <TripSettings
+          startDate={trip.startDate} endDate={trip.endDate}
+          flights={trip.flights} hotels={trip.hotels} busy={busy}
+          onSave={handleSaveLogistics} onClearItinerary={handleClearItinerary}
+          onClose={() => setSettingsOpen(false)} />
       )}
 
       {/* Подсказка во время выбора точки на карте */}
