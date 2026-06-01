@@ -110,12 +110,24 @@ export async function generateItinerary(input: GenerateItineraryInput): Promise<
 
     // Геокодинг по английскому запросу `geo` (резерв — само имя). Отдельной
     // функцией, чтобы не упереться в лимит времени generate-itinerary.
+    // Геокодинг: основной запрос — англ. `geo`. Не найденные пробуем ещё раз по
+    // «имя, город, страна» (другой вариант запроса повышает попадание) — чтобы у
+    // каждого места была точка, без «7 мест — 3 точки».
     const coords = await geocodeQueries(candidates.map((c) => c.geo || c.name));
+    const missing = coords.map((c, i) => (c ? -1 : i)).filter((i) => i >= 0);
+    if (missing.length) {
+      const retryQ = missing.map((i) => [candidates[i].name, city, input.country].filter(Boolean).join(', '));
+      const retryC = await geocodeQueries(retryQ);
+      missing.forEach((idx, k) => { if (!coords[idx] && retryC[k]) coords[idx] = retryC[k]; });
+    }
     // geo СОХРАНЯЕМ в место — он нужен для ссылок «открыть карточку места» в
     // Kakao/Naver/Google (русское имя корейские карты ищут плохо).
     const places: ItineraryDraftPlace[] = candidates.map((c, i) => ({
       ...c, coords: c.coords ?? coords[i] ?? null,
     }));
+    // Место без точки: убираем время (UI пометит «?») и двигаем в конец своего дня.
+    for (const p of places) if (!p.coords) p.time = '';
+    places.sort((a, b) => (a.dayNumber - b.dayNumber) || ((a.coords ? 0 : 1) - (b.coords ? 0 : 1)));
     return { places };
   } catch {
     return null;

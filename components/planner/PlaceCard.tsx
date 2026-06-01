@@ -61,7 +61,9 @@ export function PlaceCard({ place, category, onSelect, onEdit, onDelete, onToggl
       onClick={() => onSelect(place.id)}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(place.id); } }}>
       <div className={styles.rail}>
-        {place.time && <span className={styles.time}>{place.time}</span>}
+        {place.coords
+          ? (place.time && <span className={styles.time}>{place.time}</span>)
+          : <span className={styles.noPoint} title="Точка не найдена — откройте место и поставьте точку на карте">?</span>}
       </div>
       <div className={styles.card} style={{ '--stripe': stripe } as React.CSSProperties}>
         <div className={styles.actions}>

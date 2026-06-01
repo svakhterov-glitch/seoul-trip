@@ -2,6 +2,8 @@
 
 .rail { display: flex; justify-content: flex-end; padding-top: 24px; }
 .time { font-size: 13px; font-weight: 700; color: var(--navy); background: #eef0f6; padding: 4px 9px; border-radius: 9px; white-space: nowrap; }
+/* Место без координат — флаг «точка не найдена» (вместо времени). */
+.noPoint { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; font-size: 14px; font-weight: 800; color: #fff; background: var(--accent); border-radius: 50%; cursor: help; }
 
 .card {
   position: relative; overflow: hidden;
