@@ -10,11 +10,12 @@ interface Props {
   busy?: boolean;
   onHover: (id: string | null) => void;
   onAdd: (item: MediaItem) => void;
+  onDismiss?: (id: string) => void;
 }
 
 /** Квадратная плитка доски «Медиа»: фото/плейсхолдер, чип рубрики, эмодзи сегмента,
  *  название, выжимка и атрибуция. Наведение/тап подсвечивает метку на карте. */
-export function MediaTile({ item, highlighted, busy = false, onHover, onAdd }: Props) {
+export function MediaTile({ item, highlighted, busy = false, onHover, onAdd, onDismiss }: Props) {
   const rub = rubricMeta(item.rubric);
   const emoji = getPlaceKind(item.segment)?.emoji ?? '📍';
   const attribution = [item.source, item.sourceDate].filter(Boolean).join(' · ');
@@ -33,6 +34,11 @@ export function MediaTile({ item, highlighted, busy = false, onHover, onAdd }: P
 
       <span className={styles.chip} style={{ background: rub.color }}>{rub.label}</span>
       <span className={styles.seg} aria-hidden="true">{emoji}</span>
+      {onDismiss && (
+        <button type="button" className={styles.dismiss} aria-label={`Убрать ${item.name} из предложений`}
+          onClick={(e) => { e.stopPropagation(); onDismiss(item.id); }}
+          onFocus={() => onHover(item.id)} onBlur={() => onHover(null)}>×</button>
+      )}
 
       <div className={styles.body}>
         <span className={styles.name}>{item.name}</span>

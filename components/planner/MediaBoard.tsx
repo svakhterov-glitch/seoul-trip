@@ -14,12 +14,13 @@ interface Props {
   onHover: (id: string | null) => void;
   onAdd: (item: MediaItem) => void;
   onRefresh?: () => void;
+  onDismiss?: (id: string) => void;
 }
 
 type Filter = 'all' | MediaRubric;
 
 /** Витрина доски «Медиа»: квадратные плитки + фильтр по рубрикам (он же легенда). */
-export function MediaBoard({ items, loading, highlightId, busy = false, refreshing = false, onHover, onAdd, onRefresh }: Props) {
+export function MediaBoard({ items, loading, highlightId, busy = false, refreshing = false, onHover, onAdd, onRefresh, onDismiss }: Props) {
   const [filter, setFilter] = useState<Filter>('all');
   const shown = filter === 'all' ? items : items.filter((i) => i.rubric === filter);
 
@@ -54,7 +55,7 @@ export function MediaBoard({ items, loading, highlightId, busy = false, refreshi
       ) : (
         <div className={styles.grid}>
           {shown.map((it) => (
-            <MediaTile key={it.id} item={it} highlighted={highlightId === it.id} busy={busy} onHover={onHover} onAdd={onAdd} />
+            <MediaTile key={it.id} item={it} highlighted={highlightId === it.id} busy={busy} onHover={onHover} onAdd={onAdd} onDismiss={onDismiss} />
           ))}
         </div>
       )}

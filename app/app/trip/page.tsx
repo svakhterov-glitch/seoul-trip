@@ -173,11 +173,17 @@ function PlannerInner() {
       if (more.length) {
         const seen = new Set(current.map((m) => m.name.toLowerCase()));
         const fresh = more.filter((m) => !seen.has(m.name.toLowerCase()));
-        if (fresh.length) setMediaItems([...current, ...fresh]);
+        if (fresh.length) setMediaItems([...fresh, ...current]); // новые — вперёд
       }
     } finally {
       setMediaRefreshing(false);
     }
+  }
+
+  // Убрать место из предложений «Медиа» (локально, поездку не трогает).
+  function handleDismissMedia(id: string) {
+    setMediaItems((cur) => (cur ? cur.filter((m) => m.id !== id) : cur));
+    setHighlightId((h) => (h === id ? null : h));
   }
 
   function handleAddFromMedia(item: MediaItem) {
@@ -381,7 +387,8 @@ function PlannerInner() {
 
         {activeDay === MEDIA_TAB ? (
           <MediaBoard items={mediaItems ?? []} loading={mediaLoading} highlightId={highlightId} busy={busy}
-            refreshing={mediaRefreshing} onHover={setHighlightId} onAdd={handleAddFromMedia} onRefresh={handleRefreshMedia} />
+            refreshing={mediaRefreshing} onHover={setHighlightId} onAdd={handleAddFromMedia} onRefresh={handleRefreshMedia}
+            onDismiss={handleDismissMedia} />
         ) : (
           <Timeline trip={trip} day={activeDay} categories={trip.categories} busy={busy}
             onAddPlace={openAdd} onEditPlace={openEdit} onDeletePlace={handleDelete}
