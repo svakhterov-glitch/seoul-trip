@@ -1,20 +1,23 @@
 // ============================================================
 // EDGE-ФУНКЦИЯ: geocode — батч-геокодинг списка запросов
 //
-// Вход:  { queries: string[] }   (английские/латинизированные запросы, напр.
-//        "Gyeongbokgung Palace, Seoul, South Korea")
+// Вход:  { queries: string[] }   (напр. "Gyeongbokgung Palace, Seoul, South Korea")
 // Выход: { coords: ([lat,lng]|null)[] }  — в том же порядке, что queries.
 //
-// Зачем отдельная функция: Nominatim не отдаёт CORS (из браузера нельзя), а
-// делать геокодинг внутри generate-itinerary — не уложиться в лимит времени
-// (модель + ~1 запрос/сек × 20 мест). Здесь только геокодинг → быстро.
+// Геокодер: Kakao Local (keyword search) — лучший по корейским местам/отелям.
+// Если KAKAO_REST_KEY не задан — фолбэк на Nominatim (OSM). Отдельная функция,
+// т.к. из браузера эти API не зовутся (CORS/ключ), а внутри generate-itinerary
+// геокодинг не укладывался в лимит времени.
 //
 // Деплой: supabase functions deploy geocode --no-verify-jwt
+// Секрет: KAKAO_REST_KEY (REST API key из Kakao Developers) — желателен.
 // ============================================================
 import { json, preflight } from "../_shared/cors.ts";
 
-const MAX = 40;            // потолок числа запросов за вызов (× ~1.1с ≈ 44с < лимита)
-const THROTTLE_MS = 1100;  // лимит Nominatim — ~1 запрос/сек
+const KAKAO_KEY = Deno.env.get("KAKAO_REST_KEY") ?? "";
+const MAX = 40;
+// Kakao держит высокий QPS — троттлим слабо; для Nominatim (фолбэк) нужен ~1/сек.
+const THROTTLE_MS = KAKAO_KEY ? 120 : 1100;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return preflight();
@@ -33,6 +36,25 @@ Deno.serve(async (req) => {
 });
 
 async function geocode(q: string): Promise<[number, number] | null> {
+  return (KAKAO_KEY ? await kakao(q) : null) ?? await nominatim(q);
+}
+
+// Kakao keyword search: documents[].x = долгота, .y = широта.
+async function kakao(q: string): Promise<[number, number] | null> {
+  try {
+    const r = await fetch(
+      `https://dapi.kakao.com/v2/local/search/keyword.json?size=1&query=${encodeURIComponent(q)}`,
+      { headers: { Authorization: `KakaoAK ${KAKAO_KEY}` } },
+    );
+    if (!r.ok) return null;
+    const d = await r.json();
+    const doc = Array.isArray(d?.documents) ? d.documents[0] : null;
+    if (doc && doc.y && doc.x) return [parseFloat(doc.y), parseFloat(doc.x)];
+  } catch { /* ignore */ }
+  return null;
+}
+
+async function nominatim(q: string): Promise<[number, number] | null> {
   try {
     const r = await fetch(
       `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`,
