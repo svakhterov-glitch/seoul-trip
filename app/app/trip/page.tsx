@@ -21,6 +21,7 @@ import {
 import { resolveLink } from '@/lib/resolveLink';
 import { isLink } from '@/lib/parseLink';
 import { searchPlaces, placeMapsUrl, type PlaceCandidate } from '@/lib/searchPlaces';
+import { isMapLink } from '@/lib/mapLinks';
 import { generateItinerary, type ItineraryPace } from '@/lib/generateItinerary';
 import { suggestChecklist } from '@/lib/suggestChecklist';
 import { geocodeQueries } from '@/lib/geocode';
@@ -288,9 +289,16 @@ function PlannerInner() {
     setSuggestions((cur) => (cur ? cur.filter((s) => s.id !== item.id) : cur));
   }
 
-  // Сколько предложений ещё «сырые» (нужен разбор: ссылка без фото / место без точки).
+  // Нужен ли предложению разбор: фото у обычной ссылки, точка у места, либо
+  // надо убрать скриншот карты (у карт-ссылок og:image — это карта, не фото).
+  function needsWork(s: TgSuggestion): boolean {
+    if (s.url && isMapLink(s.url) && s.image) return true;            // убрать скриншот карты
+    if (s.url && !isMapLink(s.url) && !s.image) return true;          // нужно фото
+    if (s.kind === 'place' && !s.coords && s.name) return true;       // нужна точка
+    return false;
+  }
   function rawSuggestionCount(list: TgSuggestion[]): number {
-    return list.filter((s) => (s.url && !s.image) || (s.kind === 'place' && !s.coords && s.name)).length;
+    return list.filter(needsWork).length;
   }
 
   function patchSuggestion(id: string, fields: Partial<TgSuggestion>) {
@@ -306,13 +314,20 @@ function PlannerInner() {
     setProcessingSug(true);
     try {
       const gotCoords = new Set<string>(list.filter((s) => s.coords).map((s) => s.id));
-      // 1) Ссылки без фото — разбираем (≤3 параллельно, чтобы не упереться в лимиты).
-      const toResolve = list.filter((s) => s.url && !s.image);
+      // 0) Убрать скриншоты карт у карт-ссылок (og:image там — карта, не фото).
+      await Promise.all(list.filter((s) => s.url && isMapLink(s.url) && s.image).map(async (s) => {
+        patchSuggestion(s.id, { image: '' });
+        await updateSuggestion(s.id, { image: '' });
+      }));
+      // 1) Разбираем ссылки: нужно фото (у обычных) или координаты (у любых).
+      const toResolve = list.filter((s) => s.url && (!s.coords || (!isMapLink(s.url) && !s.image)));
       await runPooled(toResolve, 3, async (s) => {
         const r = await resolveLink(s.url);
         if (!r) return;
+        // У карт-ссылок фото не берём (это скриншот карты), берём только точку/описание.
+        const image = isMapLink(s.url) ? '' : (r.image || s.image);
         const fields: Partial<TgSuggestion> = {
-          image: r.image || s.image,
+          image,
           description: s.description || r.desc,
           coords: r.coords ?? s.coords,
         };

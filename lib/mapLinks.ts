@@ -39,6 +39,13 @@ export function placeMapLinks(name: string, coords: Coords | null, geo = ''): Pl
   return { kakao: fallback, naver: fallback, google: fallback };
 }
 
+/** Ссылка ведёт на КАРТУ (Google/Kakao/Naver/Yandex/Apple/2GIS)? У таких страниц
+ *  og:image — скриншот карты, а не фото места: его не стоит показывать в карточке. */
+export function isMapLink(url: string): boolean {
+  const u = (url || '').toLowerCase();
+  return /maps\.app\.goo\.gl|goo\.gl\/maps|google\.[a-z.]+\/maps|maps\.google|map\.kakao\.com|place\.map\.kakao|map\.naver\.com|yandex\.[a-z.]+\/maps|maps\.apple\.com|2gis\./.test(u);
+}
+
 /** Ссылка-навигация в Kakao (маршрут «до точки»). Требует координат. */
 export function kakaoRouteUrl(name: string, coords: Coords): string {
   const [lat, lng] = coords;

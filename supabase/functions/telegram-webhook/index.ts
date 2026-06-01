@@ -98,7 +98,8 @@ async function handleUpdate(update: any): Promise<void> {
       const info = await resolveLink(url);
       await insertSuggestions([{
         trip_id: tripId, chat_id: chatId, kind, url,
-        name: info.name || url, description: info.desc, image: info.image,
+        name: info.name || url, description: info.desc,
+        image: isMapLink(url) ? "" : info.image,   // у карт-ссылок og:image — скриншот карты
         coords: info.coords, from_user: fromUser, raw_text: text.slice(0, 500),
       }]);
       added.push(`${kind === "shopping" ? "🛍" : "📍"} ${info.name || url}`);
@@ -237,6 +238,12 @@ async function handleConnect(chatId: string, code: string, replyTo: number): Pro
 function classify(url: string): "place" | "shopping" {
   const u = url.toLowerCase();
   return SHOP_DOMAINS.some((d) => u.includes(d)) ? "shopping" : "place";
+}
+
+// Ссылка на КАРТУ? У таких og:image — скриншот карты, не фото места: не сохраняем.
+function isMapLink(url: string): boolean {
+  const u = (url || "").toLowerCase();
+  return /maps\.app\.goo\.gl|goo\.gl\/maps|google\.[a-z.]+\/maps|maps\.google|map\.kakao\.com|place\.map\.kakao|map\.naver\.com|yandex\.[a-z.]+\/maps|maps\.apple\.com|2gis\./.test(u);
 }
 
 interface LinkInfo { name: string; desc: string; image: string; coords: number[] | null; }

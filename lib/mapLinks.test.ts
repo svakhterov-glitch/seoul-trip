@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { placeMapLinks, kakaoRouteUrl } from '@/lib/mapLinks';
+import { placeMapLinks, kakaoRouteUrl, isMapLink } from '@/lib/mapLinks';
 import { kindColor } from '@/lib/kindColors';
 
 describe('placeMapLinks', () => {
@@ -39,6 +39,20 @@ describe('placeMapLinks', () => {
 
   it('kakaoRouteUrl даёт ссылку-маршрут', () => {
     expect(kakaoRouteUrl('Точка', [37.5, 127.0])).toContain('map.kakao.com/link/to/');
+  });
+});
+
+describe('isMapLink', () => {
+  it('распознаёт карт-ссылки (скриншот карты вместо фото)', () => {
+    expect(isMapLink('https://maps.app.goo.gl/abc')).toBe(true);
+    expect(isMapLink('https://www.google.com/maps/place/X')).toBe(true);
+    expect(isMapLink('https://map.kakao.com/?q=x')).toBe(true);
+    expect(isMapLink('https://map.naver.com/p/search/x')).toBe(true);
+  });
+  it('обычные ссылки (инста/блог) — не карта', () => {
+    expect(isMapLink('https://instagram.com/p/x')).toBe(false);
+    expect(isMapLink('https://oliveyoung.co.kr/x')).toBe(false);
+    expect(isMapLink('')).toBe(false);
   });
 });
 
