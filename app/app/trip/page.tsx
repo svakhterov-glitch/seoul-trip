@@ -15,7 +15,7 @@ import {
   addShoppingItem, toggleShoppingItem, removeShoppingItem,
 } from '@/lib/entities';
 import {
-  listSuggestions, markSuggestion, telegramLinkStatus, ensureTelegramLink,
+  listSuggestions, markSuggestion, updateSuggestion, telegramLinkStatus, ensureTelegramLink,
   type TgSuggestion, type TgLinkStatus,
 } from '@/lib/telegramInbox';
 import { resolveLink } from '@/lib/resolveLink';
@@ -48,6 +48,18 @@ type FormState =
   | { mode: 'add'; dayNumber: number }
   | { mode: 'edit'; id: string }
   | { mode: 'fromInbox'; linkId: string; dayNumber: number };
+
+/** Выполнить задачи с ограничением параллельности (чтобы не залить сеть/лимиты). */
+async function runPooled<T>(items: T[], limit: number, worker: (item: T) => Promise<void>): Promise<void> {
+  let i = 0;
+  const runners = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (i < items.length) {
+      const idx = i++;
+      await worker(items[idx]);
+    }
+  });
+  await Promise.all(runners);
+}
 
 /** Тема дня для ИИ: тег (категория) + заголовок + подпись, через « — ». '' если пусто. */
 function dayTheme(trip: TripDoc, dayNumber: number): string {
@@ -92,6 +104,9 @@ function PlannerInner() {
   const [suggestLoading, setSuggestLoading] = useState(false);
   const [tgLink, setTgLink] = useState<TgLinkStatus | null>(null);
   const [connecting, setConnecting] = useState(false);
+  // идёт разбор ссылок предложки (фото/описание/координаты)
+  const [processingSug, setProcessingSug] = useState(false);
+  const autoProcessedRef = useRef(false); // авто-разбор предложки — один раз за открытие
   const mapRef = useRef<HTMLDivElement>(null);
   // Свежий документ для патча после async-разбора (state мог уйти вперёд).
   const tripRef = useRef<TripDoc | null>(null);
@@ -133,6 +148,15 @@ function PlannerInner() {
       .then(([list, link]) => { setSuggestions(list); setTgLink(link); })
       .finally(() => setSuggestLoading(false));
   }, [activeDay, trip, suggestions, suggestLoading]);
+
+  // Авто-разбор предложки (фото/описание/координаты) — один раз при открытии вкладки.
+  useEffect(() => {
+    if (activeDay !== INBOX_TAB || !suggestions || autoProcessedRef.current) return;
+    if (rawSuggestionCount(suggestions) === 0) return;
+    autoProcessedRef.current = true;
+    handleProcessSuggestions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeDay, suggestions]);
 
   // низкоуровневое сохранение документа без закрытия форм
   async function save(next: TripDoc): Promise<boolean> {
@@ -262,6 +286,54 @@ function PlannerInner() {
   async function handleDismissSuggestion(item: TgSuggestion) {
     await markSuggestion(item.id, 'dismissed');
     setSuggestions((cur) => (cur ? cur.filter((s) => s.id !== item.id) : cur));
+  }
+
+  // Сколько предложений ещё «сырые» (нужен разбор: ссылка без фото / место без точки).
+  function rawSuggestionCount(list: TgSuggestion[]): number {
+    return list.filter((s) => (s.url && !s.image) || (s.kind === 'place' && !s.coords && s.name)).length;
+  }
+
+  function patchSuggestion(id: string, fields: Partial<TgSuggestion>) {
+    setSuggestions((cur) => (cur ? cur.map((s) => (s.id === id ? { ...s, ...fields } : s)) : cur));
+  }
+
+  // Разобрать ссылки предложки: фото/описание/координаты (resolveLink), а места
+  // без точки догеокодить по названию (одним батчем). Результат сохраняем в БД.
+  async function handleProcessSuggestions() {
+    if (processingSug) return;
+    const list = suggestions ?? [];
+    if (list.length === 0) return;
+    setProcessingSug(true);
+    try {
+      const gotCoords = new Set<string>(list.filter((s) => s.coords).map((s) => s.id));
+      // 1) Ссылки без фото — разбираем (≤3 параллельно, чтобы не упереться в лимиты).
+      const toResolve = list.filter((s) => s.url && !s.image);
+      await runPooled(toResolve, 3, async (s) => {
+        const r = await resolveLink(s.url);
+        if (!r) return;
+        const fields: Partial<TgSuggestion> = {
+          image: r.image || s.image,
+          description: s.description || r.desc,
+          coords: r.coords ?? s.coords,
+        };
+        if (fields.coords) gotCoords.add(s.id);
+        patchSuggestion(s.id, fields);
+        await updateSuggestion(s.id, { image: fields.image, description: fields.description, coords: fields.coords ?? null });
+      });
+      // 2) Места всё ещё без координат — геокодим по названию одним батчем (Kakao).
+      const needGeo = list.filter((s) => s.kind === 'place' && !gotCoords.has(s.id) && s.name);
+      if (needGeo.length) {
+        const coords = await geocodeQueries(needGeo.map((s) => s.name));
+        await Promise.all(needGeo.map(async (s, i) => {
+          const c = coords[i];
+          if (!c) return;
+          patchSuggestion(s.id, { coords: c });
+          await updateSuggestion(s.id, { coords: c });
+        }));
+      }
+    } finally {
+      setProcessingSug(false);
+    }
   }
 
   // ---- Список покупок ----
@@ -532,6 +604,8 @@ function PlannerInner() {
           <>
             <SuggestionBoard items={suggestions ?? []} days={trip.days} loading={suggestLoading} busy={busy}
               link={tgLink} botName={process.env.NEXT_PUBLIC_TELEGRAM_BOT || '@tripsplan_bot'} connecting={connecting}
+              processing={processingSug} rawCount={rawSuggestionCount(suggestions ?? [])}
+              onProcess={handleProcessSuggestions}
               onConnect={handleConnectTelegram} onAddToDay={handleSuggestionToDay}
               onAddToShopping={handleSuggestionToShopping} onDismiss={handleDismissSuggestion} />
             <ShoppingList items={trip.shopping ?? []} busy={busy}

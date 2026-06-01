@@ -4,6 +4,13 @@
 .title { font-size: 15px; font-weight: 700; color: var(--navy); }
 .note { margin: 6px 2px; font-size: 13px; color: var(--muted); }
 
+.process {
+  border: 1px solid var(--accent); background: #fff; color: var(--accent);
+  border-radius: 999px; padding: 6px 14px; font-size: 13px; font-weight: 700; cursor: pointer; touch-action: manipulation;
+}
+.process:hover:not(:disabled) { background: var(--accent); color: #fff; }
+.process:disabled { opacity: .55; cursor: default; }
+
 /* Панель подключения Telegram */
 .connect {
   display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;

@@ -52,6 +52,19 @@ export async function markSuggestion(id: string, status: 'added' | 'dismissed'):
   await getSupabase().from('tg_suggestions').update({ status }).eq('id', id);
 }
 
+/** Дописать в предложение разобранные данные (фото/описание/координаты). */
+export async function updateSuggestion(
+  id: string,
+  fields: { image?: string; description?: string; coords?: Coords | null },
+): Promise<void> {
+  const patch: Record<string, unknown> = {};
+  if (fields.image !== undefined) patch.image = fields.image;
+  if (fields.description !== undefined) patch.description = fields.description;
+  if (fields.coords !== undefined) patch.coords = fields.coords;
+  if (Object.keys(patch).length === 0) return;
+  await getSupabase().from('tg_suggestions').update(patch).eq('id', id);
+}
+
 /** Короткий читаемый код привязки (без похожих символов 0/O/1/I). */
 function genCode(): string {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';

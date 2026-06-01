@@ -13,6 +13,9 @@ interface Props {
   link: TgLinkStatus | null;       // привязка группы (null — ещё не создавали)
   botName: string;                 // @имя бота ('' если не настроено)
   connecting?: boolean;
+  processing?: boolean;            // идёт разбор ссылок (фото/координаты)
+  rawCount?: number;               // сколько ещё не разобрано
+  onProcess: () => void;           // разобрать все ссылки/места
   onConnect: () => void;           // создать/показать код привязки
   onAddToDay: (item: TgSuggestion, dayNumber: number) => void;
   onAddToShopping: (item: TgSuggestion) => void;
@@ -22,7 +25,7 @@ interface Props {
 /** Доска «Предложка»: входящие из Telegram-группы ссылки → места/покупки. */
 export function SuggestionBoard({
   items, days, loading, busy = false, link, botName, connecting = false,
-  onConnect, onAddToDay, onAddToShopping, onDismiss,
+  processing = false, rawCount = 0, onProcess, onConnect, onAddToDay, onAddToShopping, onDismiss,
 }: Props) {
   const places = items.filter((i) => i.kind === 'place');
   const shopping = items.filter((i) => i.kind === 'shopping');
@@ -31,6 +34,11 @@ export function SuggestionBoard({
     <section className={styles.wrap} aria-label="Предложка из Telegram">
       <div className={styles.head}>
         <span className={styles.title}>✨ Предложка из Telegram</span>
+        {items.length > 0 && (
+          <button type="button" className={styles.process} onClick={onProcess} disabled={processing || rawCount === 0}>
+            {processing ? '🔄 Обрабатываю ссылки…' : rawCount > 0 ? `✨ Обработать ссылки (${rawCount})` : '✅ Всё обработано'}
+          </button>
+        )}
       </div>
 
       <ConnectPanel link={link} botName={botName} connecting={connecting} onConnect={onConnect} />
