@@ -47,6 +47,22 @@
 }
 .mapLink:hover { border-color: var(--accent); color: var(--accent); }
 
+.checklist { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+.clTitle { font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 8px; }
+.clList { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.clItem { display: flex; align-items: center; gap: 8px; }
+.clLabel { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; font-size: 14px; color: var(--text); cursor: pointer; }
+.clLabel input { width: 16px; height: 16px; accent-color: var(--accent); flex: 0 0 auto; cursor: pointer; }
+.clDone span { text-decoration: line-through; color: var(--muted); }
+.clDel { flex: 0 0 auto; border: 0; background: transparent; color: var(--muted); font-size: 17px; line-height: 1; cursor: pointer; padding: 0 4px; border-radius: 6px; }
+.clDel:hover { color: var(--accent); }
+.clAdd { display: flex; gap: 6px; }
+.clInput { flex: 1; min-width: 0; padding: 7px 10px; font-size: 13px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg, #f7f9fd); color: var(--text); }
+.clInput:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
+.clAddBtn { flex: 0 0 auto; width: 34px; border: 1px solid var(--accent); color: var(--accent); background: #fff; border-radius: 8px; font-size: 16px; font-weight: 700; cursor: pointer; }
+.clAddBtn:hover:not(:disabled) { background: var(--accent); color: #fff; }
+.clAddBtn:disabled { opacity: .45; cursor: default; }
+
 @media (max-width: 560px) {
   .item { grid-template-columns: 42px 1fr; gap: 8px; }
   .card { padding: 18px 18px 18px 22px; }

@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { type Place, type Category, getPlaceKind } from '@/lib/entities';
 import { placeMapLinks } from '@/lib/mapLinks';
 import { PriceBadge, KindBadge, PersonBadge } from './badges';
@@ -12,12 +13,24 @@ interface Props {
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
   onToggleLock?: (id: string) => void;
+  onAddChecklist?: (placeId: string, text: string) => void;
+  onToggleChecklist?: (placeId: string, itemId: string) => void;
+  onRemoveChecklist?: (placeId: string, itemId: string) => void;
 }
 
-export function PlaceCard({ place, category, onSelect, onEdit, onDelete, onToggleLock }: Props) {
+export function PlaceCard({ place, category, onSelect, onEdit, onDelete, onToggleLock, onAddChecklist, onToggleChecklist, onRemoveChecklist }: Props) {
   const emoji = getPlaceKind(place.kind)?.emoji || place.photo || '📍';
   const stripe = category?.color || '#cbd2e6';
   const maps = placeMapLinks(place.name, place.coords);
+  const checklist = place.checklist ?? [];
+  const [newItem, setNewItem] = useState('');
+
+  function addItem() {
+    const t = newItem.trim();
+    if (!t || !onAddChecklist) return;
+    onAddChecklist(place.id, t);
+    setNewItem('');
+  }
   const hasBadges = !!place.kind || (place.price !== null && place.price !== undefined) || !!place.by;
 
   return (
@@ -90,6 +103,32 @@ export function PlaceCard({ place, category, onSelect, onEdit, onDelete, onToggl
               <a className={styles.mapLink} href={maps.google} target="_blank" rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}>Google</a>
             </div>
+            {onAddChecklist && (
+              <div className={styles.checklist} onClick={(e) => e.stopPropagation()}>
+                <div className={styles.clTitle}>✓ Чеклист — что посмотреть / купить</div>
+                {checklist.length > 0 && (
+                  <ul className={styles.clList}>
+                    {checklist.map((it) => (
+                      <li key={it.id} className={styles.clItem}>
+                        <label className={`${styles.clLabel} ${it.done ? styles.clDone : ''}`}>
+                          <input type="checkbox" checked={it.done}
+                            onChange={() => onToggleChecklist?.(place.id, it.id)} />
+                          <span>{it.text}</span>
+                        </label>
+                        <button type="button" className={styles.clDel} aria-label={`Удалить пункт «${it.text}»`}
+                          onClick={() => onRemoveChecklist?.(place.id, it.id)}>×</button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <div className={styles.clAdd}>
+                  <input className={styles.clInput} value={newItem} placeholder="Добавить пункт…"
+                    onChange={(e) => setNewItem(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addItem(); } }} />
+                  <button type="button" className={styles.clAddBtn} onClick={addItem} disabled={!newItem.trim()}>＋</button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

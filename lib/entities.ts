@@ -80,6 +80,15 @@ export interface Place {
   district: string;
   /** Замок: защищает от очистки маршрута, удаления и перетаскивания. */
   locked: boolean;
+  /** Чеклист места: что посмотреть/купить и т.п. (пункты с галочками). */
+  checklist: ChecklistItem[];
+}
+
+/** Пункт чеклиста места. */
+export interface ChecklistItem {
+  id: string;
+  text: string;
+  done: boolean;
 }
 
 /** Перелёт (туда/обратно). Минимальный набор полей. */
@@ -192,6 +201,7 @@ export function createPlace(data: Partial<Place> = {}): Place {
     seasonNote: data.seasonNote || '',
     district: data.district || '',
     locked: data.locked ?? false,
+    checklist: Array.isArray(data.checklist) ? data.checklist : [],
   };
 }
 
@@ -358,6 +368,33 @@ export function togglePlaceLock(trip: TripDoc, id: string): TripDoc {
     ...trip,
     places: trip.places.map((p) => (p.id === id ? { ...p, locked: !p.locked } : p)),
   };
+}
+
+/* ---------- чеклист места (что посмотреть/купить) ---------- */
+
+/** Изменить чеклист одного места (иммутабельно). */
+function patchChecklist(trip: TripDoc, placeId: string, fn: (items: ChecklistItem[]) => ChecklistItem[]): TripDoc {
+  return {
+    ...trip,
+    places: trip.places.map((p) => (p.id === placeId ? { ...p, checklist: fn(p.checklist ?? []) } : p)),
+  };
+}
+
+/** Добавить пункт чеклиста. Пустой текст игнорируется. */
+export function addChecklistItem(trip: TripDoc, placeId: string, text: string): TripDoc {
+  const t = (text || '').trim();
+  if (!t) return trip;
+  return patchChecklist(trip, placeId, (items) => [...items, { id: newId('chk'), text: t, done: false }]);
+}
+
+/** Отметить/снять пункт чеклиста. */
+export function toggleChecklistItem(trip: TripDoc, placeId: string, itemId: string): TripDoc {
+  return patchChecklist(trip, placeId, (items) => items.map((i) => (i.id === itemId ? { ...i, done: !i.done } : i)));
+}
+
+/** Удалить пункт чеклиста. */
+export function removeChecklistItem(trip: TripDoc, placeId: string, itemId: string): TripDoc {
+  return patchChecklist(trip, placeId, (items) => items.filter((i) => i.id !== itemId));
 }
 
 /**

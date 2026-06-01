@@ -10,7 +10,8 @@ import {
   type TripDoc, type Coords, type PlaceInput,
   ensureTripDefaults, addPlaceToTrip, updatePlaceInTrip, removePlaceFromTrip, updateTripMeta,
   updateDay, addCategory, movePlace, addInboxLink, removeInboxLink, updateInboxLink, addPlaceFromInbox, addInboxPlace,
-  applyItinerary, setFlights, setHotels, clearItinerary, togglePlaceLock, placesForDay, getCategory, type Flight, type Hotel,
+  applyItinerary, setFlights, setHotels, clearItinerary, togglePlaceLock, placesForDay, getCategory,
+  addChecklistItem, toggleChecklistItem, removeChecklistItem, type Flight, type Hotel,
 } from '@/lib/entities';
 import { resolveLink } from '@/lib/resolveLink';
 import { isLink } from '@/lib/parseLink';
@@ -249,6 +250,19 @@ function PlannerInner() {
     save(togglePlaceLock(trip, placeId));
   }
 
+  function handleAddChecklist(placeId: string, text: string) {
+    if (!trip) return;
+    save(addChecklistItem(trip, placeId, text));
+  }
+  function handleToggleChecklist(placeId: string, itemId: string) {
+    if (!trip) return;
+    save(toggleChecklistItem(trip, placeId, itemId));
+  }
+  function handleRemoveChecklist(placeId: string, itemId: string) {
+    if (!trip) return;
+    save(removeChecklistItem(trip, placeId, itemId));
+  }
+
   // ИИ добирает места в конкретный день (дополняет, не пересобирает; без повторов).
   async function handleAiAddDay(dayNumber: number) {
     const base = tripRef.current;
@@ -440,7 +454,8 @@ function PlannerInner() {
             onSelectPlace={() => { /* выбор места — на будущее (центрирование карты) */ }}
             onSaveDay={handleSaveDay} onMovePlace={handleMovePlace}
             onOpenSettings={() => setSettingsOpen(true)}
-            onToggleLock={handleToggleLock} onAiAddDay={handleAiAddDay} generatingDay={generatingDay} />
+            onToggleLock={handleToggleLock} onAiAddDay={handleAiAddDay} generatingDay={generatingDay}
+            onAddChecklist={handleAddChecklist} onToggleChecklist={handleToggleChecklist} onRemoveChecklist={handleRemoveChecklist} />
         )}
       </div>
 

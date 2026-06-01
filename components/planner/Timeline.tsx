@@ -32,6 +32,10 @@ interface Props {
   onAiAddDay?: (dayNumber: number) => void;
   /** Номер дня, для которого сейчас идёт ИИ-добор (показываем статус). */
   generatingDay?: number | null;
+  /** Чеклист места. */
+  onAddChecklist?: (placeId: string, text: string) => void;
+  onToggleChecklist?: (placeId: string, itemId: string) => void;
+  onRemoveChecklist?: (placeId: string, itemId: string) => void;
 }
 
 function flightSub(f: Flight): string {
@@ -46,7 +50,7 @@ function hotelStaySub(h: Hotel): string {
 interface DragState { id: string; pointerId: number; }
 interface DropAt { day: number; index: number; displayIndex: number; }
 
-export function Timeline({ trip, day, categories = [], busy = false, onAddPlace, onEditPlace, onDeletePlace, onSelectPlace, onSaveDay, onMovePlace, onOpenSettings, onToggleLock, onAiAddDay, generatingDay = null }: Props) {
+export function Timeline({ trip, day, categories = [], busy = false, onAddPlace, onEditPlace, onDeletePlace, onSelectPlace, onSaveDay, onMovePlace, onOpenSettings, onToggleLock, onAiAddDay, generatingDay = null, onAddChecklist, onToggleChecklist, onRemoveChecklist }: Props) {
   const [editDay, setEditDay] = useState<number | null>(null);
   const [drag, setDrag] = useState<DragState | null>(null);
   const [dropAt, setDropAt] = useState<DropAt | null>(null);
@@ -249,7 +253,8 @@ export function Timeline({ trip, day, categories = [], busy = false, onAddPlace,
                     )}
                     <div className={styles.cardWrap}>
                       <PlaceCard place={p} category={cat}
-                        onSelect={onSelectPlace} onEdit={onEditPlace} onDelete={onDeletePlace} onToggleLock={onToggleLock} />
+                        onSelect={onSelectPlace} onEdit={onEditPlace} onDelete={onDeletePlace} onToggleLock={onToggleLock}
+                        onAddChecklist={onAddChecklist} onToggleChecklist={onToggleChecklist} onRemoveChecklist={onRemoveChecklist} />
                     </div>
                   </div>
                 ))}
