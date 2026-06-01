@@ -78,6 +78,10 @@ export interface Place {
   seasonNote: string;
   /** Район/кластер места — для группировки по дням и подписи. '' если нет. */
   district: string;
+  /** Английский/латинизированный запрос места (название + город + страна) — для
+   *  геокодера И для ссылок «открыть карточку места» в Kakao/Naver/Google (русское
+   *  имя корейские карты ищут плохо). '' если нет (ручные места). */
+  geo: string;
   /** Замок: защищает от очистки маршрута, удаления и перетаскивания. */
   locked: boolean;
   /** Чеклист места: что посмотреть/купить и т.п. (пункты с галочками). */
@@ -200,6 +204,7 @@ export function createPlace(data: Partial<Place> = {}): Place {
     sourceDate: data.sourceDate || '',
     seasonNote: data.seasonNote || '',
     district: data.district || '',
+    geo: data.geo || '',
     locked: data.locked ?? false,
     checklist: Array.isArray(data.checklist) ? data.checklist : [],
   };
@@ -614,6 +619,7 @@ export interface ItineraryDraftPlace {
   sourceDate: string;       // ISO-дата упоминания (актуальность)
   seasonNote: string;       // пометка под сезон поездки
   district: string;         // район/кластер (раскладка по дням)
+  geo: string;              // англ. запрос (название + город + страна) для геокодера/ссылок
 }
 
 /** Черновик ИИ-маршрута: места, уже распределённые по дням. */
@@ -652,6 +658,7 @@ export function applyItinerary(trip: TripDoc, draft: ItineraryDraft): TripDoc {
       sourceDate: dp.sourceDate || '',
       seasonNote: dp.seasonNote || '',
       district: dp.district || '',
+      geo: dp.geo || '',
     }));
   }
   if (additions.length === 0) return trip;

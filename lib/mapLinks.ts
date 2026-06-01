@@ -1,8 +1,10 @@
 import type { Coords } from '@/lib/entities';
 
-/** Ссылки «открыть место» в трёх картах. Имена мест русские, поэтому при наличии
- *  координат строим точные ссылки по точке (Kakao/Google), иначе — поиск по имени.
- *  Naver web не даёт чистой ссылки-по-точке с меткой — всегда поиск по имени. */
+/** Ссылки «открыть КАРТОЧКУ места» в трёх картах. Открываем именно карточку
+ *  заведения (фото/часы/отзывы), а не голую точку — для этого ищем ПО НАЗВАНИЮ:
+ *  карта находит заведение и показывает его карточку. Предпочитаем английский
+ *  запрос `geo` (название + город + страна): русское имя корейские Kakao/Naver
+ *  находят плохо. Координаты для Google — резерв, если текста нет совсем. */
 export interface PlaceMapLinks {
   kakao: string;
   naver: string;
@@ -11,24 +13,30 @@ export interface PlaceMapLinks {
 
 const enc = encodeURIComponent;
 
-export function placeMapLinks(name: string, coords: Coords | null): PlaceMapLinks {
-  const n = (name || '').trim() || 'место';
-  if (coords) {
-    const [lat, lng] = coords;
+/**
+ * @param name  — отображаемое имя места (может быть русским)
+ * @param coords — точка (резерв для Google, если нет текстового запроса)
+ * @param geo   — английский/латинизированный запрос места (название + город +
+ *                страна); если есть — используем его, иначе имя.
+ */
+export function placeMapLinks(name: string, coords: Coords | null, geo = ''): PlaceMapLinks {
+  // Запрос для поиска карточки: geo (англ.) предпочтительнее русского имени.
+  const q = (geo || '').trim() || (name || '').trim();
+  if (q) {
     return {
-      // Kakao: метка с подписью в точке.
-      kakao: `https://map.kakao.com/link/map/${enc(n)},${lat},${lng}`,
-      // Naver: поиск по имени (нет стабильной web-ссылки по точке с меткой).
-      naver: `https://map.naver.com/p/search/${enc(n)}`,
-      // Google: точка по координатам.
-      google: `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`,
+      kakao: `https://map.kakao.com/?q=${enc(q)}`,
+      naver: `https://map.naver.com/p/search/${enc(q)}`,
+      google: `https://www.google.com/maps/search/?api=1&query=${enc(q)}`,
     };
   }
-  return {
-    kakao: `https://map.kakao.com/?q=${enc(n)}`,
-    naver: `https://map.naver.com/p/search/${enc(n)}`,
-    google: `https://www.google.com/maps/search/?api=1&query=${enc(n)}`,
-  };
+  // Нет ни имени, ни geo — открываем хотя бы точку (только Google умеет по коорд.).
+  if (coords) {
+    const [lat, lng] = coords;
+    const pt = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+    return { kakao: pt, naver: pt, google: pt };
+  }
+  const fallback = 'https://www.google.com/maps';
+  return { kakao: fallback, naver: fallback, google: fallback };
 }
 
 /** Ссылка-навигация в Kakao (маршрут «до точки»). Требует координат. */

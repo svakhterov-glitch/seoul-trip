@@ -22,7 +22,7 @@ interface Props {
 export function PlaceCard({ place, category, onSelect, onEdit, onDelete, onToggleLock, onAddChecklist, onToggleChecklist, onRemoveChecklist, onSuggestChecklist }: Props) {
   const emoji = getPlaceKind(place.kind)?.emoji || place.photo || '📍';
   const stripe = category?.color || '#cbd2e6';
-  const maps = placeMapLinks(place.name, place.coords);
+  const maps = placeMapLinks(place.name, place.coords, place.geo);
   const checklist = place.checklist ?? [];
   const [newItem, setNewItem] = useState('');
   const [suggesting, setSuggesting] = useState(false);

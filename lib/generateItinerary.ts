@@ -46,10 +46,8 @@ export function cleanItineraryText(s: unknown): string {
     .trim();
 }
 
-/** Внутренний кандидат: место из generate + его geo-запрос для геокодера. */
-interface DraftCandidate extends ItineraryDraftPlace {
-  geo: string;
-}
+/** Внутренний кандидат: место из generate (geo уже в ItineraryDraftPlace). */
+type DraftCandidate = ItineraryDraftPlace;
 
 function normalizePlace(raw: unknown): DraftCandidate | null {
   const r = raw as Record<string, unknown>;
@@ -113,10 +111,11 @@ export async function generateItinerary(input: GenerateItineraryInput): Promise<
     // Геокодинг по английскому запросу `geo` (резерв — само имя). Отдельной
     // функцией, чтобы не упереться в лимит времени generate-itinerary.
     const coords = await geocodeQueries(candidates.map((c) => c.geo || c.name));
-    const places: ItineraryDraftPlace[] = candidates.map((c, i) => {
-      const { geo: _geo, ...rest } = c;
-      return { ...rest, coords: c.coords ?? coords[i] ?? null };
-    });
+    // geo СОХРАНЯЕМ в место — он нужен для ссылок «открыть карточку места» в
+    // Kakao/Naver/Google (русское имя корейские карты ищут плохо).
+    const places: ItineraryDraftPlace[] = candidates.map((c, i) => ({
+      ...c, coords: c.coords ?? coords[i] ?? null,
+    }));
     return { places };
   } catch {
     return null;

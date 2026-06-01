@@ -10,7 +10,7 @@ function draft(places: Partial<ItineraryDraft['places'][number]>[]): ItineraryDr
   return {
     places: places.map((p) => ({
       dayNumber: 1, time: '', name: 'X', coords: null, desc: '', price: null, kind: '',
-      by: '', sourceUrl: '', sourceDate: '', seasonNote: '', district: '', ...p,
+      by: '', sourceUrl: '', sourceDate: '', seasonNote: '', district: '', geo: '', ...p,
     })),
   };
 }
@@ -28,6 +28,14 @@ describe('applyItinerary', () => {
     expect(day2.every((p) => p.source === 'ai')).toBe(true);
     expect(day2[0].by).toBe('Time Out Seoul');
     expect(placesForDay(next, 3)).toHaveLength(1);
+  });
+
+  it('сохраняет geo в место (для ссылок «открыть карточку места»)', () => {
+    const trip = createTripDoc(base);
+    const next = applyItinerary(trip, draft([
+      { dayNumber: 2, name: 'Кафе Onion', geo: 'Onion Anguk, Seoul, South Korea' },
+    ]));
+    expect(placesForDay(next, 2)[0].geo).toBe('Onion Anguk, Seoul, South Korea');
   });
 
   it('не трогает уже разложенные руками места — дописывает после них', () => {

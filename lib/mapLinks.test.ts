@@ -3,19 +3,32 @@ import { placeMapLinks, kakaoRouteUrl } from '@/lib/mapLinks';
 import { kindColor } from '@/lib/kindColors';
 
 describe('placeMapLinks', () => {
-  it('с координатами строит точные ссылки Kakao/Google', () => {
-    const l = placeMapLinks('Дворец Кёнбоккун', [37.5797, 126.9767]);
-    expect(l.kakao).toContain('map.kakao.com/link/map/');
-    expect(l.kakao).toContain('37.5797,126.9767');
-    expect(l.google).toContain('query=37.5797,126.9767');
-    expect(l.naver).toContain('map.naver.com');
+  it('ищет ПО НАЗВАНИЮ во всех трёх — открывается карточка места, не точка', () => {
+    const l = placeMapLinks('Кафе Onion', [37.5797, 126.9767]);
+    expect(l.kakao).toContain('map.kakao.com/?q=');
+    expect(l.naver).toContain('/p/search/');
+    expect(l.google).toContain('/maps/search/');
+    // даже при наличии координат не уходим в голую точку
+    expect(l.google).not.toContain('query=37.5797,126.9767');
   });
 
-  it('без координат — поиск по имени во всех трёх', () => {
+  it('предпочитает английский geo русскому имени (корейские карты ищут лучше)', () => {
+    const l = placeMapLinks('Кафе Лук', null, 'Onion Anguk, Seoul, South Korea');
+    expect(l.kakao).toContain(encodeURIComponent('Onion Anguk, Seoul, South Korea'));
+    expect(l.naver).toContain(encodeURIComponent('Onion Anguk, Seoul, South Korea'));
+    expect(l.google).toContain(encodeURIComponent('Onion Anguk, Seoul, South Korea'));
+    expect(l.kakao).not.toContain(encodeURIComponent('Кафе Лук'));
+  });
+
+  it('без geo — ищет по имени', () => {
     const l = placeMapLinks('Кафе Onion', null);
     expect(l.kakao).toContain('map.kakao.com/?q=');
-    expect(l.google).toContain('/maps/search/');
-    expect(l.naver).toContain('/p/search/');
+    expect(l.kakao).toContain(encodeURIComponent('Кафе Onion'));
+  });
+
+  it('нет ни имени, ни geo, но есть точка — открываем хотя бы точку (Google)', () => {
+    const l = placeMapLinks('', [37.5, 127.0], '');
+    expect(l.google).toContain('query=37.5,127');
   });
 
   it('кодирует имя в URL', () => {
