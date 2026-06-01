@@ -531,7 +531,7 @@ function PlannerInner() {
         {activeDay === INBOX_TAB ? (
           <>
             <SuggestionBoard items={suggestions ?? []} days={trip.days} loading={suggestLoading} busy={busy}
-              link={tgLink} botName={process.env.NEXT_PUBLIC_TELEGRAM_BOT || ''} connecting={connecting}
+              link={tgLink} botName={process.env.NEXT_PUBLIC_TELEGRAM_BOT || '@tripsplan_bot'} connecting={connecting}
               onConnect={handleConnectTelegram} onAddToDay={handleSuggestionToDay}
               onAddToShopping={handleSuggestionToShopping} onDismiss={handleDismissSuggestion} />
             <ShoppingList items={trip.shopping ?? []} busy={busy}
