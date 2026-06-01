@@ -30,6 +30,8 @@ interface Props {
   onToggleLock?: (id: string) => void;
   /** ИИ: добавить ещё мест в конкретный день. */
   onAiAddDay?: (dayNumber: number) => void;
+  /** Оптимизировать порядок точек дня (минимум переходов). */
+  onOptimizeDay?: (dayNumber: number) => void;
   /** Номер дня, для которого сейчас идёт ИИ-добор (показываем статус). */
   generatingDay?: number | null;
   /** Чеклист места. */
@@ -51,7 +53,7 @@ function hotelStaySub(h: Hotel): string {
 interface DragState { id: string; pointerId: number; }
 interface DropAt { day: number; index: number; displayIndex: number; }
 
-export function Timeline({ trip, day, categories = [], busy = false, onAddPlace, onEditPlace, onDeletePlace, onSelectPlace, onSaveDay, onMovePlace, onOpenSettings, onToggleLock, onAiAddDay, generatingDay = null, onAddChecklist, onToggleChecklist, onRemoveChecklist, onSuggestChecklist }: Props) {
+export function Timeline({ trip, day, categories = [], busy = false, onAddPlace, onEditPlace, onDeletePlace, onSelectPlace, onSaveDay, onMovePlace, onOpenSettings, onToggleLock, onAiAddDay, onOptimizeDay, generatingDay = null, onAddChecklist, onToggleChecklist, onRemoveChecklist, onSuggestChecklist }: Props) {
   const [editDay, setEditDay] = useState<number | null>(null);
   const [drag, setDrag] = useState<DragState | null>(null);
   const [dropAt, setDropAt] = useState<DropAt | null>(null);
@@ -187,6 +189,7 @@ export function Timeline({ trip, day, categories = [], busy = false, onAddPlace,
         const cat = getCategory(trip, d.cat);
         const dropHere = drag && dropAt?.day === d.number ? dropAt.displayIndex : null;
         const log = logisticsFor(d.number);
+        const optimizable = places.filter((p) => p.coords).length >= 3;
         return (
           <section key={d.number} className={styles.daySec} data-day-sec={d.number}>
             {editDay === d.number ? (
@@ -200,6 +203,11 @@ export function Timeline({ trip, day, categories = [], busy = false, onAddPlace,
                   <div className={styles.headActions}>
                     {onSaveDay && (
                       <button type="button" className={styles.editDay} onClick={() => setEditDay(d.number)}>Изменить день</button>
+                    )}
+                    {onOptimizeDay && optimizable && (
+                      <button type="button" className={styles.editDay} disabled={busy}
+                        onClick={() => onOptimizeDay(d.number)}
+                        title="Переставить места в порядок с минимумом переходов">↪ Оптимизировать</button>
                     )}
                     {onAiAddDay && (
                       <button type="button" className={styles.aiAdd} disabled={busy || generatingDay !== null}

@@ -11,7 +11,7 @@ import {
   ensureTripDefaults, addPlaceToTrip, updatePlaceInTrip, removePlaceFromTrip, updateTripMeta,
   updateDay, addCategory, movePlace, addInboxLink, removeInboxLink, updateInboxLink, addPlaceFromInbox, addInboxPlace,
   applyItinerary, setFlights, setHotels, clearItinerary, togglePlaceLock, placesForDay, getCategory,
-  addChecklistItem, toggleChecklistItem, removeChecklistItem, type Flight, type Hotel, type Place,
+  addChecklistItem, toggleChecklistItem, removeChecklistItem, optimizeDayOrder, type Flight, type Hotel, type Place,
 } from '@/lib/entities';
 import { resolveLink } from '@/lib/resolveLink';
 import { isLink } from '@/lib/parseLink';
@@ -263,6 +263,13 @@ function PlannerInner() {
     if (!trip) return;
     save(removeChecklistItem(trip, placeId, itemId));
   }
+  function handleOptimizeDay(dayNumber: number) {
+    if (!trip) return;
+    const next = optimizeDayOrder(trip, dayNumber);
+    if (next === trip) return; // нечего оптимизировать
+    save(next);
+  }
+
   function handleSuggestChecklist(place: Place): Promise<string[]> {
     const base = tripRef.current;
     if (!base) return Promise.resolve([]);
@@ -460,7 +467,7 @@ function PlannerInner() {
             onSelectPlace={() => { /* выбор места — на будущее (центрирование карты) */ }}
             onSaveDay={handleSaveDay} onMovePlace={handleMovePlace}
             onOpenSettings={() => setSettingsOpen(true)}
-            onToggleLock={handleToggleLock} onAiAddDay={handleAiAddDay} generatingDay={generatingDay}
+            onToggleLock={handleToggleLock} onAiAddDay={handleAiAddDay} onOptimizeDay={handleOptimizeDay} generatingDay={generatingDay}
             onAddChecklist={handleAddChecklist} onToggleChecklist={handleToggleChecklist} onRemoveChecklist={handleRemoveChecklist}
             onSuggestChecklist={handleSuggestChecklist} />
         )}

@@ -370,6 +370,79 @@ export function togglePlaceLock(trip: TripDoc, id: string): TripDoc {
   };
 }
 
+/* ---------- оптимизация порядка точек в дне ---------- */
+
+/** Расстояние между точками (км, гаверсинус) — для оптимизации маршрута. */
+function distKm(a: Coords, b: Coords): number {
+  const R = 6371;
+  const dLat = ((b[0] - a[0]) * Math.PI) / 180;
+  const dLng = ((b[1] - a[1]) * Math.PI) / 180;
+  const la1 = (a[0] * Math.PI) / 180, la2 = (b[0] * Math.PI) / 180;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(la1) * Math.cos(la2) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+/**
+ * Порядок «ближайший сосед» по координатам. Замкнутые (`locked`) места остаются
+ * на своих позициях; остальные жадно переставляются ближе друг к другу.
+ * `places` — все места дня с координатами, в текущем порядке.
+ */
+function nearestNeighborOrder(places: Place[]): Place[] {
+  const m = places.length;
+  const result: (Place | undefined)[] = new Array(m);
+  const pool: number[] = [];
+  for (let i = 0; i < m; i++) {
+    if (places[i].locked) result[i] = places[i];
+    else pool.push(i);
+  }
+  const used = new Set<number>();
+  let prev: Coords | null = null;
+  for (let slot = 0; slot < m; slot++) {
+    if (result[slot]) { prev = result[slot]!.coords; continue; }
+    let pick = -1, bestD = Infinity;
+    for (const idx of pool) {
+      if (used.has(idx)) continue;
+      const d = prev ? distKm(prev, places[idx].coords as Coords) : 0;
+      if (prev === null) { pick = idx; break; }          // старт — текущее первое незамкнутое
+      if (d < bestD) { bestD = d; pick = idx; }
+    }
+    if (pick === -1) continue;
+    used.add(pick);
+    result[slot] = places[pick];
+    prev = places[pick].coords;
+  }
+  return result.filter((p): p is Place => !!p);
+}
+
+/**
+ * Оптимизировать порядок мест дня (минимизировать переходы, «ближайший сосед»).
+ * Места без координат остаются в конце в прежнем порядке. Замкнутые — на местах.
+ * Времена переставляются ПО НОВОМУ ПОРЯДКУ (раньше — первому месту), чтобы
+ * расписание осталось «утро→вечер». Иммутабельно; без изменений если <3 точек
+ * с координатами или порядок не поменялся.
+ */
+export function optimizeDayOrder(trip: TripDoc, dayNumber: number): TripDoc {
+  const day = placesForDay(trip, dayNumber);
+  const withCoords = day.filter((p) => p.coords);
+  const noCoords = day.filter((p) => !p.coords);
+  if (withCoords.length < 3) return trip;
+  const seq = [...nearestNeighborOrder(withCoords), ...noCoords];
+  if (seq.every((p, i) => p.id === day[i].id)) return trip; // ничего не изменилось
+
+  const times = seq.map((p) => p.time).filter(Boolean).sort();
+  let k = 0;
+  const patch = new Map<string, { order: number; time: string }>();
+  seq.forEach((p, i) => patch.set(p.id, { order: i, time: p.time ? times[k++] : '' }));
+
+  return {
+    ...trip,
+    places: trip.places.map((p) => {
+      const u = patch.get(p.id);
+      return u ? { ...p, order: u.order, time: u.time } : p;
+    }),
+  };
+}
+
 /* ---------- чеклист места (что посмотреть/купить) ---------- */
 
 /** Изменить чеклист одного места (иммутабельно). */
