@@ -12,6 +12,7 @@ interface Props {
   busy?: boolean;
   onSave: (flights: Flight[], hotels: Hotel[]) => void;
   onClearItinerary: () => void;
+  onPickOnMap?: (hotelId: string) => void;
   onClose: () => void;
 }
 
@@ -25,7 +26,7 @@ function flightFilled(f: Flight): boolean {
   return !!(f.airport.trim() || f.time.trim() || f.flightNo.trim());
 }
 
-export function TripSettings({ startDate, endDate, flights, hotels, busy = false, onSave, onClearItinerary, onClose }: Props) {
+export function TripSettings({ startDate, endDate, flights, hotels, busy = false, onSave, onClearItinerary, onPickOnMap, onClose }: Props) {
   const [out, setOut] = useState<Flight>(flights.find((f) => f.direction === 'out') ?? emptyFlight('out', startDate));
   const [back, setBack] = useState<Flight>(flights.find((f) => f.direction === 'back') ?? emptyFlight('back', endDate));
   const [list, setList] = useState<Hotel[]>(hotels.length ? hotels : []);
@@ -40,13 +41,26 @@ export function TripSettings({ startDate, endDate, flights, hotels, busy = false
     setList((hs) => hs.filter((h) => h.id !== id));
   }
 
-  function submit(e: React.FormEvent) {
-    e.preventDefault();
+  function buildLists(): { f: Flight[]; h: Hotel[] } {
     const f: Flight[] = [];
     if (flightFilled(out)) f.push({ ...out, airport: out.airport.trim(), flightNo: out.flightNo.trim() });
     if (flightFilled(back)) f.push({ ...back, airport: back.airport.trim(), flightNo: back.flightNo.trim() });
     const h = list.filter((x) => x.name.trim()).map((x) => ({ ...x, name: x.name.trim() }));
+    return { f, h };
+  }
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    const { f, h } = buildLists();
     onSave(f, h);
+    onClose();
+  }
+
+  // Сохранить правки и перейти к установке точки этого отеля на карте.
+  function pickOnMap(id: string) {
+    const { f, h } = buildLists();
+    onSave(f, h);
+    onPickOnMap?.(id);
     onClose();
   }
 
@@ -127,6 +141,12 @@ export function TripSettings({ startDate, endDate, flights, hotels, busy = false
                     onChange={(e) => patchHotel(h.id, { checkOut: e.target.value })} />
                 </label>
               </div>
+              {onPickOnMap && (
+                <button type="button" className={styles.pickMap} disabled={busy || !h.name.trim()}
+                  onClick={() => pickOnMap(h.id)}>
+                  📍 {h.coords ? 'Изменить точку на карте' : 'Указать точку на карте'}
+                </button>
+              )}
             </fieldset>
           ))}
           <button type="button" className={styles.addHotel} onClick={addHotel} disabled={busy}>＋ Добавить отель</button>

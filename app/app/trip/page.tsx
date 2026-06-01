@@ -71,6 +71,8 @@ function PlannerInner() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   // номер дня, для которого ИИ сейчас добирает места (null — нет)
   const [generatingDay, setGeneratingDay] = useState<number | null>(null);
+  // id отеля, точку которого ставим кликом по карте (null — не ставим)
+  const [pickHotel, setPickHotel] = useState<string | null>(null);
   // доска «Медиа»: подборка трендовых мест (null — ещё не загружали), подсветка метки
   const [mediaItems, setMediaItems] = useState<MediaItem[] | null>(null);
   const [mediaLoading, setMediaLoading] = useState(false);
@@ -337,6 +339,16 @@ function PlannerInner() {
     save(clearItinerary(trip));
   }
 
+  // Закрыть настройки и перейти к установке точки отеля кликом по карте.
+  function handlePickHotelOnMap(hotelId: string) {
+    setSettingsOpen(false);
+    setPickHotel(hotelId);
+    if (mapRef.current) {
+      const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      mapRef.current.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'center' });
+    }
+  }
+
   function handleSaveDay(dayNumber: number, patch: DaySave) {
     if (!trip) return;
     let next = trip;
@@ -402,8 +414,16 @@ function PlannerInner() {
           onSelect={(d) => { setActiveDay(d); setHighlightId(null); }} />
 
         <div className={styles.mapSection} ref={mapRef}>
-          <TripMap trip={trip} day={activeDay} picking={picking} draftCoords={draftCoords}
-            onMapClick={(c) => { setDraftCoords(c); setPicking(false); }}
+          <TripMap trip={trip} day={activeDay} picking={picking || pickHotel !== null} draftCoords={draftCoords}
+            onMapClick={(c) => {
+              if (pickHotel) {
+                const base = tripRef.current;
+                if (base) save(setHotels(base, base.hotels.map((h) => (h.id === pickHotel ? { ...h, coords: c } : h))));
+                setPickHotel(null);
+              } else {
+                setDraftCoords(c); setPicking(false);
+              }
+            }}
             onPlaceClick={openEdit}
             media={activeDay === MEDIA_TAB ? (mediaItems ?? []) : undefined}
             highlightId={highlightId} onMediaClick={setHighlightId}
@@ -447,14 +467,15 @@ function PlannerInner() {
           startDate={trip.startDate} endDate={trip.endDate}
           flights={trip.flights} hotels={trip.hotels} busy={busy}
           onSave={handleSaveLogistics} onClearItinerary={handleClearItinerary}
+          onPickOnMap={handlePickHotelOnMap}
           onClose={() => setSettingsOpen(false)} />
       )}
 
       {/* Подсказка во время выбора точки на карте */}
-      {picking && (
+      {(picking || pickHotel) && (
         <div className={styles.pickHint} role="status">
-          <span>Кликните по карте, чтобы поставить точку места</span>
-          <button type="button" onClick={() => setPicking(false)}>Готово</button>
+          <span>{pickHotel ? 'Кликните по карте, где находится отель' : 'Кликните по карте, чтобы поставить точку места'}</span>
+          <button type="button" onClick={() => { setPicking(false); setPickHotel(null); }}>{pickHotel ? 'Отмена' : 'Готово'}</button>
         </div>
       )}
     </main>

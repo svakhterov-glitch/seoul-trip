@@ -50,6 +50,12 @@
   border-radius: 10px; padding: 9px 14px; font-size: 14px; font-weight: 600; cursor: pointer;
 }
 .addHotel:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.pickMap {
+  margin-top: 10px; border: 1px solid var(--line); background: #fff; color: var(--navy);
+  border-radius: 9px; padding: 8px 12px; font-size: 13px; font-weight: 700; cursor: pointer;
+}
+.pickMap:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.pickMap:disabled { opacity: .5; cursor: default; }
 
 .clear {
   width: 100%; border: 1px solid #e0b4b0; background: #fdf3f2; color: #b5392f;
