@@ -12,7 +12,12 @@ import {
   updateDay, addCategory, movePlace, addInboxLink, removeInboxLink, updateInboxLink, addPlaceFromInbox, addInboxPlace,
   applyItinerary, setFlights, setHotels, clearItinerary, togglePlaceLock, placesForDay, getCategory,
   addChecklistItem, toggleChecklistItem, removeChecklistItem, optimizeDayOrder, type Flight, type Hotel, type Place,
+  addShoppingItem, toggleShoppingItem, removeShoppingItem,
 } from '@/lib/entities';
+import {
+  listSuggestions, markSuggestion, telegramLinkStatus, ensureTelegramLink,
+  type TgSuggestion, type TgLinkStatus,
+} from '@/lib/telegramInbox';
 import { resolveLink } from '@/lib/resolveLink';
 import { isLink } from '@/lib/parseLink';
 import { searchPlaces, placeMapsUrl, type PlaceCandidate } from '@/lib/searchPlaces';
@@ -26,10 +31,12 @@ import { PlannerHeader } from '@/components/planner/PlannerHeader';
 import { AiItinerary } from '@/components/planner/AiItinerary';
 import { TripSettings } from '@/components/planner/TripSettings';
 import { TripCover, type TripCoverSave } from '@/components/planner/TripCover';
-import { DayTabs, MEDIA_TAB } from '@/components/planner/DayTabs';
+import { DayTabs, MEDIA_TAB, INBOX_TAB } from '@/components/planner/DayTabs';
 import { Inbox, type SearchState } from '@/components/planner/Inbox';
 import { Timeline } from '@/components/planner/Timeline';
 import { MediaBoard } from '@/components/planner/MediaBoard';
+import { SuggestionBoard } from '@/components/planner/SuggestionBoard';
+import { ShoppingList } from '@/components/planner/ShoppingList';
 import { type DaySave } from '@/components/planner/DayForm';
 import { PlaceForm } from '@/components/planner/PlaceForm';
 import styles from './page.module.css';
@@ -80,6 +87,11 @@ function PlannerInner() {
   const [mediaLoading, setMediaLoading] = useState(false);
   const [mediaRefreshing, setMediaRefreshing] = useState(false);
   const [highlightId, setHighlightId] = useState<string | null>(null);
+  // Telegram-предложка: входящие из чата (null — ещё не загружали), статус привязки
+  const [suggestions, setSuggestions] = useState<TgSuggestion[] | null>(null);
+  const [suggestLoading, setSuggestLoading] = useState(false);
+  const [tgLink, setTgLink] = useState<TgLinkStatus | null>(null);
+  const [connecting, setConnecting] = useState(false);
   const mapRef = useRef<HTMLDivElement>(null);
   // Свежий документ для патча после async-разбора (state мог уйти вперёд).
   const tripRef = useRef<TripDoc | null>(null);
@@ -112,6 +124,15 @@ function PlannerInner() {
       .then((list) => setMediaItems(list))
       .finally(() => setMediaLoading(false));
   }, [activeDay, trip, mediaItems, mediaLoading]);
+
+  // «Предложка» (Telegram): входящие + статус привязки — лениво при открытии вкладки
+  useEffect(() => {
+    if (activeDay !== INBOX_TAB || !trip || suggestions !== null || suggestLoading) return;
+    setSuggestLoading(true);
+    Promise.all([listSuggestions(trip.id), telegramLinkStatus(trip.id)])
+      .then(([list, link]) => { setSuggestions(list); setTgLink(link); })
+      .finally(() => setSuggestLoading(false));
+  }, [activeDay, trip, suggestions, suggestLoading]);
 
   // низкоуровневое сохранение документа без закрытия форм
   async function save(next: TripDoc): Promise<boolean> {
@@ -206,6 +227,55 @@ function PlannerInner() {
       name: item.name, coords: item.coords, desc: item.blurb,
       source: 'media', url: item.coords ? placeMapsUrl(item.name, base.city) : '',
     }));
+  }
+
+  // ---- Telegram-предложка ----
+  function handleConnectTelegram() {
+    const base = tripRef.current;
+    if (!base || connecting) return;
+    setConnecting(true);
+    ensureTelegramLink(base.id)
+      .then((link) => { if (link) setTgLink(link); })
+      .finally(() => setConnecting(false));
+  }
+
+  async function handleSuggestionToDay(item: TgSuggestion, dayNumber: number) {
+    const base = tripRef.current;
+    if (!base) return;
+    const ok = await save(addPlaceToTrip(base, dayNumber, {
+      name: item.name, coords: item.coords, time: '', desc: item.description, price: null, image: item.image,
+    }));
+    if (!ok) return;
+    await markSuggestion(item.id, 'added');
+    setSuggestions((cur) => (cur ? cur.filter((s) => s.id !== item.id) : cur));
+  }
+
+  async function handleSuggestionToShopping(item: TgSuggestion) {
+    const base = tripRef.current;
+    if (!base) return;
+    const ok = await save(addShoppingItem(base, { text: item.name, url: item.url, source: 'tg' }));
+    if (!ok) return;
+    await markSuggestion(item.id, 'added');
+    setSuggestions((cur) => (cur ? cur.filter((s) => s.id !== item.id) : cur));
+  }
+
+  async function handleDismissSuggestion(item: TgSuggestion) {
+    await markSuggestion(item.id, 'dismissed');
+    setSuggestions((cur) => (cur ? cur.filter((s) => s.id !== item.id) : cur));
+  }
+
+  // ---- Список покупок ----
+  function handleAddShopping(text: string) {
+    const base = tripRef.current;
+    if (base) save(addShoppingItem(base, { text }));
+  }
+  function handleToggleShopping(id: string) {
+    const base = tripRef.current;
+    if (base) save(toggleShoppingItem(base, id));
+  }
+  function handleRemoveShopping(id: string) {
+    const base = tripRef.current;
+    if (base) save(removeShoppingItem(base, id));
   }
 
   async function handleAddLink(url: string) {
@@ -438,10 +508,11 @@ function PlannerInner() {
         <AiItinerary busy={busy} generating={generating} onGenerate={handleGenerate} />
 
         <DayTabs days={trip.days} categories={trip.categories} activeDay={activeDay}
+          inboxCount={suggestions?.length ?? 0}
           onSelect={(d) => { setActiveDay(d); setHighlightId(null); }} />
 
         <div className={styles.mapSection} ref={mapRef}>
-          <TripMap trip={trip} day={activeDay} picking={picking || pickHotel !== null} draftCoords={draftCoords}
+          <TripMap trip={trip} day={activeDay === INBOX_TAB ? 0 : activeDay} picking={picking || pickHotel !== null} draftCoords={draftCoords}
             onMapClick={(c) => {
               if (pickHotel) {
                 const base = tripRef.current;
@@ -457,7 +528,16 @@ function PlannerInner() {
             hotels={activeDay === MEDIA_TAB ? undefined : trip.hotels} />
         </div>
 
-        {activeDay === MEDIA_TAB ? (
+        {activeDay === INBOX_TAB ? (
+          <>
+            <SuggestionBoard items={suggestions ?? []} days={trip.days} loading={suggestLoading} busy={busy}
+              link={tgLink} botName={process.env.NEXT_PUBLIC_TELEGRAM_BOT || ''} connecting={connecting}
+              onConnect={handleConnectTelegram} onAddToDay={handleSuggestionToDay}
+              onAddToShopping={handleSuggestionToShopping} onDismiss={handleDismissSuggestion} />
+            <ShoppingList items={trip.shopping ?? []} busy={busy}
+              onAdd={handleAddShopping} onToggle={handleToggleShopping} onRemove={handleRemoveShopping} />
+          </>
+        ) : activeDay === MEDIA_TAB ? (
           <MediaBoard items={mediaItems ?? []} loading={mediaLoading} highlightId={highlightId} busy={busy}
             refreshing={mediaRefreshing} onHover={setHighlightId} onAdd={handleAddFromMedia} onRefresh={handleRefreshMedia}
             onDismiss={handleDismissMedia} />
