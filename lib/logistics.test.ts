@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   createTripDoc, createHotel, setFlights, setHotels, clearItinerary,
-  ensureTripDefaults, addPlaceToTrip, type Flight,
+  ensureTripDefaults, addPlaceToTrip, togglePlaceLock, movePlace, placesForDay, type Flight,
 } from '@/lib/entities';
 
 const base = { title: 'Сеул', country: 'Корея', city: 'Сеул', startDate: '2026-06-07', endDate: '2026-06-11' };
@@ -50,6 +50,26 @@ describe('clearItinerary', () => {
   it('пустой маршрут возвращает тот же объект', () => {
     const t = createTripDoc(base);
     expect(clearItinerary(t)).toBe(t);
+  });
+
+  it('замкнутые места переживают очистку', () => {
+    let t = createTripDoc(base);
+    t = addPlaceToTrip(t, 2, { name: 'Обычное', coords: null, time: '', desc: '', price: null, image: '' });
+    t = addPlaceToTrip(t, 2, { name: 'Важное', coords: null, time: '', desc: '', price: null, image: '' });
+    const id = t.places.find((p) => p.name === 'Важное')!.id;
+    t = togglePlaceLock(t, id);
+    expect(t.places.find((p) => p.id === id)!.locked).toBe(true);
+    const cleared = clearItinerary(t);
+    expect(cleared.places.map((p) => p.name)).toEqual(['Важное']);
+  });
+
+  it('замкнутое место нельзя перенести', () => {
+    let t = createTripDoc(base);
+    t = addPlaceToTrip(t, 2, { name: 'Замок', coords: null, time: '', desc: '', price: null, image: '' });
+    const id = t.places[0].id;
+    t = togglePlaceLock(t, id);
+    expect(movePlace(t, id, 3, 0)).toBe(t); // не двигается
+    expect(placesForDay(t, 2)).toHaveLength(1);
   });
 });
 

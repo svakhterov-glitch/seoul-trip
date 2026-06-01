@@ -78,6 +78,8 @@ export interface Place {
   seasonNote: string;
   /** Район/кластер места — для группировки по дням и подписи. '' если нет. */
   district: string;
+  /** Замок: защищает от очистки маршрута, удаления и перетаскивания. */
+  locked: boolean;
 }
 
 /** Перелёт (туда/обратно). Минимальный набор полей. */
@@ -189,6 +191,7 @@ export function createPlace(data: Partial<Place> = {}): Place {
     sourceDate: data.sourceDate || '',
     seasonNote: data.seasonNote || '',
     district: data.district || '',
+    locked: data.locked ?? false,
   };
 }
 
@@ -320,12 +323,13 @@ export function setHotels(trip: TripDoc, hotels: Hotel[]): TripDoc {
 }
 
 /**
- * Полностью очистить маршрут: убрать ВСЕ места. Перелёт, отели, дни, категории и
- * инбокс не трогаем (это не «маршрут»). Иммутабельно.
+ * Очистить маршрут: убрать все НЕзамкнутые места. Замкнутые (`locked`) остаются.
+ * Перелёт, отели, дни, категории и инбокс не трогаем. Иммутабельно.
  */
 export function clearItinerary(trip: TripDoc): TripDoc {
-  if (trip.places.length === 0) return trip;
-  return { ...trip, places: [] };
+  const kept = trip.places.filter((p) => p.locked);
+  if (kept.length === trip.places.length) return trip; // нечего убирать
+  return { ...trip, places: kept };
 }
 
 export function addPlaceToTrip(trip: TripDoc, dayNumber: number, input: PlaceInput): TripDoc {
@@ -348,6 +352,14 @@ export function removePlaceFromTrip(trip: TripDoc, id: string): TripDoc {
   return { ...trip, places: trip.places.filter((p) => p.id !== id) };
 }
 
+/** Переключить замок места (защита от очистки/удаления/переноса). */
+export function togglePlaceLock(trip: TripDoc, id: string): TripDoc {
+  return {
+    ...trip,
+    places: trip.places.map((p) => (p.id === id ? { ...p, locked: !p.locked } : p)),
+  };
+}
+
 /**
  * Переместить место — внутри дня (смена порядка) или в другой день.
  * `targetIndex` — позиция среди мест целевого дня (0..n, клампится). Иммутабельно
@@ -356,7 +368,7 @@ export function removePlaceFromTrip(trip: TripDoc, id: string): TripDoc {
  */
 export function movePlace(trip: TripDoc, placeId: string, targetDay: number, targetIndex: number): TripDoc {
   const moving = trip.places.find((p) => p.id === placeId);
-  if (!moving) return trip;
+  if (!moving || moving.locked) return trip; // замкнутые не переносим
   const fromDay = moving.dayNumber;
 
   // Порядок id целевого дня без перемещаемого места + вставка на нужную позицию.

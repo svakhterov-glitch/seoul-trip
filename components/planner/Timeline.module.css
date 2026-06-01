@@ -8,6 +8,9 @@
 .editDay:hover { border-color: var(--navy); color: var(--navy); }
 .add { border: 1px solid var(--accent); color: var(--accent); background: transparent; border-radius: 8px; padding: 5px 10px; font-size: 12px; font-weight: 700; }
 .add:hover { background: var(--accent); color: #fff; }
+.aiAdd { border: 1px solid #9a55c9; color: #9a55c9; background: transparent; border-radius: 8px; padding: 5px 10px; font-size: 12px; font-weight: 700; cursor: pointer; }
+.aiAdd:hover:not(:disabled) { background: #9a55c9; color: #fff; }
+.aiAdd:disabled { opacity: .5; cursor: default; }
 .titleRow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
 .dtitle { margin: 0; font-size: 17px; color: var(--navy); }
 .empty { font-size: 13px; color: var(--muted); background: #fff; border: 1px dashed var(--line); border-radius: 10px; padding: 14px; }

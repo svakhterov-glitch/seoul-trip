@@ -24,6 +24,8 @@
   transition: opacity 0.15s ease, color 0.15s ease, background 0.15s ease;
 }
 .act:hover, .act:focus-visible { opacity: 1; color: var(--navy); background: #f1f3f9; outline: none; }
+.actOn { opacity: 1; color: var(--accent); }
+.actOn:hover, .actOn:focus-visible { color: var(--accent); }
 
 .row { display: flex; gap: 18px; align-items: flex-start; }
 .thumb { width: 80px; height: 80px; border-radius: 16px; object-fit: cover; flex: 0 0 auto; border: 1px solid var(--line); }

@@ -11,9 +11,10 @@ interface Props {
   onSelect: (id: string) => void;
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
+  onToggleLock?: (id: string) => void;
 }
 
-export function PlaceCard({ place, category, onSelect, onEdit, onDelete }: Props) {
+export function PlaceCard({ place, category, onSelect, onEdit, onDelete, onToggleLock }: Props) {
   const emoji = getPlaceKind(place.kind)?.emoji || place.photo || '📍';
   const stripe = category?.color || '#cbd2e6';
   const maps = placeMapLinks(place.name, place.coords);
@@ -29,18 +30,36 @@ export function PlaceCard({ place, category, onSelect, onEdit, onDelete }: Props
       </div>
       <div className={styles.card} style={{ '--stripe': stripe } as React.CSSProperties}>
         <div className={styles.actions}>
+          {onToggleLock && (
+            <button type="button" className={`${styles.act} ${place.locked ? styles.actOn : ''}`}
+              aria-label={place.locked ? `Снять замок с ${place.name}` : `Закрепить ${place.name} (защита от очистки/удаления)`}
+              aria-pressed={place.locked}
+              onClick={(e) => { e.stopPropagation(); onToggleLock(place.id); }}>
+              {place.locked ? (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+              ) : (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 9.9-1" />
+                </svg>
+              )}
+            </button>
+          )}
           <button type="button" className={styles.act} aria-label={`Изменить ${place.name}`}
             onClick={(e) => { e.stopPropagation(); onEdit(place.id); }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
             </svg>
           </button>
-          <button type="button" className={styles.act} aria-label={`Удалить ${place.name}`}
-            onClick={(e) => { e.stopPropagation(); onDelete(place.id); }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M3 6h18" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-            </svg>
-          </button>
+          {!place.locked && (
+            <button type="button" className={styles.act} aria-label={`Удалить ${place.name}`}
+              onClick={(e) => { e.stopPropagation(); onDelete(place.id); }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M3 6h18" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+              </svg>
+            </button>
+          )}
         </div>
         <div className={styles.row}>
           {place.image

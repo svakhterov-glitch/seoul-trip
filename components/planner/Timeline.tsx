@@ -26,6 +26,12 @@ interface Props {
   onMovePlace?: (placeId: string, targetDay: number, targetIndex: number) => void;
   /** Открыть настройки поездки (правка перелёта/отелей по клику на их плитки). */
   onOpenSettings?: () => void;
+  /** Переключить замок места. */
+  onToggleLock?: (id: string) => void;
+  /** ИИ: добавить ещё мест в конкретный день. */
+  onAiAddDay?: (dayNumber: number) => void;
+  /** Номер дня, для которого сейчас идёт ИИ-добор (показываем статус). */
+  generatingDay?: number | null;
 }
 
 function flightSub(f: Flight): string {
@@ -40,7 +46,7 @@ function hotelStaySub(h: Hotel): string {
 interface DragState { id: string; pointerId: number; }
 interface DropAt { day: number; index: number; displayIndex: number; }
 
-export function Timeline({ trip, day, categories = [], busy = false, onAddPlace, onEditPlace, onDeletePlace, onSelectPlace, onSaveDay, onMovePlace, onOpenSettings }: Props) {
+export function Timeline({ trip, day, categories = [], busy = false, onAddPlace, onEditPlace, onDeletePlace, onSelectPlace, onSaveDay, onMovePlace, onOpenSettings, onToggleLock, onAiAddDay, generatingDay = null }: Props) {
   const [editDay, setEditDay] = useState<number | null>(null);
   const [drag, setDrag] = useState<DragState | null>(null);
   const [dropAt, setDropAt] = useState<DropAt | null>(null);
@@ -190,6 +196,12 @@ export function Timeline({ trip, day, categories = [], busy = false, onAddPlace,
                     {onSaveDay && (
                       <button type="button" className={styles.editDay} onClick={() => setEditDay(d.number)}>Изменить день</button>
                     )}
+                    {onAiAddDay && (
+                      <button type="button" className={styles.aiAdd} disabled={busy || generatingDay !== null}
+                        onClick={() => onAiAddDay(d.number)}>
+                        {generatingDay === d.number ? '✨ Собираю…' : '✨ Ещё мест'}
+                      </button>
+                    )}
                     <button type="button" className={styles.add} onClick={() => onAddPlace(d.number)}>＋ Добавить место</button>
                   </div>
                 </div>
@@ -212,7 +224,7 @@ export function Timeline({ trip, day, categories = [], busy = false, onAddPlace,
                     data-card={p.id}
                     className={`${styles.slot} ${drag?.id === p.id ? styles.dragging : ''} ${dropHere === i ? styles.dropBefore : ''} ${dropHere === places.length && i === places.length - 1 ? styles.dropAfter : ''}`}
                   >
-                    {dndOn && (
+                    {dndOn && !p.locked && (
                       <button
                         type="button"
                         className={styles.grip}
@@ -237,7 +249,7 @@ export function Timeline({ trip, day, categories = [], busy = false, onAddPlace,
                     )}
                     <div className={styles.cardWrap}>
                       <PlaceCard place={p} category={cat}
-                        onSelect={onSelectPlace} onEdit={onEditPlace} onDelete={onDeletePlace} />
+                        onSelect={onSelectPlace} onEdit={onEditPlace} onDelete={onDeletePlace} onToggleLock={onToggleLock} />
                     </div>
                   </div>
                 ))}

@@ -16,6 +16,10 @@ export interface GenerateItineraryInput {
   restFirstDay: boolean; // первый день — спокойный (отдых)
   arrival?: string;      // 'YYYY-MM-DD HH:MM' прилёта ('' если не задано)
   departure?: string;    // 'YYYY-MM-DD HH:MM' вылета ('' если не задано)
+  // Режим «добавить ещё мест в один день» (не пересборка):
+  targetDay?: number;    // если задан — ИИ добавляет места ТОЛЬКО в этот день
+  exclude?: string[];    // имена мест, которые НЕ повторять (уже в поездке)
+  dayContext?: string;   // что уже есть в дне + район (подсказка модели)
 }
 
 function toPrice(v: unknown): PlacePrice {
@@ -92,6 +96,9 @@ export async function generateItinerary(input: GenerateItineraryInput): Promise<
         restFirstDay: input.restFirstDay,
         arrival: input.arrival || '',
         departure: input.departure || '',
+        targetDay: input.targetDay ?? 0,
+        exclude: input.exclude ?? [],
+        dayContext: input.dayContext || '',
       },
     });
     if (error || !data || (data as { error?: string }).error) return null;

@@ -46,8 +46,14 @@ Deno.serve(async (req) => {
     const restFirstDay = body.restFirstDay !== false; // по умолчанию — да
     const arrival = String(body.arrival ?? "");
     const departure = String(body.departure ?? "");
+    const targetDay = Math.max(0, Math.min(days, Number(body.targetDay) || 0));
+    const exclude: string[] = Array.isArray(body.exclude) ? body.exclude.map(String).slice(0, 100) : [];
+    const dayContext = String(body.dayContext ?? "");
 
-    const prompt = buildPrompt({ city, country, startDate, endDate, days, pace, interests, restFirstDay, arrival, departure });
+    const dates = startDate && endDate ? `${startDate} … ${endDate}` : "даты не заданы";
+    const prompt = targetDay >= 1
+      ? buildAddPrompt({ city, country, dates, targetDay, dayContext, exclude })
+      : buildPrompt({ city, country, startDate, endDate, days, pace, interests, restFirstDay, arrival, departure });
 
     const r = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -69,23 +75,32 @@ Deno.serve(async (req) => {
     if (d?.error) return json({ error: d.error?.message || "anthropic error" }, 502);
 
     const text = extractText(d);
-    let places = parseJsonArray(text);
+    const parsed = parseJsonArray(text).filter((p) => p && typeof p.name === "string" && p.name.trim());
 
     // Геокодинг здесь НЕ делаем — он вынесен в отдельную функцию `geocode`.
-    // Ограничиваем число мест ПО ДНЯМ (а не обрезкой хвоста — иначе теряются
-    // последние дни). perDay подобран так, чтобы все дни поместились в общий
-    // потолок 40 (лимит функции geocode) И не превышали темп.
-    const paceCap = pace === "packed" ? 6 : pace === "relaxed" ? 3 : 4;
-    const perDay = Math.max(1, Math.min(paceCap, Math.floor(40 / days)));
-    const valid = places.filter((p) =>
-      p && typeof p.name === "string" && p.name.trim() && Number(p.dayNumber) >= 1 && Number(p.dayNumber) <= days);
-    const byDay = new Map<number, any[]>();
-    for (const p of valid) {
-      const dn = Number(p.dayNumber);
-      const arr = byDay.get(dn) ?? [];
-      if (arr.length < perDay) { arr.push(p); byDay.set(dn, arr); }
+    let places: any[];
+    if (targetDay >= 1) {
+      // Режим «добавить в день»: всё в targetDay, без повторов exclude, до 4 мест.
+      const skip = new Set(exclude.map((s) => s.toLowerCase().trim()));
+      places = parsed
+        .filter((p) => !skip.has(String(p.name).toLowerCase().trim()))
+        .slice(0, 4)
+        .map((p) => ({ ...p, dayNumber: targetDay }));
+    } else {
+      // Пересборка: ограничиваем число мест ПО ДНЯМ (а не обрезкой хвоста —
+      // иначе теряются последние дни). perDay — чтобы все дни влезли в потолок 40
+      // (лимит geocode) и не превышали темп.
+      const paceCap = pace === "packed" ? 6 : pace === "relaxed" ? 3 : 4;
+      const perDay = Math.max(1, Math.min(paceCap, Math.floor(40 / days)));
+      const valid = parsed.filter((p) => Number(p.dayNumber) >= 1 && Number(p.dayNumber) <= days);
+      const byDay = new Map<number, any[]>();
+      for (const p of valid) {
+        const dn = Number(p.dayNumber);
+        const arr = byDay.get(dn) ?? [];
+        if (arr.length < perDay) { arr.push(p); byDay.set(dn, arr); }
+      }
+      places = [...byDay.entries()].sort((a, b) => a[0] - b[0]).flatMap(([, arr]) => arr);
     }
-    places = [...byDay.entries()].sort((a, b) => a[0] - b[0]).flatMap(([, arr]) => arr);
 
     return json({ places, source: "ai" });
   } catch (e) {
@@ -148,6 +163,36 @@ function buildPrompt(a: PromptArgs): string {
 markdown-ограждений (никаких \`\`\`). Первый символ ответа — «[», последний — «]».
 Каждый объект:
 [{"dayNumber":1,"time":"10:30","name":"Дворец Кёнбоккун","geo":"Gyeongbokgung Palace, Seoul, South Korea","district":"Чонно-гу","kind":"food|museum|nature|sight|shop|fun|bar|other","desc":"1 фраза по-русски","price":"free"|1|2|3,"by":"Time Out Seoul","sourceUrl":"https://...","sourceDate":"2026-03-01","seasonNote":"в июне — зелень"}]`;
+}
+
+interface AddArgs {
+  city: string; country: string; dates: string; targetDay: number;
+  dayContext: string; exclude: string[];
+}
+
+function buildAddPrompt(a: AddArgs): string {
+  const where = [a.city, a.country].filter(Boolean).join(", ");
+  const ctx = a.dayContext ? `\nВ этом дне уже есть (тот же район держи рядом): ${a.dayContext}` : "";
+  const skip = a.exclude.length ? `\nНЕ повторяй уже добавленные в поездку: ${a.exclude.slice(0, 60).join("; ")}.` : "";
+  return `Ты — тревел-редактор. Добавь 2–4 НОВЫХ места в день ${a.targetDay} поездки по городу: ${where}.
+Даты поездки: ${a.dates}.${ctx}${skip}
+
+ПРАВИЛА:
+- ИСТОЧНИКИ: web_search, ТОЛЬКО редакционные медиа (Time Out, Visit Seoul, Michelin,
+  Eater, CNN Travel) и узнаваемые тревел-блогеры. Не выдумывай; только реальные места
+  со свежим упоминанием. Укажи "by", "sourceUrl", "sourceDate".
+- РЯДОМ: новые места — в том же районе/рядом с тем, что уже есть в дне (без мотания
+  через весь город). Укажи "district".
+- СЕЗОН под даты: погода/уместность + сезонные события; "seasonNote" (≤80 симв., '' если нейтрально).
+- ВРЕМЯ: проставь "time" ("HH:MM"), логично вписав между существующими.
+- ЯЗЫК: name, desc, seasonNote, district — ПО-РУССКИ. geo — английский запрос для
+  геокодера (название + город + страна).
+
+ПОИСК: не более 2 веб-поисков, затем СРАЗУ выведи итоговый JSON. Не проси ещё поисков,
+не пиши вступлений.
+
+Верни ТОЛЬКО JSON-массив (2–4 объекта), без markdown-ограждений. Каждый:
+{"dayNumber":${a.targetDay},"time":"14:00","name":"Название по-русски","geo":"Name, ${a.city}, ${a.country || "South Korea"}","district":"район","kind":"food|museum|nature|sight|shop|fun|bar|other","desc":"1 фраза по-русски","price":"free"|1|2|3,"by":"Time Out Seoul","sourceUrl":"https://...","sourceDate":"2026-03","seasonNote":""}`;
 }
 
 // Собрать текстовый ответ из блоков (web_search возвращает смешанный content).

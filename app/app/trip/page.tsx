@@ -10,7 +10,7 @@ import {
   type TripDoc, type Coords, type PlaceInput,
   ensureTripDefaults, addPlaceToTrip, updatePlaceInTrip, removePlaceFromTrip, updateTripMeta,
   updateDay, addCategory, movePlace, addInboxLink, removeInboxLink, updateInboxLink, addPlaceFromInbox, addInboxPlace,
-  applyItinerary, setFlights, setHotels, clearItinerary, type Flight, type Hotel,
+  applyItinerary, setFlights, setHotels, clearItinerary, togglePlaceLock, placesForDay, type Flight, type Hotel,
 } from '@/lib/entities';
 import { resolveLink } from '@/lib/resolveLink';
 import { isLink } from '@/lib/parseLink';
@@ -60,6 +60,8 @@ function PlannerInner() {
   const [generating, setGenerating] = useState(false);
   // открыта модалка настроек поездки (перелёт/отели/очистка)
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // номер дня, для которого ИИ сейчас добирает места (null — нет)
+  const [generatingDay, setGeneratingDay] = useState<number | null>(null);
   // доска «Медиа»: подборка трендовых мест (null — ещё не загружали), подсветка метки
   const [mediaItems, setMediaItems] = useState<MediaItem[] | null>(null);
   const [mediaLoading, setMediaLoading] = useState(false);
@@ -221,7 +223,43 @@ function PlannerInner() {
 
   function handleDelete(placeId: string) {
     if (!trip) return;
+    if (trip.places.find((p) => p.id === placeId)?.locked) return; // замкнутые не удаляем
     if (confirm('Удалить это место?')) save(removePlaceFromTrip(trip, placeId));
+  }
+
+  function handleToggleLock(placeId: string) {
+    if (!trip) return;
+    save(togglePlaceLock(trip, placeId));
+  }
+
+  // ИИ добирает места в конкретный день (дополняет, не пересобирает; без повторов).
+  async function handleAiAddDay(dayNumber: number) {
+    const base = tripRef.current;
+    if (!base || generatingDay !== null) return;
+    setGeneratingDay(dayNumber);
+    try {
+      const inDay = placesForDay(base, dayNumber);
+      const districts = [...new Set(inDay.map((p) => p.district).filter(Boolean))].join(', ');
+      const dayContext = [
+        inDay.length ? `места: ${inDay.map((p) => p.name).join('; ')}` : '',
+        districts ? `район: ${districts}` : '',
+      ].filter(Boolean).join('; ');
+      const draft = await generateItinerary({
+        city: base.city, country: base.country,
+        startDate: base.startDate, endDate: base.endDate,
+        days: daysBetween(base.startDate, base.endDate),
+        pace: 'moderate', interests: [], restFirstDay: false,
+        targetDay: dayNumber,
+        exclude: base.places.map((p) => p.name).filter(Boolean),
+        dayContext,
+      });
+      const fresh = tripRef.current;
+      if (!fresh) return;
+      if (!draft) { alert('Не удалось подобрать новые места. Попробуйте ещё раз чуть позже.'); return; }
+      await save(applyItinerary(fresh, draft));
+    } finally {
+      setGeneratingDay(null);
+    }
   }
 
   function handleMovePlace(placeId: string, targetDay: number, targetIndex: number) {
@@ -349,7 +387,8 @@ function PlannerInner() {
             onAddPlace={openAdd} onEditPlace={openEdit} onDeletePlace={handleDelete}
             onSelectPlace={() => { /* выбор места — на будущее (центрирование карты) */ }}
             onSaveDay={handleSaveDay} onMovePlace={handleMovePlace}
-            onOpenSettings={() => setSettingsOpen(true)} />
+            onOpenSettings={() => setSettingsOpen(true)}
+            onToggleLock={handleToggleLock} onAiAddDay={handleAiAddDay} generatingDay={generatingDay} />
         )}
       </div>
 
