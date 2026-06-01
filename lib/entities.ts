@@ -95,6 +95,17 @@ export interface ChecklistItem {
   done: boolean;
 }
 
+/** Пункт общего списка покупок поездки («Что купить»). Не привязан к месту. */
+export interface ShoppingItem {
+  id: string;
+  text: string;
+  /** Ссылка на товар (если пришло из Telegram-предложки), иначе ''. */
+  url: string;
+  done: boolean;
+  /** Откуда добавлено: 'manual' | 'tg' (Telegram-предложка). */
+  source: string;
+}
+
 /** Перелёт (туда/обратно). Минимальный набор полей. */
 export interface Flight {
   direction: 'out' | 'back';  // 'out' — прилёт (туда), 'back' — вылет (обратно)
@@ -160,6 +171,8 @@ export interface TripDoc {
   flights: Flight[];
   /** Отели/проживание — закреплённые данные, правятся в настройках. */
   hotels: Hotel[];
+  /** Общий список покупок поездки («Что купить») — галочки, не привязан к месту. */
+  shopping: ShoppingItem[];
 }
 
 export interface CreateTripInput {
@@ -229,6 +242,7 @@ export function createTripDoc(input: CreateTripInput): TripDoc {
     inbox: [],
     flights: [],
     hotels: [],
+    shopping: [],
   };
 }
 
@@ -290,7 +304,8 @@ export function ensureTripDefaults(trip: TripDoc): TripDoc {
   const needInbox = !Array.isArray(trip.inbox);
   const needFlights = !Array.isArray(trip.flights);
   const needHotels = !Array.isArray(trip.hotels);
-  if (!needDays && !needCompanions && !needCover && !needInbox && !needFlights && !needHotels) return trip;
+  const needShopping = !Array.isArray(trip.shopping);
+  if (!needDays && !needCompanions && !needCover && !needInbox && !needFlights && !needHotels && !needShopping) return trip;
   return {
     ...trip,
     days: needDays ? buildDays(trip.startDate, trip.endDate) : days,
@@ -299,6 +314,7 @@ export function ensureTripDefaults(trip: TripDoc): TripDoc {
     inbox: needInbox ? [] : trip.inbox,
     flights: needFlights ? [] : trip.flights,
     hotels: needHotels ? [] : trip.hotels,
+    shopping: needShopping ? [] : trip.shopping,
   };
 }
 
@@ -473,6 +489,29 @@ export function toggleChecklistItem(trip: TripDoc, placeId: string, itemId: stri
 /** Удалить пункт чеклиста. */
 export function removeChecklistItem(trip: TripDoc, placeId: string, itemId: string): TripDoc {
   return patchChecklist(trip, placeId, (items) => items.filter((i) => i.id !== itemId));
+}
+
+/** Добавить пункт в общий список покупок поездки. Пустой текст игнорируется. */
+export function addShoppingItem(
+  trip: TripDoc,
+  data: { text: string; url?: string; source?: string },
+): TripDoc {
+  const text = (data.text || '').trim();
+  if (!text) return trip;
+  const item: ShoppingItem = {
+    id: newId('shop'), text, url: (data.url || '').trim(), done: false, source: data.source || 'manual',
+  };
+  return { ...trip, shopping: [...(trip.shopping ?? []), item] };
+}
+
+/** Отметить/снять пункт списка покупок. */
+export function toggleShoppingItem(trip: TripDoc, itemId: string): TripDoc {
+  return { ...trip, shopping: (trip.shopping ?? []).map((i) => (i.id === itemId ? { ...i, done: !i.done } : i)) };
+}
+
+/** Удалить пункт списка покупок. */
+export function removeShoppingItem(trip: TripDoc, itemId: string): TripDoc {
+  return { ...trip, shopping: (trip.shopping ?? []).filter((i) => i.id !== itemId) };
 }
 
 /**
