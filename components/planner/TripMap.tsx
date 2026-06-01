@@ -8,20 +8,28 @@ import { addDays } from '@/lib/days';
 import { dayColor } from '@/lib/dayColors';
 import { kindColor } from '@/lib/kindColors';
 import { type MediaItem, rubricMeta } from '@/lib/media';
-import { MEDIA_TAB } from './DayTabs';
 import styles from './TripMap.module.css';
+
+/** Метка предложки на карте (слой «Предложка»). */
+export interface SuggestionMarker {
+  id: string;
+  name: string;
+  coords: Coords;
+  kind: 'place' | 'shopping';
+}
 
 interface Props {
   trip: TripDoc;
-  day: number;             // 0 = весь маршрут, -1 (MEDIA_TAB) = доска «Медиа»
+  day: number;             // 0 = весь маршрут, -1 = «Медиа», -2 = «Предложка»; >=1 — день
   picking: boolean;        // режим выбора точки
   draftCoords: Coords | null;
   onMapClick: (coords: Coords) => void;
   onPlaceClick: (id: string) => void;
-  media?: MediaItem[];     // метки доски «Медиа» (рисуются при day === MEDIA_TAB)
+  media?: MediaItem[];          // слой «Медиа» — рисуется, если передан
+  suggestions?: SuggestionMarker[]; // слой «Предложка» — рисуется, если передан
   highlightId?: string | null; // подсвеченная медиа-метка (синхрон с витриной)
   onMediaClick?: (id: string) => void;
-  hotels?: Hotel[];        // отели с координатами — метки 🏨 на карте
+  hotels?: Hotel[];        // отели с координатами — метки 🏨 (рисуются при day >= 0)
 }
 
 function pinIcon(label: string | number, color: string) {
@@ -60,11 +68,19 @@ function mediaIcon(item: MediaItem, on: boolean) {
   });
 }
 
+function suggestionIcon(kind: 'place' | 'shopping') {
+  return L.divIcon({
+    className: '',
+    html: `<div class="${styles.sugPin}"><span>${kind === 'shopping' ? '🛍' : '✨'}</span></div>`,
+    iconSize: [30, 30], iconAnchor: [15, 30], popupAnchor: [0, -28],
+  });
+}
+
 function esc(s: string): string {
   return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-export function TripMap({ trip, day, picking, draftCoords, onMapClick, onPlaceClick, media, highlightId, onMediaClick, hotels }: Props) {
+export function TripMap({ trip, day, picking, draftCoords, onMapClick, onPlaceClick, media, suggestions, highlightId, onMediaClick, hotels }: Props) {
   const elRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markerLayer = useRef<L.LayerGroup | null>(null);
@@ -130,32 +146,12 @@ export function TripMap({ trip, day, picking, draftCoords, onMapClick, onPlaceCl
     mLayer.clearLayers();
     rLayer.clearLayers();
     mediaMarkers.current.clear();
+    mediaItemsRef.current = media ?? [];
 
     const bounds: Coords[] = [];
 
-    // Режим доски «Медиа»: круглые метки (цвет = рубрика, эмодзи = сегмент), без маршрута.
-    if (day === MEDIA_TAB) {
-      mediaItemsRef.current = media ?? [];
-      (media ?? []).forEach((it) => {
-        if (!it.coords) return;
-        const on = highlightRef.current === it.id;
-        const m = L.marker(it.coords, { icon: mediaIcon(it, on), zIndexOffset: on ? 1000 : 0 });
-        m.bindPopup(`<b>${esc(it.name)}</b>${it.blurb ? '<br>' + esc(it.blurb) : ''}`);
-        m.on('click', () => mediaCb.current?.(it.id));
-        m.addTo(mLayer);
-        mediaMarkers.current.set(it.id, m);
-        bounds.push(it.coords);
-      });
-      if (bounds.length) {
-        const animate = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        map.fitBounds(L.latLngBounds(bounds).pad(0.18), { animate });
-      }
-      setTimeout(() => map.invalidateSize(), 0);
-      return;
-    }
-
-    // Обзор: метка = номер дня, цвет = день. Отдельный день: метка = порядок,
-    // цвет = ТИП места (дифференциация внутри дня), маршрут — в цвете дня.
+    // СЛОЙ МАРШРУТА (только day >= 0). Обзор: метка = номер дня, цвет = день.
+    // Отдельный день: метка = порядок, цвет = ТИП места; маршрут — в цвете дня.
     const drawDay = (dn: number, singleDay: boolean) => {
       const order = placesForDay(trip, dn).filter((p) => p.coords);
       if (!order.length) return;
@@ -175,22 +171,44 @@ export function TripMap({ trip, day, picking, draftCoords, onMapClick, onPlaceCl
       }
     };
 
-    if (day === 0) {
-      const last = lastDayNumber(trip);
-      for (let dn = 1; dn <= last; dn++) drawDay(dn, false); // обзор: метка = номер дня
-    } else {
-      drawDay(day, true); // один день: метка = порядок в дне
+    if (day >= 0) {
+      if (day === 0) {
+        const last = lastDayNumber(trip);
+        for (let dn = 1; dn <= last; dn++) drawDay(dn, false);
+      } else {
+        drawDay(day, true);
+      }
+      // Отели: в обзоре — все; в отдельном дне — те, чьё проживание покрывает дату.
+      const iso = day >= 1 ? addDays(trip.startDate, day - 1) : '';
+      (hotels ?? []).forEach((h) => {
+        if (!h.coords) return;
+        if (day >= 1 && !hotelOnDay(h, iso)) return;
+        const m = L.marker(h.coords, { icon: hotelIcon() });
+        m.bindPopup(`<b>🏨 ${esc(h.name)}</b>`);
+        m.addTo(mLayer);
+        bounds.push(h.coords);
+      });
     }
 
-    // Метки отелей: в обзоре — все; в отдельном дне — те, чьё проживание покрывает его дату.
-    const iso = day >= 1 ? addDays(trip.startDate, day - 1) : '';
-    (hotels ?? []).forEach((h) => {
-      if (!h.coords) return;
-      if (day >= 1 && !hotelOnDay(h, iso)) return;
-      const m = L.marker(h.coords, { icon: hotelIcon() });
-      m.bindPopup(`<b>🏨 ${esc(h.name)}</b>`);
+    // СЛОЙ «МЕДИА»: круглые метки (цвет = рубрика, эмодзи = сегмент). Рисуем, если переданы.
+    (media ?? []).forEach((it) => {
+      if (!it.coords) return;
+      const on = highlightRef.current === it.id;
+      const m = L.marker(it.coords, { icon: mediaIcon(it, on), zIndexOffset: on ? 1000 : 0 });
+      m.bindPopup(`<b>${esc(it.name)}</b>${it.blurb ? '<br>' + esc(it.blurb) : ''}`);
+      m.on('click', () => mediaCb.current?.(it.id));
       m.addTo(mLayer);
-      bounds.push(h.coords);
+      mediaMarkers.current.set(it.id, m);
+      bounds.push(it.coords);
+    });
+
+    // СЛОЙ «ПРЕДЛОЖКА»: метки входящих из Telegram. Рисуем, если переданы.
+    (suggestions ?? []).forEach((s) => {
+      if (!s.coords) return;
+      const m = L.marker(s.coords, { icon: suggestionIcon(s.kind) });
+      m.bindPopup(`<b>${esc(s.name)}</b>`);
+      m.addTo(mLayer);
+      bounds.push(s.coords);
     });
 
     if (bounds.length) {
@@ -198,11 +216,11 @@ export function TripMap({ trip, day, picking, draftCoords, onMapClick, onPlaceCl
       map.fitBounds(L.latLngBounds(bounds).pad(0.18), { animate });
     }
     setTimeout(() => map.invalidateSize(), 0);
-  }, [trip, day, media, hotels]);
+  }, [trip, day, media, suggestions, hotels]);
 
   // Подсветка медиа-метки при наведении/клике в витрине (без перерисовки слоя).
   useEffect(() => {
-    if (day !== MEDIA_TAB) return;
+    if (!mediaItemsRef.current.length) return;
     mediaItemsRef.current.forEach((it) => {
       const m = mediaMarkers.current.get(it.id);
       if (!m) return;

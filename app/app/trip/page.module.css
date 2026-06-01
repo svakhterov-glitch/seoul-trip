@@ -9,6 +9,18 @@
   border: 1px solid var(--line); box-shadow: var(--shadow);
 }
 
+/* Переключатели слоёв карты на «Весь маршрут». */
+.layers { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.layersLabel { font-size: 13px; color: var(--muted); font-weight: 600; }
+.layer, .layerOn {
+  border: 1px solid var(--line); background: #fff; color: var(--navy);
+  border-radius: 999px; padding: 6px 12px; font-size: 13px; font-weight: 700;
+  cursor: pointer; touch-action: manipulation;
+}
+.layer:hover { border-color: var(--navy); }
+.layerOn { border-color: var(--accent); background: var(--accent); color: #fff; }
+.layer:focus-visible, .layerOn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
 .modal {
   position: fixed; inset: 0; z-index: 1000;
   background: rgba(15,27,61,0.45);

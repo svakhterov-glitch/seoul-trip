@@ -4,6 +4,9 @@
 .draft { background: var(--navy); }
 /* Метка отеля — квадратная плашка с домиком, явно отличается от пинов мест. */
 .hotelPin { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; background: #fff; border: 2px solid var(--navy); border-radius: 8px; font-size: 15px; box-shadow: 0 2px 6px rgba(0,0,0,.3); }
+/* Метка слоя «Предложка» — капля фиолетового цвета (отличается от маршрута/медиа). */
+.sugPin { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; background: #7c5cff; color: #fff; font-size: 14px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); border: 2px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,.3); }
+.sugPin span { transform: rotate(45deg); }
 
 /* Метка доски «Медиа»: круг (цвет = рубрика) + эмодзи сегмента. Отличается от
    дневных пинов-капель. Подсвеченная (mediaPinOn) — крупнее, с белым кольцом. */

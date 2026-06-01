@@ -108,6 +108,9 @@ function PlannerInner() {
   // идёт разбор ссылок предложки (фото/описание/координаты)
   const [processingSug, setProcessingSug] = useState(false);
   const autoProcessedRef = useRef(false); // авто-разбор предложки — один раз за открытие
+  // слои на карте «Весь маршрут»: наложить метки Медиа / Предложки поверх маршрута
+  const [layerMedia, setLayerMedia] = useState(false);
+  const [layerSug, setLayerSug] = useState(false);
   const mapRef = useRef<HTMLDivElement>(null);
   // Свежий документ для патча после async-разбора (state мог уйти вперёд).
   const tripRef = useRef<TripDoc | null>(null);
@@ -132,23 +135,25 @@ function PlannerInner() {
     }
   }, [picking]);
 
-  // доска «Медиа» подгружается лениво при первом открытии вкладки
+  // доска «Медиа» — лениво: при открытии её вкладки ИЛИ при включении слоя на маршруте
   useEffect(() => {
-    if (activeDay !== MEDIA_TAB || !trip || mediaItems !== null || mediaLoading) return;
+    const need = activeDay === MEDIA_TAB || (activeDay === 0 && layerMedia);
+    if (!need || !trip || mediaItems !== null || mediaLoading) return;
     setMediaLoading(true);
     fetchMediaBoard(trip.city, trip.country)
       .then((list) => setMediaItems(list))
       .finally(() => setMediaLoading(false));
-  }, [activeDay, trip, mediaItems, mediaLoading]);
+  }, [activeDay, layerMedia, trip, mediaItems, mediaLoading]);
 
-  // «Предложка» (Telegram): входящие + статус привязки — лениво при открытии вкладки
+  // «Предложка» (Telegram) — лениво: при открытии её вкладки ИЛИ при включении слоя
   useEffect(() => {
-    if (activeDay !== INBOX_TAB || !trip || suggestions !== null || suggestLoading) return;
+    const need = activeDay === INBOX_TAB || (activeDay === 0 && layerSug);
+    if (!need || !trip || suggestions !== null || suggestLoading) return;
     setSuggestLoading(true);
     Promise.all([listSuggestions(trip.id), telegramLinkStatus(trip.id)])
       .then(([list, link]) => { setSuggestions(list); setTgLink(link); })
       .finally(() => setSuggestLoading(false));
-  }, [activeDay, trip, suggestions, suggestLoading]);
+  }, [activeDay, layerSug, trip, suggestions, suggestLoading]);
 
   // Авто-разбор предложки (фото/описание/координаты) — один раз при открытии вкладки.
   useEffect(() => {
@@ -598,8 +603,22 @@ function PlannerInner() {
           inboxCount={suggestions?.length ?? 0}
           onSelect={(d) => { setActiveDay(d); setHighlightId(null); }} />
 
+        {activeDay === 0 && (
+          <div className={styles.layers} role="group" aria-label="Слои на карте">
+            <span className={styles.layersLabel}>Слои на карте:</span>
+            <button type="button" className={layerMedia ? styles.layerOn : styles.layer}
+              aria-pressed={layerMedia} onClick={() => setLayerMedia((v) => !v)}>
+              ✨ Медиа{mediaLoading && layerMedia ? '…' : ''}
+            </button>
+            <button type="button" className={layerSug ? styles.layerOn : styles.layer}
+              aria-pressed={layerSug} onClick={() => setLayerSug((v) => !v)}>
+              ✨ Предложка{layerSug ? ` (${(suggestions ?? []).filter((s) => s.coords).length})` : ''}
+            </button>
+          </div>
+        )}
+
         <div className={styles.mapSection} ref={mapRef}>
-          <TripMap trip={trip} day={activeDay === INBOX_TAB ? 0 : activeDay} picking={picking || pickHotel !== null} draftCoords={draftCoords}
+          <TripMap trip={trip} day={activeDay} picking={picking || pickHotel !== null} draftCoords={draftCoords}
             onMapClick={(c) => {
               if (pickHotel) {
                 const base = tripRef.current;
@@ -610,9 +629,12 @@ function PlannerInner() {
               }
             }}
             onPlaceClick={openEdit}
-            media={activeDay === MEDIA_TAB ? (mediaItems ?? []) : undefined}
+            media={(activeDay === MEDIA_TAB || (activeDay === 0 && layerMedia)) ? (mediaItems ?? []) : undefined}
+            suggestions={(activeDay === INBOX_TAB || (activeDay === 0 && layerSug))
+              ? (suggestions ?? []).filter((s) => s.coords).map((s) => ({ id: s.id, name: s.name, coords: s.coords as Coords, kind: s.kind }))
+              : undefined}
             highlightId={highlightId} onMediaClick={setHighlightId}
-            hotels={activeDay === MEDIA_TAB ? undefined : trip.hotels} />
+            hotels={trip.hotels} />
         </div>
 
         {activeDay === INBOX_TAB ? (
