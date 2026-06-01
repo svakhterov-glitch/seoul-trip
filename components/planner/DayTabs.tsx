@@ -3,9 +3,9 @@
 import type { Day, Category } from '@/lib/entities';
 import styles from './DayTabs.module.css';
 
-/** Сентинел вкладки «Медиа» (доска трендовых мест) — слева от «Весь маршрут». */
+/** Сентинел «Медиа» — оставлен для совместимости (TripMap), как вкладка не используется. */
 export const MEDIA_TAB = -1;
-/** Сентинел вкладки «Предложка» (входящее из Telegram + список покупок). */
+/** Сентинел «Предложка» — оставлен для совместимости, как вкладка не используется. */
 export const INBOX_TAB = -2;
 
 interface Props {
@@ -13,19 +13,11 @@ interface Props {
   categories: Category[];
   activeDay: number;
   onSelect: (day: number) => void;
-  /** Сколько новых предложений в Telegram-предложке (для бейджа). */
-  inboxCount?: number;
 }
 
-export function DayTabs({ days, categories, activeDay, onSelect, inboxCount = 0 }: Props) {
+export function DayTabs({ days, categories, activeDay, onSelect }: Props) {
   return (
     <div className={styles.tabs} role="tablist" aria-label="Дни поездки">
-      <button type="button" role="tab" aria-selected={activeDay === INBOX_TAB}
-        className={`${activeDay === INBOX_TAB ? styles.tabOn : styles.tab} ${styles.media}`}
-        onClick={() => onSelect(INBOX_TAB)}>✨ Предложка{inboxCount > 0 && <span className={styles.badge}>{inboxCount}</span>}</button>
-      <button type="button" role="tab" aria-selected={activeDay === MEDIA_TAB}
-        className={`${activeDay === MEDIA_TAB ? styles.tabOn : styles.tab} ${styles.media}`}
-        onClick={() => onSelect(MEDIA_TAB)}>✨ Медиа</button>
       <button type="button" role="tab" aria-selected={activeDay === 0}
         className={activeDay === 0 ? styles.tabOn : styles.tab}
         onClick={() => onSelect(0)}>Весь маршрут</button>
