@@ -16,6 +16,8 @@ export interface GenerateItineraryInput {
   restFirstDay: boolean; // первый день — спокойный (отдых)
   arrival?: string;      // 'YYYY-MM-DD HH:MM' прилёта ('' если не задано)
   departure?: string;    // 'YYYY-MM-DD HH:MM' вылета ('' если не задано)
+  // Темы дней (тег + заголовок) — мягкий приоритет при раскладке.
+  dayThemes?: { day: number; theme: string }[];
   // Режим «добавить ещё мест в один день» (не пересборка):
   targetDay?: number;    // если задан — ИИ добавляет места ТОЛЬКО в этот день
   exclude?: string[];    // имена мест, которые НЕ повторять (уже в поездке)
@@ -99,6 +101,7 @@ export async function generateItinerary(input: GenerateItineraryInput): Promise<
         targetDay: input.targetDay ?? 0,
         exclude: input.exclude ?? [],
         dayContext: input.dayContext || '',
+        dayThemes: input.dayThemes ?? [],
       },
     });
     if (error || !data || (data as { error?: string }).error) return null;

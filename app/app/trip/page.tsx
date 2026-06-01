@@ -10,7 +10,7 @@ import {
   type TripDoc, type Coords, type PlaceInput,
   ensureTripDefaults, addPlaceToTrip, updatePlaceInTrip, removePlaceFromTrip, updateTripMeta,
   updateDay, addCategory, movePlace, addInboxLink, removeInboxLink, updateInboxLink, addPlaceFromInbox, addInboxPlace,
-  applyItinerary, setFlights, setHotels, clearItinerary, togglePlaceLock, placesForDay, type Flight, type Hotel,
+  applyItinerary, setFlights, setHotels, clearItinerary, togglePlaceLock, placesForDay, getCategory, type Flight, type Hotel,
 } from '@/lib/entities';
 import { resolveLink } from '@/lib/resolveLink';
 import { isLink } from '@/lib/parseLink';
@@ -38,6 +38,14 @@ type FormState =
   | { mode: 'add'; dayNumber: number }
   | { mode: 'edit'; id: string }
   | { mode: 'fromInbox'; linkId: string; dayNumber: number };
+
+/** Тема дня для ИИ: тег (категория) + заголовок + подпись, через « — ». '' если пусто. */
+function dayTheme(trip: TripDoc, dayNumber: number): string {
+  const d = trip.days.find((x) => x.number === dayNumber);
+  if (!d) return '';
+  const cat = getCategory(trip, d.cat)?.label || '';
+  return [cat, d.title, d.sub].map((s) => (s || '').trim()).filter(Boolean).join(' — ');
+}
 
 function PlannerInner() {
   const router = useRouter();
@@ -246,7 +254,9 @@ function PlannerInner() {
     try {
       const inDay = placesForDay(base, dayNumber);
       const districts = [...new Set(inDay.map((p) => p.district).filter(Boolean))].join(', ');
+      const theme = dayTheme(base, dayNumber);
       const dayContext = [
+        theme ? `тема дня: ${theme}` : '',
         inDay.length ? `места: ${inDay.map((p) => p.name).join('; ')}` : '',
         districts ? `район: ${districts}` : '',
       ].filter(Boolean).join('; ');
@@ -282,11 +292,14 @@ function PlannerInner() {
     try {
       const outF = base.flights.find((f) => f.direction === 'out');
       const backF = base.flights.find((f) => f.direction === 'back');
+      const dayThemes = base.days
+        .map((d) => ({ day: d.number, theme: dayTheme(base, d.number) }))
+        .filter((x) => x.theme);
       const draft = await generateItinerary({
         city: base.city, country: base.country,
         startDate: base.startDate, endDate: base.endDate,
         days: daysBetween(base.startDate, base.endDate),
-        pace, interests, restFirstDay,
+        pace, interests, restFirstDay, dayThemes,
         arrival: outF?.date ? `${outF.date}${outF.time ? ' ' + outF.time : ''}` : '',
         departure: backF?.date ? `${backF.date}${backF.time ? ' ' + backF.time : ''}` : '',
       });

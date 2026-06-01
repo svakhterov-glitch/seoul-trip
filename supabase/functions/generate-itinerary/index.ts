@@ -49,11 +49,15 @@ Deno.serve(async (req) => {
     const targetDay = Math.max(0, Math.min(days, Number(body.targetDay) || 0));
     const exclude: string[] = Array.isArray(body.exclude) ? body.exclude.map(String).slice(0, 100) : [];
     const dayContext = String(body.dayContext ?? "");
+    const dayThemes: { day: number; theme: string }[] = Array.isArray(body.dayThemes)
+      ? body.dayThemes.map((t: any) => ({ day: Number(t?.day), theme: String(t?.theme ?? "") }))
+        .filter((t: { day: number; theme: string }) => t.day >= 1 && t.theme.trim())
+      : [];
 
     const dates = startDate && endDate ? `${startDate} … ${endDate}` : "даты не заданы";
     const prompt = targetDay >= 1
       ? buildAddPrompt({ city, country, dates, targetDay, dayContext, exclude })
-      : buildPrompt({ city, country, startDate, endDate, days, pace, interests, restFirstDay, arrival, departure });
+      : buildPrompt({ city, country, startDate, endDate, days, pace, interests, restFirstDay, arrival, departure, dayThemes });
 
     const r = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -112,6 +116,7 @@ interface PromptArgs {
   city: string; country: string; startDate: string; endDate: string;
   days: number; pace: string; interests: string[];
   restFirstDay: boolean; arrival: string; departure: string;
+  dayThemes: { day: number; theme: string }[];
 }
 
 function buildPrompt(a: PromptArgs): string {
@@ -119,6 +124,9 @@ function buildPrompt(a: PromptArgs): string {
   const dates = a.startDate && a.endDate ? `${a.startDate} … ${a.endDate}` : "даты не заданы";
   const paceHint = PACE_HINT[a.pace] ?? PACE_HINT.moderate;
   const interests = a.interests.length ? a.interests.join(", ") : "разные";
+  const themesBlock = a.dayThemes.length
+    ? `\n\nТЕМЫ ДНЕЙ (МЯГКИЙ приоритет — наполняй день преимущественно в этом духе,\nно можно разбавить едой/прогулкой того же района; это НЕ жёсткий фильтр):\n${a.dayThemes.map((t) => `- День ${t.day}: ${t.theme}`).join("\n")}`
+    : "";
   return `Ты — тревел-редактор. Собери маршрут поездки по городу: ${where}.
 Даты поездки: ${dates}. Дней в маршруте: ${a.days}. Темп: ${paceHint}. Интересы: ${interests}.
 
@@ -149,7 +157,7 @@ function buildPrompt(a: PromptArgs): string {
    ${a.restFirstDay
       ? "День 1 — СПОКОЙНЫЙ (отдых после прилёта): 1–2 лёгких места рядом с центром/отелем, без насыщенного маршрута."
       : "День 1 (прилёт) — умеренный, ближе к центру."}
-   День ${a.days} (вылет) — лёгкий, но НЕ пустой: ровно 1–2 места рядом с центром.
+   День ${a.days} (вылет) — лёгкий, но НЕ пустой: ровно 1–2 места рядом с центром.${themesBlock}
 6) ВРЕМЯ. Проставь каждому месту "time" — час визита в формате "HH:MM" (например
    "10:30"), по порядку в течение дня, с разумными промежутками на дорогу и еду
    (обед ~13:00, ужин ~19:00).${a.arrival ? ` Прилёт: ${a.arrival} — в день прилёта НЕ ставь места раньше прилёта (дай ~2–3 ч на дорогу/заселение).` : ""}${a.departure ? ` Вылет: ${a.departure} — в день вылета НЕ ставь места после (дай ~3 ч на дорогу в аэропорт).` : ""}
@@ -183,6 +191,8 @@ function buildAddPrompt(a: AddArgs): string {
   со свежим упоминанием. Укажи "by", "sourceUrl", "sourceDate".
 - РЯДОМ: новые места — в том же районе/рядом с тем, что уже есть в дне (без мотания
   через весь город). Укажи "district".
+- ТЕМА: если в контексте дня указана «тема дня» — подбирай преимущественно в этом
+  духе (мягкий приоритет, не жёсткий фильтр).
 - СЕЗОН под даты: погода/уместность + сезонные события; "seasonNote" (≤80 симв., '' если нейтрально).
 - ВРЕМЯ: проставь "time" ("HH:MM"), логично вписав между существующими.
 - ЯЗЫК: name, desc, seasonNote, district — ПО-РУССКИ. geo — английский запрос для
