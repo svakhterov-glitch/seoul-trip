@@ -2,6 +2,9 @@
 // EDGE-ФУНКЦИЯ: generate-itinerary  (подход B — живой поиск + проверка)
 //
 // Вход: { city, country, startDate, endDate, days, pace, interests }
+// Модель: Haiku (успевает собрать всю поездку за один вызов в ~60с; Sonnet точнее,
+// но влезает лишь ~4 дня за вызов). При 429/перегрузке — ретрай. Пустые дни
+// добираются проходом без веб-поиска, чтобы маршрут всегда был полным.
 // Что делает:
 //   1) Claude с инструментом web_search ищет места по РЕДАКЦИОННЫМ медиа и
 //      узнаваемым тревел-блогерам (не выдумывает из головы);
@@ -20,9 +23,19 @@
 import { json, preflight } from "../_shared/cors.ts";
 
 const ANTHROPIC_KEY = Deno.env.get("ANTHROPIC_API_KEY") ?? "";
-// Haiku: выше лимит входных токенов/мин (важно — веб-поиск раздувает контекст),
-// дешевле и быстрее. Тот же ключ, что у resolve-link/search-places.
-const MODEL = Deno.env.get("ANTHROPIC_MODEL") ?? "claude-haiku-4-5";
+// ДВЕ МОДЕЛИ:
+// FAST (Haiku) — строит КАРКАС всей поездки за один вызов (~50с): высокий лимит
+//   токенов/мин и быстрая выдача, единственный, кто успевает 8+ дней до ~60с
+//   лимита платформы. Sonnet тут не влезает (>4 дней за вызов = таймаут).
+// SMART (Sonnet) — «добивка»: умнее подбирает и привязывает к каркасу. Объём
+//   маленький (одна-несколько точек), поэтому по времени влезает. Идёт на:
+//   (1) «✨ Ещё мест» в день; (2) добор пустых дней, если успеваем по времени.
+// При 429/перегрузке/таймауте — фолбэк на FAST (см. generate()).
+const FAST_MODEL = Deno.env.get("ANTHROPIC_MODEL") ?? "claude-haiku-4-5";
+const SMART_MODEL = Deno.env.get("ANTHROPIC_SMART_MODEL") ?? "claude-sonnet-4-6";
+// Платформа Edge режет функцию на ~60с — держим общий бюджет ниже с запасом.
+const PLATFORM_BUDGET_MS = 55_000;
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const PACE_HINT: Record<string, string> = {
   relaxed: "2–3 места в день, без спешки, с запасом времени",
@@ -33,6 +46,8 @@ const PACE_HINT: Record<string, string> = {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return preflight();
   if (!ANTHROPIC_KEY) return json({ error: "ANTHROPIC_API_KEY not set" }, 500);
+  const t0 = Date.now();
+  const elapsed = () => Date.now() - t0;
   try {
     const body = await req.json();
     const city = String(body.city ?? "").trim();
@@ -59,26 +74,12 @@ Deno.serve(async (req) => {
       ? buildAddPrompt({ city, country, dates, targetDay, dayContext, exclude })
       : buildPrompt({ city, country, startDate, endDate, days, pace, interests, restFirstDay, arrival, departure, dayThemes });
 
-    const r = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": ANTHROPIC_KEY,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        max_tokens: 8000,
-        // max_uses держим низким: результаты веб-поиска возвращаются в модель на
-        // каждом шаге и НАКАПЛИВАЮТ входные токены (лимит тарифа — 50k/мин).
-        tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 2 }],
-        messages: [{ role: "user", content: prompt }],
-      }),
-    });
-    const d = await r.json();
-    if (d?.error) return json({ error: d.error?.message || "anthropic error" }, 502);
-
-    const text = extractText(d);
+    // Каркас — FAST (Haiku, успевает всю поездку). «Добивка в день» (✨ Ещё мест)
+    // — SMART (Sonnet, умнее и привязан к каркасу; объём мал — по времени влезает),
+    // фолбэк на FAST. max_uses=2: веб-поиск НАКАПЛИВАЕТ входные токены — держим низким.
+    const text = targetDay >= 1
+      ? await generate(prompt, 2, elapsed, SMART_MODEL, FAST_MODEL)
+      : await generate(prompt, 2, elapsed);
     const parsed = parseJsonArray(text).filter((p) => p && typeof p.name === "string" && p.name.trim());
 
     // Геокодинг здесь НЕ делаем — он вынесен в отдельную функцию `geocode`.
@@ -96,13 +97,36 @@ Deno.serve(async (req) => {
       // (лимит geocode) и не превышали темп.
       const paceCap = pace === "packed" ? 6 : pace === "relaxed" ? 3 : 4;
       const perDay = Math.max(1, Math.min(paceCap, Math.floor(40 / days)));
-      const valid = parsed.filter((p) => Number(p.dayNumber) >= 1 && Number(p.dayNumber) <= days);
       const byDay = new Map<number, any[]>();
-      for (const p of valid) {
+      const addToDay = (p: any) => {
         const dn = Number(p.dayNumber);
+        if (dn < 1 || dn > days) return;
         const arr = byDay.get(dn) ?? [];
         if (arr.length < perDay) { arr.push(p); byDay.set(dn, arr); }
+      };
+      for (const p of parsed) addToDay(p);
+
+      // ГАРАНТИЯ ПОЛНОГО ПОКРЫТИЯ: добираем пустые дни быстрым проходом БЕЗ
+      // веб-поиска (быстро/дёшево, не упирается в лимит токенов). Реальные
+      // именованные места из знаний модели. Только если успеваем по времени.
+      const missing: number[] = [];
+      for (let dn = 1; dn <= days; dn++) if (!(byDay.get(dn)?.length)) missing.push(dn);
+      if (missing.length && elapsed() < 38_000) {
+        try {
+          // SMART (Sonnet) для добора, если успеваем по времени; иначе быстрый FAST.
+          const fillModel = elapsed() < 24_000 ? SMART_MODEL : FAST_MODEL;
+          const fillText = await generate(
+            buildFillPrompt({ city, country, dates, days, missing, perDay, existing: parsed, dayThemes }),
+            0, // без веб-поиска (нет времени на раунды поиска в этом же вызове)
+            elapsed,
+            fillModel, FAST_MODEL,
+          );
+          for (const p of parseJsonArray(fillText)) {
+            if (p && typeof p.name === "string" && p.name.trim() && missing.includes(Number(p.dayNumber))) addToDay(p);
+          }
+        } catch (_) { /* пустой день лучше, чем 500 */ }
       }
+
       places = [...byDay.entries()].sort((a, b) => a[0] - b[0]).flatMap(([, arr]) => arr);
     }
 
@@ -111,6 +135,73 @@ Deno.serve(async (req) => {
     return json({ error: String(e) }, 500);
   }
 });
+
+// Вызов модели с ретраем и фолбэком. Возвращает ТЕКСТ ответа (или бросает).
+// primary — основная модель, fallback — на что упасть при 429/перегрузке (лимит
+// токенов/мин даёт 429 МГНОВЕННО, бюджет времени почти не тратится — успеваем
+// и подождать, и упасть на запасную).
+async function generate(
+  prompt: string, maxUses: number, elapsed: () => number,
+  primary: string = FAST_MODEL, fallback: string = FAST_MODEL,
+): Promise<string> {
+  let res = await callAnthropic(primary, prompt, maxUses);
+  if (res.ok) return res.text;
+
+  if (isTransient(res.status)) {
+    // короткий ретрай той же моделью, если успеваем по времени
+    const wait = Math.min((res.retryAfter || 4) * 1000, 8000);
+    if (elapsed() + wait + 20_000 < PLATFORM_BUDGET_MS) {
+      await sleep(wait);
+      res = await callAnthropic(primary, prompt, maxUses);
+      if (res.ok) return res.text;
+    }
+    // всё ещё нет — фолбэк (как правило FAST: свой, более высокий лимит токенов/мин)
+    if (fallback !== primary) {
+      const fb = await callAnthropic(fallback, prompt, maxUses);
+      if (fb.ok) return fb.text;
+      throw new Error(fb.error || res.error || "model error");
+    }
+    throw new Error(res.error || "model error");
+  }
+  throw new Error(res.error || "model error");
+}
+
+const isTransient = (status: number) => status === 429 || status === 529 || status >= 500;
+
+interface CallResult { ok: boolean; text: string; status: number; error: string; retryAfter: number; }
+
+async function callAnthropic(model: string, prompt: string, maxUses: number): Promise<CallResult> {
+  const reqBody: any = {
+    model,
+    max_tokens: 8000,
+    messages: [{ role: "user", content: prompt }],
+  };
+  if (maxUses > 0) {
+    reqBody.tools = [{ type: "web_search_20250305", name: "web_search", max_uses: maxUses }];
+  }
+  try {
+    const r = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": ANTHROPIC_KEY,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(reqBody),
+    });
+    const retryAfter = Number(r.headers.get("retry-after")) || 0;
+    if (!r.ok) {
+      let msg = "";
+      try { const j = await r.json(); msg = j?.error?.message || ""; } catch { /* ignore */ }
+      return { ok: false, text: "", status: r.status, error: msg, retryAfter };
+    }
+    const d = await r.json();
+    if (d?.error) return { ok: false, text: "", status: 502, error: d.error?.message || "anthropic error", retryAfter };
+    return { ok: true, text: extractText(d), status: 200, error: "", retryAfter };
+  } catch (e) {
+    return { ok: false, text: "", status: 500, error: String(e), retryAfter: 0 };
+  }
+}
 
 interface PromptArgs {
   city: string; country: string; startDate: string; endDate: string;
@@ -221,6 +312,39 @@ function buildAddPrompt(a: AddArgs): string {
 
 Верни ТОЛЬКО JSON-массив (2–4 объекта), без markdown-ограждений. Каждый:
 {"dayNumber":${a.targetDay},"time":"14:00","name":"Название по-русски","geo":"Name, ${a.city}, ${a.country || "South Korea"}","district":"район","kind":"food|museum|nature|sight|shop|fun|bar|other","desc":"1 фраза по-русски","price":"free"|1|2|3,"by":"Time Out Seoul","sourceUrl":"https://...","sourceDate":"2026-03","seasonNote":""}`;
+}
+
+interface FillArgs {
+  city: string; country: string; dates: string; days: number;
+  missing: number[]; perDay: number; existing: any[];
+  dayThemes: { day: number; theme: string }[];
+}
+
+// Промпт добора ПУСТЫХ дней — БЕЗ веб-поиска (быстро/дёшево, не копит токены).
+// Реальные именованные места из знаний модели; by/sourceUrl пустые (нет свежего
+// источника — честно). Лучше реальное место без ссылки, чем пустой день.
+function buildFillPrompt(a: FillArgs): string {
+  const where = [a.city, a.country].filter(Boolean).join(", ");
+  const existingNames = a.existing.map((p) => p?.name).filter(Boolean).slice(0, 60).join("; ");
+  const themes = a.dayThemes.filter((t) => a.missing.includes(t.day));
+  const themesBlock = themes.length
+    ? `\nТемы пустых дней (мягкий приоритет): ${themes.map((t) => `день ${t.day} — ${t.theme}`).join("; ")}.`
+    : "";
+  return `Ты — тревел-редактор. В маршруте по городу ${where} (даты: ${a.dates}, всего ${a.days} дн.)
+ПУСТЫ дни: ${a.missing.join(", ")}. Заполни ТОЛЬКО эти дни — по ${a.perDay} места на каждый.
+
+БЕЗ веб-поиска: бери ТОЛЬКО конкретные существующие места, которые точно есть в
+этом городе и находятся в Kakao/Naver/Google Maps. ЗАПРЕЩЕНЫ безымянные заглушки
+(«кофейня рядом», «местный рынок»). Группируй места одного дня в один район.
+НЕ повторяй уже добавленные: ${existingNames || "—"}.${themesBlock}
+
+НАЗВАНИЯ И ЯЗЫК: name — настоящее имя места (имя собственное НЕ переводи; можно
+короткое русское пояснение типа места: «Кафе Fritz Coffee»). desc, district —
+по-русски. geo — английский запрос для геокодера (точное название + город + страна).
+ВРЕМЯ: проставь "time" ("HH:MM") по порядку дня.
+
+Верни ТОЛЬКО JSON-массив, без markdown, без вступлений. Каждый объект:
+{"dayNumber":${a.missing[0]},"time":"11:00","name":"Кафе Fritz Coffee","geo":"Fritz Coffee Company, ${a.city}, ${a.country || "South Korea"}","district":"район","kind":"food|museum|nature|sight|shop|fun|bar|other","desc":"1 фраза по-русски","price":"free"|1|2|3,"by":"","sourceUrl":"","sourceDate":"","seasonNote":""}`;
 }
 
 // Собрать текстовый ответ из блоков (web_search возвращает смешанный content).
