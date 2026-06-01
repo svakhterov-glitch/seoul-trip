@@ -19,6 +19,13 @@ const WEBHOOK_SECRET = Deno.env.get("TELEGRAM_WEBHOOK_SECRET") ?? "";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+const ANTHROPIC_KEY = Deno.env.get("ANTHROPIC_API_KEY") ?? "";
+const AI_MODEL = Deno.env.get("ANTHROPIC_MODEL") ?? "claude-haiku-4-5";
+// Бакет Storage для фото из сообщений (создаётся миграцией, public).
+const PHOTO_BUCKET = "tg-photos";
+// Ключевые слова покупок — фолбэк-классификация текста без ссылки (если ИИ недоступен).
+const SHOP_WORDS = ["бад", "крем", "маска", "сыворотк", "желе", "косметик", "уход",
+  "шампун", "купить", "товар", "набор", "тонер", "эссенц", "патчи", "витамин", "духи", "парфюм"];
 
 // Домены интернет-магазинов → пункт попадает в «Покупки» (иначе «Места»).
 const SHOP_DOMAINS = [
@@ -66,23 +73,117 @@ async function handleUpdate(update: any): Promise<void> {
   const tripId = await tripForChat(chatId);
   if (!tripId) return; // не подключено — молчим (без спама)
 
-  // 3) Ссылки из сообщения.
-  const urls = extractUrls(text, msg.entities ?? msg.caption_entities ?? []);
-  if (urls.length === 0) return; // берём только сообщения со ссылками
-
   const added: string[] = [];
-  for (const url of urls.slice(0, 5)) {
-    const kind = classify(url);
-    const info = await resolveLink(url);
+
+  // 3a) Сообщения СО ССЫЛКОЙ — разбираем каждую (resolve-link + домен).
+  const urls = extractUrls(text, msg.entities ?? msg.caption_entities ?? []);
+  if (urls.length > 0) {
+    for (const url of urls.slice(0, 5)) {
+      const kind = classify(url);
+      const info = await resolveLink(url);
+      await insertSuggestion({
+        trip_id: tripId, chat_id: chatId, kind, url,
+        name: info.name || url, description: info.desc, image: info.image,
+        coords: info.coords, from_user: fromUser, raw_text: text.slice(0, 500),
+      });
+      added.push(`${kind === "shopping" ? "🛍" : "📍"} ${info.name || url}`);
+    }
+  } else {
+    // 3b) БЕЗ ссылки: берём только фото или пересланное (не болтовню чата).
+    const photoId = largestPhotoId(msg);
+    const forwarded = isForwarded(msg);
+    if ((!photoId && !forwarded) || !text.trim()) return;
+    const ex = await aiExtract(text);                 // {kind, name, description}
+    const image = photoId ? await uploadPhoto(photoId) : "";
     await insertSuggestion({
-      trip_id: tripId, chat_id: chatId, kind, url,
-      name: info.name || url, description: info.desc, image: info.image,
-      coords: info.coords, from_user: fromUser, raw_text: text.slice(0, 500),
+      trip_id: tripId, chat_id: chatId, kind: ex.kind, url: "",
+      name: ex.name, description: ex.description, image, coords: null,
+      from_user: fromUser, raw_text: text.slice(0, 500),
     });
-    added.push(`${kind === "shopping" ? "🛍" : "📍"} ${info.name || url}`);
+    added.push(`${ex.kind === "shopping" ? "🛍" : "📍"} ${ex.name}`);
   }
+
   if (added.length) {
     await reply(chatId, `Добавил в предложку:\n${added.join("\n")}`, msg.message_id);
+  }
+}
+
+// Самое крупное фото из сообщения (последний размер в массиве) или null.
+function largestPhotoId(msg: any): string | null {
+  const ph = msg?.photo;
+  if (Array.isArray(ph) && ph.length) return ph[ph.length - 1]?.file_id ?? null;
+  return null;
+}
+
+// Сообщение переслано? (новое поле forward_origin или старые forward_*).
+function isForwarded(msg: any): boolean {
+  return !!(msg?.forward_origin || msg?.forward_from || msg?.forward_from_chat || msg?.forward_sender_name);
+}
+
+// Классификация + чистое имя/описание для текста БЕЗ ссылки — через Haiku (без
+// веб-поиска: быстро/дёшево). Фолбэк по ключевым словам, если ИИ недоступен.
+async function aiExtract(text: string): Promise<{ kind: "place" | "shopping"; name: string; description: string }> {
+  const firstLine = (text.split("\n").map((s) => s.trim()).filter(Boolean)[0] || "Из Telegram").slice(0, 80);
+  const fallback = (): { kind: "place" | "shopping"; name: string; description: string } => ({
+    kind: SHOP_WORDS.some((w) => text.toLowerCase().includes(w)) ? "shopping" : "place",
+    name: firstLine, description: text.slice(0, 300),
+  });
+  if (!ANTHROPIC_KEY || !text.trim()) return fallback();
+  try {
+    const r = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+      body: JSON.stringify({
+        model: AI_MODEL,
+        max_tokens: 300,
+        messages: [{
+          role: "user",
+          content: `Сообщение из чата путешественников — про МЕСТО (куда сходить) или ТОВАР (что купить).
+Верни ТОЛЬКО JSON, без пояснений: {"kind":"place|shopping","name":"...","description":"..."}.
+- kind: "shopping" если это товар/покупка (косметика, БАД, одежда, гаджет, еда на вынос), иначе "place".
+- name: короткое РЕАЛЬНОЕ название места/товара (имя собственное не переводи), по-русски допустимо пояснение.
+- description: 1 короткая фраза по-русски.
+Сообщение:
+"""${text.slice(0, 800)}"""`,
+        }],
+      }),
+    });
+    if (!r.ok) return fallback();
+    const d = await r.json();
+    const txt = (Array.isArray(d?.content) ? d.content : []).filter((b: any) => b?.type === "text").map((b: any) => b.text).join("");
+    const m = txt.match(/\{[\s\S]*\}/);
+    if (!m) return fallback();
+    const o = JSON.parse(m[0]);
+    const kind = o?.kind === "shopping" ? "shopping" : "place";
+    const name = (typeof o?.name === "string" && o.name.trim()) ? o.name.trim().slice(0, 120) : firstLine;
+    const description = typeof o?.description === "string" ? o.description.trim().slice(0, 300) : text.slice(0, 300);
+    return { kind, name, description };
+  } catch {
+    return fallback();
+  }
+}
+
+// Скачать фото из Telegram и залить в публичный бакет Storage → public URL ('' при ошибке).
+async function uploadPhoto(fileId: string): Promise<string> {
+  if (!BOT_TOKEN) return "";
+  try {
+    const fr = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getFile?file_id=${encodeURIComponent(fileId)}`);
+    const fd = await fr.json();
+    const path = fd?.result?.file_path;
+    if (!path) return "";
+    const bin = await fetch(`https://api.telegram.org/file/bot${BOT_TOKEN}/${path}`);
+    if (!bin.ok) return "";
+    const bytes = new Uint8Array(await bin.arrayBuffer());
+    const name = `${crypto.randomUUID()}.jpg`;
+    const up = await fetch(`${SUPABASE_URL}/storage/v1/object/${PHOTO_BUCKET}/${name}`, {
+      method: "POST",
+      headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}`, "Content-Type": "image/jpeg" },
+      body: bytes,
+    });
+    if (!up.ok) return "";
+    return `${SUPABASE_URL}/storage/v1/object/public/${PHOTO_BUCKET}/${name}`;
+  } catch {
+    return "";
   }
 }
 

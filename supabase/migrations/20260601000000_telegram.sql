@@ -92,3 +92,9 @@ create policy tg_suggestions_delete on public.tg_suggestions
   for delete using (
     exists (select 1 from public.trips t
             where t.id = trip_id and t.user_id = (select auth.uid())));
+
+-- Публичный бакет Storage для фото из сообщений (бот заливает сервис-ролью,
+-- чтение публичное по URL). Без него фото не сохранится, текст — сохранится.
+insert into storage.buckets (id, name, public)
+  values ('tg-photos', 'tg-photos', true)
+  on conflict (id) do nothing;
