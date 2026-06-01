@@ -73,39 +73,60 @@ async function handleUpdate(update: any): Promise<void> {
   const tripId = await tripForChat(chatId);
   if (!tripId) return; // не подключено — молчим (без спама)
 
-  const added: string[] = [];
+  const entities = msg.entities ?? msg.caption_entities ?? [];
+  const urls = extractUrls(text, entities);
+  const listItems = parseList(text, entities);
 
-  // 3a) Сообщения СО ССЫЛКОЙ — разбираем каждую (resolve-link + домен).
-  const urls = extractUrls(text, msg.entities ?? msg.caption_entities ?? []);
-  if (urls.length > 0) {
+  // 3a) СПИСОК мест (много пунктов в одном сообщении) — берём каждый пункт без
+  // медленного разбора ссылок и без лимита. Имена из строк, ссылка/тип — у строки.
+  if (listItems.length >= 2) {
+    const rows = listItems.slice(0, 40).map((it) => ({
+      trip_id: tripId, chat_id: chatId, kind: it.kind, url: it.url,
+      name: it.name, description: "", image: "", coords: null,
+      from_user: fromUser, raw_text: text.slice(0, 500),
+    }));
+    await insertSuggestions(rows);
+    await reply(chatId, `Добавил в предложку ${rows.length} ${plural(rows.length)} 📍`, msg.message_id);
+    return;
+  }
+
+  // 3b) ОДНА ссылка — разбираем (resolve-link: фото/координаты/описание — карточка богаче).
+  if (urls.length >= 1) {
+    const added: string[] = [];
     for (const url of urls.slice(0, 5)) {
       const kind = classify(url);
       const info = await resolveLink(url);
-      await insertSuggestion({
+      await insertSuggestions([{
         trip_id: tripId, chat_id: chatId, kind, url,
         name: info.name || url, description: info.desc, image: info.image,
         coords: info.coords, from_user: fromUser, raw_text: text.slice(0, 500),
-      });
+      }]);
       added.push(`${kind === "shopping" ? "🛍" : "📍"} ${info.name || url}`);
     }
-  } else {
-    // 3b) БЕЗ ссылки: берём только фото или пересланное (не болтовню чата).
-    const photoId = largestPhotoId(msg);
-    const forwarded = isForwarded(msg);
-    if ((!photoId && !forwarded) || !text.trim()) return;
-    const ex = await aiExtract(text);                 // {kind, name, description}
-    const image = photoId ? await uploadPhoto(photoId) : "";
-    await insertSuggestion({
-      trip_id: tripId, chat_id: chatId, kind: ex.kind, url: "",
-      name: ex.name, description: ex.description, image, coords: null,
-      from_user: fromUser, raw_text: text.slice(0, 500),
-    });
-    added.push(`${ex.kind === "shopping" ? "🛍" : "📍"} ${ex.name}`);
+    await reply(chatId, `Добавил в предложку:\n${added.join("\n")}`, msg.message_id);
+    return;
   }
 
-  if (added.length) {
-    await reply(chatId, `Добавил в предложку:\n${added.join("\n")}`, msg.message_id);
-  }
+  // 3c) БЕЗ ссылки: только фото или пересланное (не болтовню чата) → Haiku-разбор.
+  const photoId = largestPhotoId(msg);
+  const forwarded = isForwarded(msg);
+  if ((!photoId && !forwarded) || !text.trim()) return;
+  const ex = await aiExtract(text);
+  const image = photoId ? await uploadPhoto(photoId) : "";
+  await insertSuggestions([{
+    trip_id: tripId, chat_id: chatId, kind: ex.kind, url: "",
+    name: ex.name, description: ex.description, image, coords: null,
+    from_user: fromUser, raw_text: text.slice(0, 500),
+  }]);
+  await reply(chatId, `Добавил в предложку:\n${ex.kind === "shopping" ? "🛍" : "📍"} ${ex.name}`, msg.message_id);
+}
+
+function plural(n: number): string {
+  const a = Math.abs(n) % 100, b = a % 10;
+  if (a > 10 && a < 20) return "мест";
+  if (b > 1 && b < 5) return "места";
+  if (b === 1) return "место";
+  return "мест";
 }
 
 // Самое крупное фото из сообщения (последний размер в массиве) или null.
@@ -244,12 +265,13 @@ async function resolveLink(url: string): Promise<LinkInfo> {
 }
 
 // Вытащить URL: из entities (url / text_link) и регуляркой по тексту.
+// Telegram offset/length — в UTF-16 code units, как и индексы строк JS → slice().
 function extractUrls(text: string, entities: any[]): string[] {
   const out = new Set<string>();
   for (const e of entities) {
     if (e?.type === "text_link" && typeof e.url === "string") out.add(e.url);
     else if (e?.type === "url" && typeof e.offset === "number" && typeof e.length === "number") {
-      out.add(toUtf16Slice(text, e.offset, e.length));
+      out.add(text.slice(e.offset, e.offset + e.length));
     }
   }
   const re = /https?:\/\/[^\s)]+/gi;
@@ -257,9 +279,38 @@ function extractUrls(text: string, entities: any[]): string[] {
   return [...out].filter((u) => /^https?:\/\//i.test(u));
 }
 
-// Telegram offset/length — в UTF-16 code units; в JS строки и так UTF-16.
-function toUtf16Slice(text: string, offset: number, length: number): string {
-  return Array.from(text).slice(offset, offset + length).join("");
+interface ListItem { name: string; url: string; kind: "place" | "shopping"; }
+
+// Разобрать сообщение-СПИСОК: строки-пункты (нумерованные/маркированные ИЛИ со
+// ссылкой) → отдельные места. Имя — текст строки, ссылка — у этой строки (если
+// есть). Заголовки/вступление (без номера и без ссылки) пропускаем.
+function parseList(text: string, entities: any[]): ListItem[] {
+  const lines = text.split("\n");
+  // Смещение начала каждой строки (в UTF-16 units), чтобы привязать ссылку к строке.
+  const starts: number[] = [];
+  let pos = 0;
+  for (const ln of lines) { starts.push(pos); pos += ln.length + 1; }
+  const urlByLine = new Map<number, string>();
+  for (const e of entities) {
+    let url = "";
+    if (e?.type === "text_link" && typeof e.url === "string") url = e.url;
+    else if (e?.type === "url") url = text.slice(e.offset, e.offset + e.length);
+    else continue;
+    let li = 0;
+    for (let i = 0; i < starts.length; i++) { if (e.offset >= starts[i]) li = i; else break; }
+    if (!urlByLine.has(li)) urlByLine.set(li, url);
+  }
+  const numbered = /^\s*(\d+\s*[.)]|[-•▪◦*—–])\s+/;
+  const items: ListItem[] = [];
+  lines.forEach((raw, i) => {
+    const url = urlByLine.get(i) || "";
+    const isItem = numbered.test(raw) || !!url;
+    if (!isItem) return; // вступление/заголовок — мимо
+    const name = raw.replace(numbered, "").trim();
+    if (name.length < 2) return;
+    items.push({ name: name.slice(0, 120), url, kind: url ? classify(url) : "place" });
+  });
+  return items;
 }
 
 // ---- Доступ к БД (PostgREST, сервис-роль — минует RLS) ----------------------
@@ -279,11 +330,12 @@ async function pgPatch(path: string, body: unknown): Promise<void> {
   });
 }
 
-async function insertSuggestion(row: Record<string, unknown>): Promise<void> {
+async function insertSuggestions(rows: Record<string, unknown>[]): Promise<void> {
+  if (!rows.length) return;
   await fetch(`${SUPABASE_URL}/rest/v1/tg_suggestions`, {
     method: "POST",
     headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}`, "Content-Type": "application/json", Prefer: "return=minimal" },
-    body: JSON.stringify(row),
+    body: JSON.stringify(rows),
   });
 }
 
