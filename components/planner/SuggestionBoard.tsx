@@ -32,13 +32,14 @@ export function SuggestionBoard({
 
   return (
     <section className={styles.wrap} aria-label="Предложка из Telegram">
-      {items.length > 0 && (
-        <div className={styles.head}>
+      <div className={styles.head}>
+        <span className={styles.title}>✨ Предложка из Telegram</span>
+        {items.length > 0 && (
           <button type="button" className={styles.process} onClick={onProcess} disabled={processing || rawCount === 0}>
             {processing ? '🔄 Обрабатываю ссылки…' : rawCount > 0 ? `✨ Обработать ссылки (${rawCount})` : '✅ Всё обработано'}
           </button>
-        </div>
-      )}
+        )}
+      </div>
 
       <ConnectPanel link={link} botName={botName} connecting={connecting} onConnect={onConnect} />
 

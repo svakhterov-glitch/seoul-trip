@@ -32,10 +32,9 @@ import { PlannerHeader } from '@/components/planner/PlannerHeader';
 import { AiItinerary } from '@/components/planner/AiItinerary';
 import { TripSettings } from '@/components/planner/TripSettings';
 import { TripCover, type TripCoverSave } from '@/components/planner/TripCover';
-import { DayTabs } from '@/components/planner/DayTabs';
+import { DayTabs, MEDIA_TAB, INBOX_TAB } from '@/components/planner/DayTabs';
 import { Inbox, type SearchState } from '@/components/planner/Inbox';
 import { Timeline } from '@/components/planner/Timeline';
-import { Section } from '@/components/planner/Section';
 import { MediaBoard } from '@/components/planner/MediaBoard';
 import { SuggestionBoard } from '@/components/planner/SuggestionBoard';
 import { ShoppingList } from '@/components/planner/ShoppingList';
@@ -109,9 +108,6 @@ function PlannerInner() {
   // идёт разбор ссылок предложки (фото/описание/координаты)
   const [processingSug, setProcessingSug] = useState(false);
   const autoProcessedRef = useRef(false); // авто-разбор предложки — один раз за открытие
-  // развёрнутость блоков-источников «Предложка»/«Медиа» (свёрнуты по умолчанию)
-  const [suggOpen, setSuggOpen] = useState(false);
-  const [mediaOpen, setMediaOpen] = useState(false);
   const mapRef = useRef<HTMLDivElement>(null);
   // Свежий документ для патча после async-разбора (state мог уйти вперёд).
   const tripRef = useRef<TripDoc | null>(null);
@@ -136,33 +132,32 @@ function PlannerInner() {
     }
   }, [picking]);
 
-  // «Предложка» (Telegram): входящие + статус привязки грузим СРАЗУ при загрузке
-  // поездки — чтобы показать счётчик на свёрнутом блоке. Запрос дешёвый (БД).
+  // доска «Медиа» подгружается лениво при первом открытии вкладки
   useEffect(() => {
-    if (!trip || suggestions !== null || suggestLoading) return;
-    setSuggestLoading(true);
-    Promise.all([listSuggestions(trip.id), telegramLinkStatus(trip.id)])
-      .then(([list, link]) => { setSuggestions(list); setTgLink(link); })
-      .finally(() => setSuggestLoading(false));
-  }, [trip, suggestions, suggestLoading]);
-
-  // Доска «Медиа» — лениво при первом РАСКРЫТИИ блока (живой поиск стоит токенов).
-  useEffect(() => {
-    if (!mediaOpen || !trip || mediaItems !== null || mediaLoading) return;
+    if (activeDay !== MEDIA_TAB || !trip || mediaItems !== null || mediaLoading) return;
     setMediaLoading(true);
     fetchMediaBoard(trip.city, trip.country)
       .then((list) => setMediaItems(list))
       .finally(() => setMediaLoading(false));
-  }, [mediaOpen, trip, mediaItems, mediaLoading]);
+  }, [activeDay, trip, mediaItems, mediaLoading]);
 
-  // Авто-разбор предложки (фото/описание/координаты) — один раз при раскрытии блока.
+  // «Предложка» (Telegram): входящие + статус привязки — лениво при открытии вкладки
   useEffect(() => {
-    if (!suggOpen || !suggestions || autoProcessedRef.current) return;
+    if (activeDay !== INBOX_TAB || !trip || suggestions !== null || suggestLoading) return;
+    setSuggestLoading(true);
+    Promise.all([listSuggestions(trip.id), telegramLinkStatus(trip.id)])
+      .then(([list, link]) => { setSuggestions(list); setTgLink(link); })
+      .finally(() => setSuggestLoading(false));
+  }, [activeDay, trip, suggestions, suggestLoading]);
+
+  // Авто-разбор предложки (фото/описание/координаты) — один раз при открытии вкладки.
+  useEffect(() => {
+    if (activeDay !== INBOX_TAB || !suggestions || autoProcessedRef.current) return;
     if (rawSuggestionCount(suggestions) === 0) return;
     autoProcessedRef.current = true;
     handleProcessSuggestions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [suggOpen, suggestions]);
+  }, [activeDay, suggestions]);
 
   // низкоуровневое сохранение документа без закрытия форм
   async function save(next: TripDoc): Promise<boolean> {
@@ -599,32 +594,12 @@ function PlannerInner() {
 
         <AiItinerary busy={busy} generating={generating} onGenerate={handleGenerate} />
 
-        {/* Источники идей — отдельно от маршрута: сворачивающиеся блоки наверху. */}
-        <Section title="✨ Предложка" sub="из Telegram-группы: места и покупки"
-          badge={suggestions?.length ?? 0} accent open={suggOpen} onToggle={() => setSuggOpen((o) => !o)}>
-          <SuggestionBoard items={suggestions ?? []} days={trip.days} loading={suggestLoading} busy={busy}
-            link={tgLink} botName={process.env.NEXT_PUBLIC_TELEGRAM_BOT || '@tripsplan_bot'} connecting={connecting}
-            processing={processingSug} rawCount={rawSuggestionCount(suggestions ?? [])}
-            onProcess={handleProcessSuggestions}
-            onConnect={handleConnectTelegram} onAddToDay={handleSuggestionToDay}
-            onAddToShopping={handleSuggestionToShopping} onDismiss={handleDismissSuggestion} />
-          <ShoppingList items={trip.shopping ?? []} busy={busy}
-            onAdd={handleAddShopping} onToggle={handleToggleShopping} onRemove={handleRemoveShopping} />
-        </Section>
-
-        <Section title="✨ Медиа" sub="что советуют гиды и медиа" accent
-          open={mediaOpen} onToggle={() => setMediaOpen((o) => !o)}>
-          <MediaBoard items={mediaItems ?? []} loading={mediaLoading} highlightId={highlightId} busy={busy}
-            refreshing={mediaRefreshing} onHover={setHighlightId} onAdd={handleAddFromMedia} onRefresh={handleRefreshMedia}
-            onDismiss={handleDismissMedia} />
-        </Section>
-
-        {/* МАРШРУТ — отдельно: дни + карта + таймлайн. */}
         <DayTabs days={trip.days} categories={trip.categories} activeDay={activeDay}
+          inboxCount={suggestions?.length ?? 0}
           onSelect={(d) => { setActiveDay(d); setHighlightId(null); }} />
 
         <div className={styles.mapSection} ref={mapRef}>
-          <TripMap trip={trip} day={activeDay} picking={picking || pickHotel !== null} draftCoords={draftCoords}
+          <TripMap trip={trip} day={activeDay === INBOX_TAB ? 0 : activeDay} picking={picking || pickHotel !== null} draftCoords={draftCoords}
             onMapClick={(c) => {
               if (pickHotel) {
                 const base = tripRef.current;
@@ -635,18 +610,36 @@ function PlannerInner() {
               }
             }}
             onPlaceClick={openEdit}
+            media={activeDay === MEDIA_TAB ? (mediaItems ?? []) : undefined}
             highlightId={highlightId} onMediaClick={setHighlightId}
-            hotels={trip.hotels} />
+            hotels={activeDay === MEDIA_TAB ? undefined : trip.hotels} />
         </div>
 
-        <Timeline trip={trip} day={activeDay} categories={trip.categories} busy={busy}
-          onAddPlace={openAdd} onEditPlace={openEdit} onDeletePlace={handleDelete}
-          onSelectPlace={() => { /* выбор места — на будущее (центрирование карты) */ }}
-          onSaveDay={handleSaveDay} onMovePlace={handleMovePlace}
-          onOpenSettings={() => setSettingsOpen(true)}
-          onToggleLock={handleToggleLock} onAiAddDay={handleAiAddDay} onOptimizeDay={handleOptimizeDay} generatingDay={generatingDay}
-          onAddChecklist={handleAddChecklist} onToggleChecklist={handleToggleChecklist} onRemoveChecklist={handleRemoveChecklist}
-          onSuggestChecklist={handleSuggestChecklist} />
+        {activeDay === INBOX_TAB ? (
+          <>
+            <SuggestionBoard items={suggestions ?? []} days={trip.days} loading={suggestLoading} busy={busy}
+              link={tgLink} botName={process.env.NEXT_PUBLIC_TELEGRAM_BOT || '@tripsplan_bot'} connecting={connecting}
+              processing={processingSug} rawCount={rawSuggestionCount(suggestions ?? [])}
+              onProcess={handleProcessSuggestions}
+              onConnect={handleConnectTelegram} onAddToDay={handleSuggestionToDay}
+              onAddToShopping={handleSuggestionToShopping} onDismiss={handleDismissSuggestion} />
+            <ShoppingList items={trip.shopping ?? []} busy={busy}
+              onAdd={handleAddShopping} onToggle={handleToggleShopping} onRemove={handleRemoveShopping} />
+          </>
+        ) : activeDay === MEDIA_TAB ? (
+          <MediaBoard items={mediaItems ?? []} loading={mediaLoading} highlightId={highlightId} busy={busy}
+            refreshing={mediaRefreshing} onHover={setHighlightId} onAdd={handleAddFromMedia} onRefresh={handleRefreshMedia}
+            onDismiss={handleDismissMedia} />
+        ) : (
+          <Timeline trip={trip} day={activeDay} categories={trip.categories} busy={busy}
+            onAddPlace={openAdd} onEditPlace={openEdit} onDeletePlace={handleDelete}
+            onSelectPlace={() => { /* выбор места — на будущее (центрирование карты) */ }}
+            onSaveDay={handleSaveDay} onMovePlace={handleMovePlace}
+            onOpenSettings={() => setSettingsOpen(true)}
+            onToggleLock={handleToggleLock} onAiAddDay={handleAiAddDay} onOptimizeDay={handleOptimizeDay} generatingDay={generatingDay}
+            onAddChecklist={handleAddChecklist} onToggleChecklist={handleToggleChecklist} onRemoveChecklist={handleRemoveChecklist}
+            onSuggestChecklist={handleSuggestChecklist} />
+        )}
       </div>
 
       {/* Форма места — модалка. В режиме выбора точки прячем (не размонтируя, чтобы сохранить ввод). */}
