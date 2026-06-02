@@ -4,7 +4,7 @@
 }
 
 .mapSection {
-  position: relative; height: 440px;
+  position: relative; height: 560px;
   border-radius: 16px; overflow: hidden;
   border: 1px solid var(--line); box-shadow: var(--shadow);
 }
@@ -47,7 +47,7 @@
 .notfound a { color: var(--accent); font-weight: 700; }
 
 @media (max-width: 800px) {
-  .mapSection { height: 60vh; }
+  .mapSection { height: 70vh; }
 }
 @media (max-width: 560px) {
   .shell { padding: 12px; gap: 12px; }

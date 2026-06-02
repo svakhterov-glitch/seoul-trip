@@ -88,6 +88,9 @@ export function TripMap({ trip, day, picking, draftCoords, onMapClick, onPlaceCl
   const markerLayer = useRef<L.LayerGroup | null>(null);
   const routeLayer = useRef<L.LayerGroup | null>(null);
   const draftLayer = useRef<L.LayerGroup | null>(null);
+  // ключ последней авто-подгонки масштаба: подгоняем ТОЛЬКО при смене вида (дня),
+  // а не при вкл/выкл слоёв или правке мест — иначе карта «прыгает».
+  const fitKeyRef = useRef<number | null>(null);
   const clickCb = useRef(onMapClick);
   clickCb.current = onMapClick;
   const pickingRef = useRef(picking);
@@ -215,9 +218,12 @@ export function TripMap({ trip, day, picking, draftCoords, onMapClick, onPlaceCl
       bounds.push(s.coords);
     });
 
-    if (bounds.length) {
+    // Подгоняем масштаб только при СМЕНЕ ВИДА (день/режим), а не при переключении
+    // слоёв или правке мест — чтобы карта не «прыгала».
+    if (bounds.length && fitKeyRef.current !== day) {
       const animate = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       map.fitBounds(L.latLngBounds(bounds).pad(0.18), { animate });
+      fitKeyRef.current = day;
     }
     setTimeout(() => map.invalidateSize(), 0);
   }, [trip, day, media, suggestions, hotels]);
