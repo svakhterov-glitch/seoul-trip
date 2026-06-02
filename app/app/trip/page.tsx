@@ -9,7 +9,7 @@ import { getTrip, updateTrip } from '@/lib/trips';
 import {
   type TripDoc, type Coords, type PlaceInput,
   ensureTripDefaults, addPlaceToTrip, updatePlaceInTrip, removePlaceFromTrip, updateTripMeta,
-  updateDay, addCategory, movePlace, addInboxLink, removeInboxLink, updateInboxLink, addPlaceFromInbox, addInboxPlace,
+  updateDay, moveDay, addCategory, movePlace, addInboxLink, removeInboxLink, updateInboxLink, addPlaceFromInbox, addInboxPlace,
   applyItinerary, setFlights, setHotels, clearItinerary, togglePlaceLock, placesForDay, getCategory,
   addChecklistItem, toggleChecklistItem, removeChecklistItem, optimizeDayOrder, type Flight, type Hotel, type Place,
   addShoppingItem, toggleShoppingItem, removeShoppingItem,
@@ -564,6 +564,13 @@ function PlannerInner() {
     }
   }
 
+  function handleMoveDay(dayNumber: number, dir: -1 | 1) {
+    const base = tripRef.current;
+    if (!base) return;
+    const next = moveDay(base, dayNumber, dir);
+    if (next !== base) save(next);
+  }
+
   function handleSaveDay(dayNumber: number, patch: DaySave) {
     if (!trip) return;
     let next = trip;
@@ -694,7 +701,7 @@ function PlannerInner() {
           <Timeline trip={trip} day={activeDay} categories={trip.categories} busy={busy}
             onAddPlace={openAdd} onEditPlace={openEdit} onDeletePlace={handleDelete}
             onSelectPlace={() => { /* выбор места — на будущее (центрирование карты) */ }}
-            onSaveDay={handleSaveDay} onMovePlace={handleMovePlace}
+            onSaveDay={handleSaveDay} onMovePlace={handleMovePlace} onMoveDay={handleMoveDay}
             onOpenSettings={() => setSettingsOpen(true)}
             onToggleLock={handleToggleLock} onAiAddDay={handleAiAddDay} onOptimizeDay={handleOptimizeDay} generatingDay={generatingDay}
             onAddChecklist={handleAddChecklist} onToggleChecklist={handleToggleChecklist} onRemoveChecklist={handleRemoveChecklist}

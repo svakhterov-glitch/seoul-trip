@@ -24,6 +24,8 @@ interface Props {
   onSaveDay?: (dayNumber: number, patch: DaySave) => void;
   /** Перенос места: внутри дня (порядок) или в другой день. */
   onMovePlace?: (placeId: string, targetDay: number, targetIndex: number) => void;
+  /** Переставить день кнопками (dir: -1 раньше / +1 позже); первый/последний не двигаются. */
+  onMoveDay?: (dayNumber: number, dir: -1 | 1) => void;
   /** Открыть настройки поездки (правка перелёта/отелей по клику на их плитки). */
   onOpenSettings?: () => void;
   /** Переключить замок места. */
@@ -53,7 +55,7 @@ function hotelStaySub(h: Hotel): string {
 interface DragState { id: string; pointerId: number; }
 interface DropAt { day: number; index: number; displayIndex: number; }
 
-export function Timeline({ trip, day, categories = [], busy = false, onAddPlace, onEditPlace, onDeletePlace, onSelectPlace, onSaveDay, onMovePlace, onOpenSettings, onToggleLock, onAiAddDay, onOptimizeDay, generatingDay = null, onAddChecklist, onToggleChecklist, onRemoveChecklist, onSuggestChecklist }: Props) {
+export function Timeline({ trip, day, categories = [], busy = false, onAddPlace, onEditPlace, onDeletePlace, onSelectPlace, onSaveDay, onMovePlace, onMoveDay, onOpenSettings, onToggleLock, onAiAddDay, onOptimizeDay, generatingDay = null, onAddChecklist, onToggleChecklist, onRemoveChecklist, onSuggestChecklist }: Props) {
   const [editDay, setEditDay] = useState<number | null>(null);
   const [drag, setDrag] = useState<DragState | null>(null);
   const [dropAt, setDropAt] = useState<DropAt | null>(null);
@@ -201,6 +203,14 @@ export function Timeline({ trip, day, categories = [], busy = false, onAddPlace,
                 <div className={styles.headTop}>
                   <span className={styles.dlabel}>День {d.number} · {d.date}</span>
                   <div className={styles.headActions}>
+                    {onMoveDay && d.number > 1 && d.number < lastNum && (
+                      <span className={styles.moveDay} role="group" aria-label="Переставить день">
+                        <button type="button" className={styles.moveBtn} disabled={busy || d.number - 1 <= 1}
+                          onClick={() => onMoveDay(d.number, -1)} title="Сделать раньше" aria-label={`День ${d.number} — раньше`}>↑</button>
+                        <button type="button" className={styles.moveBtn} disabled={busy || d.number + 1 >= lastNum}
+                          onClick={() => onMoveDay(d.number, 1)} title="Сделать позже" aria-label={`День ${d.number} — позже`}>↓</button>
+                      </span>
+                    )}
                     {onSaveDay && (
                       <button type="button" className={styles.editDay} onClick={() => setEditDay(d.number)}>Изменить день</button>
                     )}

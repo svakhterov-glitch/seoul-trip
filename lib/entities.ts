@@ -556,6 +556,33 @@ export function updateDay(trip: TripDoc, dayNumber: number, patch: Partial<Day>)
   };
 }
 
+/**
+ * Переставить день местами с соседним (`dir`: -1 — раньше, +1 — позже). ДАТЫ
+ * остаются на своих позициях — переезжает «содержимое» дня (title/sub/cat) и все
+ * его места (по `dayNumber`). Первый и последний дни НЕ двигаются и не вытесняются
+ * (прилёт/вылет закреплены). Иммутабельно; не-перестановка → исходный документ.
+ */
+export function moveDay(trip: TripDoc, dayNumber: number, dir: -1 | 1): TripDoc {
+  const last = lastDayNumber(trip);
+  const target = dayNumber + dir;
+  if (dayNumber <= 1 || dayNumber >= last) return trip;   // первый/последний не двигаем
+  if (target <= 1 || target >= last) return trip;          // и не заезжаем в их слоты
+  const a = trip.days.find((d) => d.number === dayNumber);
+  const b = trip.days.find((d) => d.number === target);
+  if (!a || !b) return trip;
+  const days = trip.days.map((d) => {
+    if (d.number === a.number) return { ...d, title: b.title, sub: b.sub, cat: b.cat };
+    if (d.number === b.number) return { ...d, title: a.title, sub: a.sub, cat: a.cat };
+    return d;
+  });
+  const places = trip.places.map((p) => {
+    if (p.dayNumber === a.number) return { ...p, dayNumber: b.number };
+    if (p.dayNumber === b.number) return { ...p, dayNumber: a.number };
+    return p;
+  });
+  return { ...trip, days, places };
+}
+
 /** Добавить новую категорию дня. Возвращает обновлённую поездку и ключ категории. */
 export function addCategory(trip: TripDoc, input: { label: string; color: string }): { trip: TripDoc; key: string } {
   const key = newId('cat');
