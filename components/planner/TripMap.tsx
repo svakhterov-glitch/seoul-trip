@@ -16,6 +16,8 @@ export interface SuggestionMarker {
   name: string;
   coords: Coords;
   kind: 'place' | 'shopping';
+  url?: string;   // ссылка-источник (показывается в попапе метки)
+  desc?: string;  // краткое описание (как у «Медиа»)
 }
 
 interface Props {
@@ -206,7 +208,9 @@ export function TripMap({ trip, day, picking, draftCoords, onMapClick, onPlaceCl
     (suggestions ?? []).forEach((s) => {
       if (!s.coords) return;
       const m = L.marker(s.coords, { icon: suggestionIcon(s.kind) });
-      m.bindPopup(`<b>${esc(s.name)}</b>`);
+      const desc = s.desc ? `<br>${esc(s.desc)}` : '';
+      const link = s.url ? `<br><a href="${esc(s.url)}" target="_blank" rel="noreferrer">ссылка&nbsp;↗</a>` : '';
+      m.bindPopup(`<b>${esc(s.name)}</b>${desc}${link}`);
       m.addTo(mLayer);
       bounds.push(s.coords);
     });

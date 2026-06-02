@@ -24,7 +24,7 @@ import { searchPlaces, placeMapsUrl, type PlaceCandidate } from '@/lib/searchPla
 import { isMapLink } from '@/lib/mapLinks';
 import { generateItinerary, type ItineraryPace } from '@/lib/generateItinerary';
 import { suggestChecklist } from '@/lib/suggestChecklist';
-import { geocodeQueries } from '@/lib/geocode';
+import { geocodeQueries, cityCenter, inRegion } from '@/lib/geocode';
 import { fetchMediaBoard, fetchMoreMedia } from '@/lib/mediaBoard';
 import { type MediaItem } from '@/lib/media';
 import { formatDateRange, daysBetween } from '@/lib/days';
@@ -316,38 +316,47 @@ function PlannerInner() {
   // без точки догеокодить по названию (одним батчем). Результат сохраняем в БД.
   async function handleProcessSuggestions() {
     if (processingSug) return;
+    const base = tripRef.current;
     const list = suggestions ?? [];
-    if (list.length === 0) return;
+    if (!base || list.length === 0) return;
     setProcessingSug(true);
     try {
-      const gotCoords = new Set<string>(list.filter((s) => s.coords).map((s) => s.id));
-      // 0) Убрать скриншоты карт у карт-ссылок (og:image там — карта, не фото).
+      // Центр города поездки — чтобы отбрасывать точки вне страны/региона.
+      const center = await cityCenter(base.city, base.country);
+      const ok = (c: Coords | null) => inRegion(c, center);
+      const gotCoords = new Set<string>(list.filter((s) => ok(s.coords)).map((s) => s.id));
+      // 0a) Убрать уже сохранённые точки ВНЕ региона (левые промахи геокодера).
+      await Promise.all(list.filter((s) => s.coords && !ok(s.coords)).map(async (s) => {
+        patchSuggestion(s.id, { coords: null });
+        await updateSuggestion(s.id, { coords: null });
+      }));
+      // 0b) Убрать скриншоты карт у карт-ссылок (og:image там — карта, не фото).
       await Promise.all(list.filter((s) => s.url && isMapLink(s.url) && s.image).map(async (s) => {
         patchSuggestion(s.id, { image: '' });
         await updateSuggestion(s.id, { image: '' });
       }));
       // 1) Разбираем ссылки: нужно фото (у обычных) или координаты (у любых).
-      const toResolve = list.filter((s) => s.url && (!s.coords || (!isMapLink(s.url) && !s.image)));
+      const toResolve = list.filter((s) => s.url && (!ok(s.coords) || (!isMapLink(s.url) && !s.image)));
       await runPooled(toResolve, 3, async (s) => {
         const r = await resolveLink(s.url);
         if (!r) return;
-        // У карт-ссылок фото не берём (это скриншот карты), берём только точку/описание.
+        // У карт-ссылок фото не берём (это скриншот карты). Точку берём, только
+        // если она в регионе города (иначе геокодер промахнулся в другую страну).
         const image = isMapLink(s.url) ? '' : (r.image || s.image);
-        const fields: Partial<TgSuggestion> = {
-          image,
-          description: s.description || r.desc,
-          coords: r.coords ?? s.coords,
-        };
-        if (fields.coords) gotCoords.add(s.id);
+        const coords = ok(r.coords) ? r.coords : (ok(s.coords) ? s.coords : null);
+        const fields: Partial<TgSuggestion> = { image, description: s.description || r.desc, coords };
+        if (coords) gotCoords.add(s.id);
         patchSuggestion(s.id, fields);
-        await updateSuggestion(s.id, { image: fields.image, description: fields.description, coords: fields.coords ?? null });
+        await updateSuggestion(s.id, { image: fields.image, description: fields.description, coords });
       });
-      // 2) Места всё ещё без координат — геокодим по названию одним батчем (Kakao).
+      // 2) Места всё ещё без координат — геокодим по «имя, город, страна» (биас на
+      //    город) и берём только точки в регионе (вне страны — убираем).
       const needGeo = list.filter((s) => s.kind === 'place' && !gotCoords.has(s.id) && s.name);
       if (needGeo.length) {
-        const coords = await geocodeQueries(needGeo.map((s) => s.name));
+        const q = needGeo.map((s) => [s.name, base.city, base.country].filter(Boolean).join(', '));
+        const coords = await geocodeQueries(q);
         await Promise.all(needGeo.map(async (s, i) => {
-          const c = coords[i];
+          const c = ok(coords[i]) ? coords[i] : null;
           if (!c) return;
           patchSuggestion(s.id, { coords: c });
           await updateSuggestion(s.id, { coords: c });
@@ -586,7 +595,7 @@ function PlannerInner() {
   const norm = (s: string) => (s || '').trim().toLowerCase();
   // Метки слоёв для карты (с координатами; для наложения на маршрут — без уже добавленных).
   const sugAllMarkers = (suggestions ?? []).filter((s) => s.coords)
-    .map((s) => ({ id: s.id, name: s.name, coords: s.coords as Coords, kind: s.kind }));
+    .map((s) => ({ id: s.id, name: s.name, coords: s.coords as Coords, kind: s.kind, url: s.url, desc: s.description }));
   const sugLayerMarkers = sugAllMarkers.filter((s) => !routeNames.has(norm(s.name)));
   const mediaLayerMarkers = (mediaItems ?? []).filter((m) => m.coords && !routeNames.has(norm(m.name)));
 

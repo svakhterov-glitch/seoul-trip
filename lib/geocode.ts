@@ -25,3 +25,33 @@ export async function geocodeQueries(queries: string[]): Promise<(Coords | null)
     return queries.map(() => null);
   }
 }
+
+/** Расстояние между точками в км (гаверсинус). */
+export function haversineKm(a: Coords, b: Coords): number {
+  const R = 6371;
+  const dLat = ((b[0] - a[0]) * Math.PI) / 180;
+  const dLng = ((b[1] - a[1]) * Math.PI) / 180;
+  const la1 = (a[0] * Math.PI) / 180;
+  const la2 = (b[0] * Math.PI) / 180;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(la1) * Math.cos(la2) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+/** Координаты центра города поездки (для проверки «место в стране/городе»). */
+export async function cityCenter(city: string, country: string): Promise<Coords | null> {
+  const q = [city, country].filter(Boolean).join(', ');
+  if (!q) return null;
+  const [c] = await geocodeQueries([q]);
+  return c ?? null;
+}
+
+/** Радиус «своего региона» от центра города (км). Корея ~500 км — 700 с запасом
+ *  ловит всю страну и отсекает чужие континенты (левые точки геокодера). */
+export const REGION_RADIUS_KM = 700;
+
+/** Точка в пределах региона города? (если центр неизвестен — считаем, что да). */
+export function inRegion(coords: Coords | null, center: Coords | null, maxKm = REGION_RADIUS_KM): boolean {
+  if (!coords) return false;
+  if (!center) return true;
+  return haversineKm(coords, center) <= maxKm;
+}
