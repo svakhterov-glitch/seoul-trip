@@ -37,6 +37,7 @@ create table if not exists public.tg_suggestions (
   from_user   text,                             -- имя отправителя
   raw_text    text,
   status      text not null default 'new',      -- 'new' | 'added' | 'dismissed'
+  tag         text not null default '',         -- метка: 'Полина' | 'Сережа' | 'Важно' | '' (без тега)
   created_at  timestamptz not null default now()
 );
 create index if not exists tg_suggestions_trip_id_idx on public.tg_suggestions (trip_id);

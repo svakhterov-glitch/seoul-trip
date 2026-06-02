@@ -11,6 +11,7 @@ export interface TgSuggestion {
   image: string;
   coords: Coords | null;
   fromUser: string;
+  tag: string;          // 'Полина' | 'Сережа' | 'Важно' | '' (без тега)
   createdAt: string;
 }
 
@@ -29,7 +30,7 @@ function toCoords(v: unknown): Coords | null {
 export async function listSuggestions(tripId: string): Promise<TgSuggestion[]> {
   const { data, error } = await getSupabase()
     .from('tg_suggestions')
-    .select('id,kind,url,name,description,image,coords,from_user,created_at')
+    .select('id,kind,url,name,description,image,coords,from_user,tag,created_at')
     .eq('trip_id', tripId)
     .eq('status', 'new')
     .order('created_at', { ascending: false });
@@ -43,6 +44,7 @@ export async function listSuggestions(tripId: string): Promise<TgSuggestion[]> {
     image: typeof r.image === 'string' ? r.image : '',
     coords: toCoords(r.coords),
     fromUser: typeof r.from_user === 'string' ? r.from_user : '',
+    tag: typeof r.tag === 'string' ? r.tag : '',
     createdAt: typeof r.created_at === 'string' ? r.created_at : '',
   }));
 }
@@ -50,6 +52,11 @@ export async function listSuggestions(tripId: string): Promise<TgSuggestion[]> {
 /** Пометить предложение обработанным ('added') или скрытым ('dismissed'). */
 export async function markSuggestion(id: string, status: 'added' | 'dismissed'): Promise<void> {
   await getSupabase().from('tg_suggestions').update({ status }).eq('id', id);
+}
+
+/** Поставить тег предложению ('Полина'|'Сережа'|'Важно'|'' — без тега). */
+export async function setSuggestionTag(id: string, tag: string): Promise<void> {
+  await getSupabase().from('tg_suggestions').update({ tag }).eq('id', id);
 }
 
 /** Дописать в предложение разобранные данные (фото/описание/координаты). */

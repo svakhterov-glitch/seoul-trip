@@ -20,15 +20,29 @@ interface Props {
   onAddToDay: (item: TgSuggestion, dayNumber: number) => void;
   onAddToShopping: (item: TgSuggestion) => void;
   onDismiss: (item: TgSuggestion) => void;
+  onTag: (item: TgSuggestion, tag: string) => void;
 }
+
+/** Доступные теги предложки. '' = «Без тегов». */
+export const SUGGESTION_TAGS = ['Полина', 'Сережа', 'Важно'];
 
 /** Доска «Предложка»: входящие из Telegram-группы ссылки → места/покупки. */
 export function SuggestionBoard({
   items, days, loading, busy = false, link, botName, connecting = false,
-  processing = false, rawCount = 0, onProcess, onConnect, onAddToDay, onAddToShopping, onDismiss,
+  processing = false, rawCount = 0, onProcess, onConnect, onAddToDay, onAddToShopping, onDismiss, onTag,
 }: Props) {
-  const places = items.filter((i) => i.kind === 'place');
-  const shopping = items.filter((i) => i.kind === 'shopping');
+  // фильтр по тегу: null = все, '' = без тегов, иначе конкретный тег
+  const [tagFilter, setTagFilter] = useState<string | null>(null);
+  const shown = tagFilter === null ? items : items.filter((i) => (i.tag || '') === tagFilter);
+  const places = shown.filter((i) => i.kind === 'place');
+  const shopping = shown.filter((i) => i.kind === 'shopping');
+  const count = (t: string | null) => (t === null ? items.length : items.filter((i) => (i.tag || '') === t).length);
+
+  const filters: { key: string | null; label: string }[] = [
+    { key: null, label: 'Все' },
+    ...SUGGESTION_TAGS.map((t) => ({ key: t, label: t })),
+    { key: '', label: 'Без тегов' },
+  ];
 
   return (
     <section className={styles.wrap} aria-label="Предложка из Telegram">
@@ -43,17 +57,31 @@ export function SuggestionBoard({
 
       <ConnectPanel link={link} botName={botName} connecting={connecting} onConnect={onConnect} />
 
+      {items.length > 0 && (
+        <div className={styles.filters} role="group" aria-label="Фильтр по тегу">
+          {filters.map((f) => (
+            <button key={f.label} type="button"
+              className={`${styles.filter} ${tagFilter === f.key ? styles.filterOn : ''}`}
+              onClick={() => setTagFilter(f.key)}>
+              {f.label}<span className={styles.fcount}>{count(f.key)}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
       {loading ? (
         <p className={styles.note} role="status">Загружаю предложку…</p>
       ) : items.length === 0 ? (
         <p className={styles.note}>Пока пусто. Кидайте ссылки в подключённую группу — они появятся здесь.</p>
+      ) : shown.length === 0 ? (
+        <p className={styles.note}>Нет предложений с этим тегом.</p>
       ) : (
         <>
           {places.length > 0 && (
             <Group title="Места" count={places.length}>
               {places.map((it) => (
                 <SuggestionCard key={it.id} item={it} days={days} busy={busy}
-                  onAddToDay={onAddToDay} onAddToShopping={onAddToShopping} onDismiss={onDismiss} />
+                  onAddToDay={onAddToDay} onAddToShopping={onAddToShopping} onDismiss={onDismiss} onTag={onTag} />
               ))}
             </Group>
           )}
@@ -61,7 +89,7 @@ export function SuggestionBoard({
             <Group title="Покупки" count={shopping.length}>
               {shopping.map((it) => (
                 <SuggestionCard key={it.id} item={it} days={days} busy={busy}
-                  onAddToDay={onAddToDay} onAddToShopping={onAddToShopping} onDismiss={onDismiss} />
+                  onAddToDay={onAddToDay} onAddToShopping={onAddToShopping} onDismiss={onDismiss} onTag={onTag} />
               ))}
             </Group>
           )}
@@ -80,11 +108,12 @@ function Group({ title, count, children }: { title: string; count: number; child
   );
 }
 
-function SuggestionCard({ item, days, busy, onAddToDay, onAddToShopping, onDismiss }: {
+function SuggestionCard({ item, days, busy, onAddToDay, onAddToShopping, onDismiss, onTag }: {
   item: TgSuggestion; days: Day[]; busy: boolean;
   onAddToDay: (i: TgSuggestion, d: number) => void;
   onAddToShopping: (i: TgSuggestion) => void;
   onDismiss: (i: TgSuggestion) => void;
+  onTag: (i: TgSuggestion, tag: string) => void;
 }) {
   const [day, setDay] = useState<number>(days[0]?.number ?? 1);
   return (
@@ -98,6 +127,11 @@ function SuggestionCard({ item, days, busy, onAddToDay, onAddToShopping, onDismi
         <div className={styles.meta}>
           {item.fromUser && <span>от {item.fromUser}</span>}
           {item.url && <a className={styles.src} href={item.url} target="_blank" rel="noreferrer">ссылка ↗</a>}
+          <select className={`${styles.tag} ${item.tag ? styles.tagOn : ''}`} value={item.tag || ''} disabled={busy}
+            onChange={(e) => onTag(item, e.target.value)} aria-label="Тег">
+            <option value="">Без тегов</option>
+            {SUGGESTION_TAGS.map((t) => <option key={t} value={t}>{t}</option>)}
+          </select>
         </div>
         <div className={styles.actions}>
           <span className={styles.dayPick}>

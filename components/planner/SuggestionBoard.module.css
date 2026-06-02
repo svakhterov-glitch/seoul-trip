@@ -11,6 +11,24 @@
 .process:hover:not(:disabled) { background: var(--accent); color: #fff; }
 .process:disabled { opacity: .55; cursor: default; }
 
+/* Фильтр по тегам */
+.filters { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.filter {
+  display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--line); background: #fff;
+  color: var(--navy); border-radius: 999px; padding: 5px 11px; font-size: 12.5px; font-weight: 700;
+  cursor: pointer; touch-action: manipulation;
+}
+.filter:hover { border-color: var(--navy); }
+.filterOn { border-color: var(--navy); background: var(--navy); color: #fff; }
+.fcount { font-size: 11px; opacity: .7; font-weight: 700; }
+
+/* Селект тега на карточке */
+.tag {
+  border: 1px solid var(--line); background: #fff; color: var(--muted);
+  border-radius: 999px; padding: 3px 8px; font-size: 11.5px; font-weight: 700; cursor: pointer;
+}
+.tagOn { border-color: var(--accent); color: var(--accent); }
+
 /* Панель подключения Telegram */
 .connect {
   display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;

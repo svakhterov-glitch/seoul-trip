@@ -15,7 +15,7 @@ import {
   addShoppingItem, toggleShoppingItem, removeShoppingItem,
 } from '@/lib/entities';
 import {
-  listSuggestions, markSuggestion, updateSuggestion, telegramLinkStatus, ensureTelegramLink,
+  listSuggestions, markSuggestion, updateSuggestion, setSuggestionTag, telegramLinkStatus, ensureTelegramLink,
   type TgSuggestion, type TgLinkStatus,
 } from '@/lib/telegramInbox';
 import { resolveLink } from '@/lib/resolveLink';
@@ -298,6 +298,11 @@ function PlannerInner() {
   async function handleDismissSuggestion(item: TgSuggestion) {
     await markSuggestion(item.id, 'dismissed');
     setSuggestions((cur) => (cur ? cur.filter((s) => s.id !== item.id) : cur));
+  }
+
+  function handleTagSuggestion(item: TgSuggestion, tag: string) {
+    setSuggestions((cur) => (cur ? cur.map((s) => (s.id === item.id ? { ...s, tag } : s)) : cur));
+    setSuggestionTag(item.id, tag);
   }
 
   // Нужен ли предложению разбор: фото у обычной ссылки, точка у места, либо
@@ -698,7 +703,8 @@ function PlannerInner() {
               processing={processingSug} rawCount={rawSuggestionCount(suggestions ?? [])}
               onProcess={handleProcessSuggestions}
               onConnect={handleConnectTelegram} onAddToDay={handleSuggestionToDay}
-              onAddToShopping={handleSuggestionToShopping} onDismiss={handleDismissSuggestion} />
+              onAddToShopping={handleSuggestionToShopping} onDismiss={handleDismissSuggestion}
+              onTag={handleTagSuggestion} />
             <ShoppingList items={trip.shopping ?? []} busy={busy}
               onAdd={handleAddShopping} onToggle={handleToggleShopping} onRemove={handleRemoveShopping} />
           </>
