@@ -556,29 +556,40 @@ export function updateDay(trip: TripDoc, dayNumber: number, patch: Partial<Day>)
   };
 }
 
-/**
- * Переставить день местами с соседним (`dir`: -1 — раньше, +1 — позже). ДАТЫ
- * остаются на своих позициях — переезжает «содержимое» дня (title/sub/cat) и все
- * его места (по `dayNumber`). Первый и последний дни НЕ двигаются и не вытесняются
- * (прилёт/вылет закреплены). Иммутабельно; не-перестановка → исходный документ.
- */
-export function moveDay(trip: TripDoc, dayNumber: number, dir: -1 | 1): TripDoc {
+/** Номера «средних» дней (которые можно переставлять): без первого и последнего. */
+export function movableDayNumbers(trip: TripDoc): number[] {
   const last = lastDayNumber(trip);
-  const target = dayNumber + dir;
-  if (dayNumber <= 1 || dayNumber >= last) return trip;   // первый/последний не двигаем
-  if (target <= 1 || target >= last) return trip;          // и не заезжаем в их слоты
-  const a = trip.days.find((d) => d.number === dayNumber);
-  const b = trip.days.find((d) => d.number === target);
-  if (!a || !b) return trip;
+  return trip.days.filter((d) => d.number > 1 && d.number < last).map((d) => d.number);
+}
+
+/**
+ * Переставить «средние» дни в произвольный порядок. `order` — желаемая
+ * последовательность НОМЕРОВ средних дней (без первого/последнего). ДАТЫ остаются
+ * на своих позициях (слотах) — переезжает «содержимое» дня (title/sub/cat) и все
+ * его места (по `dayNumber`). Первый и последний дни закреплены (прилёт/вылет).
+ * `order` должен быть перестановкой `movableDayNumbers`; иначе → исходный документ.
+ * Иммутабельно.
+ */
+export function reorderDays(trip: TripDoc, order: number[]): TripDoc {
+  const last = lastDayNumber(trip);
+  const middle = movableDayNumbers(trip);
+  const slots = [...middle].sort((a, b) => a - b);          // целевые слоты (позиции) по возрастанию
+  const valid = order.length === slots.length
+    && new Set(order).size === order.length
+    && order.every((n) => middle.includes(n));
+  if (!valid) return trip;
+  const byNum = new Map(trip.days.map((d) => [d.number, d]));
+  const sourceToSlot = new Map<number, number>();           // исходный день → его новый слот
+  slots.forEach((slot, i) => sourceToSlot.set(order[i], slot));
+  if (slots.every((s, i) => order[i] === s)) return trip;    // порядок не изменился
   const days = trip.days.map((d) => {
-    if (d.number === a.number) return { ...d, title: b.title, sub: b.sub, cat: b.cat };
-    if (d.number === b.number) return { ...d, title: a.title, sub: a.sub, cat: a.cat };
-    return d;
+    if (d.number <= 1 || d.number >= last) return d;
+    const src = byNum.get(order[slots.indexOf(d.number)]);
+    return src ? { ...d, title: src.title, sub: src.sub, cat: src.cat } : d;
   });
   const places = trip.places.map((p) => {
-    if (p.dayNumber === a.number) return { ...p, dayNumber: b.number };
-    if (p.dayNumber === b.number) return { ...p, dayNumber: a.number };
-    return p;
+    const slot = p.dayNumber == null ? undefined : sourceToSlot.get(p.dayNumber);
+    return slot ? { ...p, dayNumber: slot } : p;
   });
   return { ...trip, days, places };
 }

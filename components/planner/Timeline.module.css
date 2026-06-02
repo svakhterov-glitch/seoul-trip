@@ -6,12 +6,6 @@
 .headActions { display: flex; gap: 8px; flex-wrap: wrap; }
 .editDay { border: 1px solid var(--line); color: var(--muted); background: #fff; border-radius: 8px; padding: 5px 10px; font-size: 12px; font-weight: 700; }
 .editDay:hover { border-color: var(--navy); color: var(--navy); }
-/* Перестановка дня (кнопки ↑/↓ — раньше/позже). */
-.moveDay { display: inline-flex; gap: 2px; }
-.moveBtn { border: 1px solid var(--line); color: var(--muted); background: #fff; border-radius: 8px; width: 30px; padding: 5px 0; font-size: 13px; font-weight: 700; line-height: 1; cursor: pointer; touch-action: manipulation; }
-.moveBtn:hover:not(:disabled) { border-color: var(--navy); color: var(--navy); }
-.moveBtn:disabled { opacity: .4; cursor: default; }
-.moveBtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .add { border: 1px solid var(--accent); color: var(--accent); background: transparent; border-radius: 8px; padding: 5px 10px; font-size: 12px; font-weight: 700; }
 .add:hover { background: var(--accent); color: #fff; }
 .aiAdd { border: 1px solid #9a55c9; color: #9a55c9; background: transparent; border-radius: 8px; padding: 5px 10px; font-size: 12px; font-weight: 700; cursor: pointer; }

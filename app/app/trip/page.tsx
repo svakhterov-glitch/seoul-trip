@@ -9,7 +9,7 @@ import { getTrip, updateTrip } from '@/lib/trips';
 import {
   type TripDoc, type Coords, type PlaceInput,
   ensureTripDefaults, addPlaceToTrip, updatePlaceInTrip, removePlaceFromTrip, updateTripMeta,
-  updateDay, moveDay, addCategory, movePlace, addInboxLink, removeInboxLink, updateInboxLink, addPlaceFromInbox, addInboxPlace,
+  updateDay, reorderDays, movableDayNumbers, addCategory, movePlace, addInboxLink, removeInboxLink, updateInboxLink, addPlaceFromInbox, addInboxPlace,
   applyItinerary, setFlights, setHotels, clearItinerary, togglePlaceLock, placesForDay, getCategory,
   addChecklistItem, toggleChecklistItem, removeChecklistItem, optimizeDayOrder, type Flight, type Hotel, type Place,
   addShoppingItem, toggleShoppingItem, removeShoppingItem,
@@ -36,6 +36,7 @@ import { TripCover, type TripCoverSave } from '@/components/planner/TripCover';
 import { DayTabs, MEDIA_TAB, INBOX_TAB } from '@/components/planner/DayTabs';
 import { Inbox, type SearchState } from '@/components/planner/Inbox';
 import { Timeline } from '@/components/planner/Timeline';
+import { DayReorder } from '@/components/planner/DayReorder';
 import { MediaBoard } from '@/components/planner/MediaBoard';
 import { SuggestionBoard } from '@/components/planner/SuggestionBoard';
 import { ShoppingList } from '@/components/planner/ShoppingList';
@@ -92,6 +93,8 @@ function PlannerInner() {
   const [generating, setGenerating] = useState(false);
   // открыта модалка настроек поездки (перелёт/отели/очистка)
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // открыта модалка «Порядок дней» (drag-and-drop перестановка дней)
+  const [reorderOpen, setReorderOpen] = useState(false);
   // номер дня, для которого ИИ сейчас добирает места (null — нет)
   const [generatingDay, setGeneratingDay] = useState<number | null>(null);
   // id отеля, точку которого ставим кликом по карте (null — не ставим)
@@ -564,10 +567,10 @@ function PlannerInner() {
     }
   }
 
-  function handleMoveDay(dayNumber: number, dir: -1 | 1) {
+  function handleReorderDays(order: number[]) {
     const base = tripRef.current;
     if (!base) return;
-    const next = moveDay(base, dayNumber, dir);
+    const next = reorderDays(base, order);
     if (next !== base) save(next);
   }
 
@@ -644,6 +647,12 @@ function PlannerInner() {
 
         <AiItinerary busy={busy} generating={generating} onGenerate={handleGenerate} />
 
+        {movableDayNumbers(trip).length > 0 && (
+          <div className={styles.dayTools}>
+            <button type="button" className={styles.layer} onClick={() => setReorderOpen(true)}>↕ Порядок дней</button>
+          </div>
+        )}
+
         <DayTabs days={trip.days} categories={trip.categories} activeDay={activeDay}
           inboxCount={suggestions?.length ?? 0}
           onSelect={(d) => { setActiveDay(d); setHighlightId(null); }} />
@@ -701,7 +710,7 @@ function PlannerInner() {
           <Timeline trip={trip} day={activeDay} categories={trip.categories} busy={busy}
             onAddPlace={openAdd} onEditPlace={openEdit} onDeletePlace={handleDelete}
             onSelectPlace={() => { /* выбор места — на будущее (центрирование карты) */ }}
-            onSaveDay={handleSaveDay} onMovePlace={handleMovePlace} onMoveDay={handleMoveDay}
+            onSaveDay={handleSaveDay} onMovePlace={handleMovePlace}
             onOpenSettings={() => setSettingsOpen(true)}
             onToggleLock={handleToggleLock} onAiAddDay={handleAiAddDay} onOptimizeDay={handleOptimizeDay} generatingDay={generatingDay}
             onAddChecklist={handleAddChecklist} onToggleChecklist={handleToggleChecklist} onRemoveChecklist={handleRemoveChecklist}
@@ -734,6 +743,11 @@ function PlannerInner() {
           onSave={handleSaveLogistics} onClearItinerary={handleClearItinerary}
           onPickOnMap={handlePickHotelOnMap}
           onClose={() => setSettingsOpen(false)} />
+      )}
+
+      {reorderOpen && (
+        <DayReorder days={trip.days} reorderable={movableDayNumbers(trip)} busy={busy}
+          onApply={handleReorderDays} onClose={() => setReorderOpen(false)} />
       )}
 
       {/* Подсказка во время выбора точки на карте */}

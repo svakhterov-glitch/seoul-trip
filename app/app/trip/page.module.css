@@ -9,6 +9,9 @@
   border: 1px solid var(--line); box-shadow: var(--shadow);
 }
 
+/* Кнопка «Порядок дней» над вкладками дней. */
+.dayTools { display: flex; justify-content: flex-end; }
+
 /* Переключатели слоёв карты на «Весь маршрут». */
 .layers { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .layersLabel { font-size: 13px; color: var(--muted); font-weight: 600; }
