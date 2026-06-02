@@ -25,6 +25,7 @@ import { isMapLink } from '@/lib/mapLinks';
 import { generateItinerary, type ItineraryPace } from '@/lib/generateItinerary';
 import { suggestChecklist } from '@/lib/suggestChecklist';
 import { geocodeQueries, cityCenter, inRegion } from '@/lib/geocode';
+import { describePlaces } from '@/lib/describePlaces';
 import { fetchMediaBoard, fetchMoreMedia } from '@/lib/mediaBoard';
 import { type MediaItem } from '@/lib/media';
 import { formatDateRange, daysBetween } from '@/lib/days';
@@ -325,6 +326,7 @@ function PlannerInner() {
       const center = await cityCenter(base.city, base.country);
       const ok = (c: Coords | null) => inRegion(c, center);
       const gotCoords = new Set<string>(list.filter((s) => ok(s.coords)).map((s) => s.id));
+      const gotDesc = new Set<string>(list.filter((s) => s.description).map((s) => s.id));
       // 0a) Убрать уже сохранённые точки ВНЕ региона (левые промахи геокодера).
       await Promise.all(list.filter((s) => s.coords && !ok(s.coords)).map(async (s) => {
         patchSuggestion(s.id, { coords: null });
@@ -346,6 +348,7 @@ function PlannerInner() {
         const coords = ok(r.coords) ? r.coords : (ok(s.coords) ? s.coords : null);
         const fields: Partial<TgSuggestion> = { image, description: s.description || r.desc, coords };
         if (coords) gotCoords.add(s.id);
+        if (fields.description) gotDesc.add(s.id);
         patchSuggestion(s.id, fields);
         await updateSuggestion(s.id, { image: fields.image, description: fields.description, coords });
       });
@@ -360,6 +363,18 @@ function PlannerInner() {
           if (!c) return;
           patchSuggestion(s.id, { coords: c });
           await updateSuggestion(s.id, { coords: c });
+        }));
+      }
+      // 3) Описание места (одна фраза, Haiku) — для мест без описания (напр. пункты
+      //    из списков «голых названий»): чтобы на метке/карточке была строчка о месте.
+      const needDesc = list.filter((s) => s.kind === 'place' && s.name && !gotDesc.has(s.id)).slice(0, 40);
+      if (needDesc.length) {
+        const descs = await describePlaces(needDesc.map((s) => s.name), base.city, base.country);
+        await Promise.all(needDesc.map(async (s, i) => {
+          const dsc = (descs[i] || '').trim();
+          if (!dsc) return;
+          patchSuggestion(s.id, { description: dsc });
+          await updateSuggestion(s.id, { description: dsc });
         }));
       }
     } finally {

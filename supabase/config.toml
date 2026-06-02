@@ -24,3 +24,6 @@ verify_jwt = false
 # Telegram-вебхук: зовётся Telegram'ом без JWT (защита — секрет в заголовке).
 [functions.telegram-webhook]
 verify_jwt = false
+
+[functions.describe-places]
+verify_jwt = false
