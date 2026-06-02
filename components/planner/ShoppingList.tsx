@@ -27,7 +27,7 @@ export function ShoppingList({ items, busy = false, onAdd, onToggle, onRemove }:
   return (
     <section className={styles.wrap} aria-label="Список покупок">
       <div className={styles.head}>
-        <span className={styles.title}>🛍 Что купить</span>
+        <span className={styles.title}>Что купить</span>
         {items.length > 0 && <span className={styles.counter}>{done} / {items.length}</span>}
       </div>
 

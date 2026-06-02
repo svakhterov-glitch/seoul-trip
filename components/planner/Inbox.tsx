@@ -52,7 +52,7 @@ export function Inbox({
     <section className={styles.wrap} aria-label="Места и ссылки">
       <button type="button" className={styles.header} aria-expanded={open} onClick={() => setOpen((o) => !o)}>
         <span className={styles.title}>
-          🔎 Места и ссылки{count > 0 && <em className={styles.count}> · не разобрано {count}</em>}
+          Места и ссылки{count > 0 && <em className={styles.count}> · не разобрано {count}</em>}
         </span>
         <span className={styles.chev} aria-hidden="true">{open ? '▾' : '▸'}</span>
       </button>

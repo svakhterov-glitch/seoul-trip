@@ -35,7 +35,7 @@ export function AiItinerary({ busy = false, generating = false, onGenerate }: Pr
   return (
     <section className={styles.wrap} aria-label="Собрать маршрут с ИИ">
       <button type="button" className={styles.head} onClick={() => setOpen((o) => !o)} aria-expanded={open}>
-        <span className={styles.title}>🤖 Собрать маршрут</span>
+        <span className={styles.title}>Собрать маршрут</span>
         <span className={styles.sub}>
           {generating ? 'собираю маршрут…' : 'по опыту медиа и путешественников, с проверкой на сезон'}
         </span>

@@ -33,7 +33,7 @@ export function SuggestionBoard({
   return (
     <section className={styles.wrap} aria-label="Предложка из Telegram">
       <div className={styles.head}>
-        <span className={styles.title}>✨ Предложка из Telegram</span>
+        <span className={styles.title}>Предложка из Telegram</span>
         {items.length > 0 && (
           <button type="button" className={styles.process} onClick={onProcess} disabled={processing || rawCount === 0}>
             {processing ? '🔄 Обрабатываю ссылки…' : rawCount > 0 ? `✨ Обработать ссылки (${rawCount})` : '✅ Всё обработано'}
@@ -50,7 +50,7 @@ export function SuggestionBoard({
       ) : (
         <>
           {places.length > 0 && (
-            <Group title="📍 Места" count={places.length}>
+            <Group title="Места" count={places.length}>
               {places.map((it) => (
                 <SuggestionCard key={it.id} item={it} days={days} busy={busy}
                   onAddToDay={onAddToDay} onAddToShopping={onAddToShopping} onDismiss={onDismiss} />
@@ -58,7 +58,7 @@ export function SuggestionBoard({
             </Group>
           )}
           {shopping.length > 0 && (
-            <Group title="🛍 Покупки" count={shopping.length}>
+            <Group title="Покупки" count={shopping.length}>
               {shopping.map((it) => (
                 <SuggestionCard key={it.id} item={it} days={days} busy={busy}
                   onAddToDay={onAddToDay} onAddToShopping={onAddToShopping} onDismiss={onDismiss} />

@@ -105,8 +105,8 @@ export function PlaceCard({ place, category, onSelect, onEdit, onDelete, onToggl
           <div className={styles.main}>
             <div className={styles.name}>{place.name}</div>
             {place.desc && <div className={styles.desc}>{place.desc}</div>}
-            {place.seasonNote && <div className={styles.season}>🗓 {place.seasonNote}</div>}
-            {place.note && <div className={styles.note}>💬 {place.note}</div>}
+            {place.seasonNote && <div className={styles.season}>{place.seasonNote}</div>}
+            {place.note && <div className={styles.note}>{place.note}</div>}
             {hasBadges && (
               <div className={styles.badges}>
                 <KindBadge kind={place.kind} />
@@ -130,7 +130,7 @@ export function PlaceCard({ place, category, onSelect, onEdit, onDelete, onToggl
             {onAddChecklist && (
               <div className={styles.checklist} onClick={(e) => e.stopPropagation()}>
                 <div className={styles.clHead}>
-                  <span className={styles.clTitle}>✓ Чеклист — что посмотреть / купить</span>
+                  <span className={styles.clTitle}>Чеклист — что посмотреть / купить</span>
                   {onSuggestChecklist && (
                     <button type="button" className={styles.clSuggest} onClick={suggest} disabled={suggesting}>
                       {suggesting ? '✨ Думаю…' : '✨ Предложить'}
