@@ -26,6 +26,16 @@ interface Props {
 /** Доступные теги предложки. '' = «Без тегов». */
 export const SUGGESTION_TAGS = ['Полина', 'Сережа', 'Важно'];
 
+/** Цвет тега (каждый различим). '' / неизвестный — нейтральный. */
+const TAG_COLORS: Record<string, string> = {
+  'Полина': '#c026d3', // пурпурный
+  'Сережа': '#2563eb', // синий
+  'Важно': '#e8463c',  // красный (внимание)
+};
+export function tagColor(tag: string): string {
+  return TAG_COLORS[tag] || '#8a93a8';
+}
+
 /** Доска «Предложка»: входящие из Telegram-группы ссылки → места/покупки. */
 export function SuggestionBoard({
   items, days, loading, busy = false, link, botName, connecting = false,
@@ -59,13 +69,18 @@ export function SuggestionBoard({
 
       {items.length > 0 && (
         <div className={styles.filters} role="group" aria-label="Фильтр по тегу">
-          {filters.map((f) => (
-            <button key={f.label} type="button"
-              className={`${styles.filter} ${tagFilter === f.key ? styles.filterOn : ''}`}
-              onClick={() => setTagFilter(f.key)}>
-              {f.label}<span className={styles.fcount}>{count(f.key)}</span>
-            </button>
-          ))}
+          {filters.map((f) => {
+            const on = tagFilter === f.key;
+            const c = f.key ? tagColor(f.key) : '';
+            return (
+              <button key={f.label} type="button"
+                className={`${styles.filter} ${on ? styles.filterOn : ''}`}
+                style={on && c ? { background: c, borderColor: c, color: '#fff' } : (c ? { borderColor: c, color: c } : undefined)}
+                onClick={() => setTagFilter(f.key)}>
+                {f.label}<span className={styles.fcount}>{count(f.key)}</span>
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -122,12 +137,16 @@ function SuggestionCard({ item, days, busy, onAddToDay, onAddToShopping, onDismi
         ? <img className={styles.thumb} src={item.image} alt="" loading="lazy" />
         : <div className={styles.thumbEmpty} aria-hidden="true">{item.kind === 'shopping' ? '🛍' : '📍'}</div>}
       <div className={styles.body}>
-        <div className={styles.name}>{item.name}</div>
+        <div className={styles.name}>
+          {item.tag && <span className={styles.dot} style={{ background: tagColor(item.tag) }} aria-hidden="true" />}
+          {item.name}
+        </div>
         {item.description && <div className={styles.desc}>{item.description}</div>}
         <div className={styles.meta}>
           {item.fromUser && <span>от {item.fromUser}</span>}
           {item.url && <a className={styles.src} href={item.url} target="_blank" rel="noreferrer">ссылка ↗</a>}
-          <select className={`${styles.tag} ${item.tag ? styles.tagOn : ''}`} value={item.tag || ''} disabled={busy}
+          <select className={styles.tag} value={item.tag || ''} disabled={busy}
+            style={item.tag ? { borderColor: tagColor(item.tag), color: tagColor(item.tag) } : undefined}
             onChange={(e) => onTag(item, e.target.value)} aria-label="Тег">
             <option value="">Без тегов</option>
             {SUGGESTION_TAGS.map((t) => <option key={t} value={t}>{t}</option>)}
