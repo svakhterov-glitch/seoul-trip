@@ -21,6 +21,7 @@ export interface SuggestionMarker {
   desc?: string;     // краткое описание (как у «Медиа»)
   tag?: string;      // категория предложки — задаёт СМАЙЛИК метки (и красный для «Важно»)
   fromUser?: string; // автор — задаёт ЦВЕТ метки (розовый Полина / синий Сережа)
+  image?: string;    // фото места (показывается в попапе)
 }
 
 interface Props {
@@ -215,9 +216,10 @@ export function TripMap({ trip, day, picking, draftCoords, onMapClick, onPlaceCl
       if (!s.coords) return;
       const emoji = tagEmoji(s.tag || '') || (s.kind === 'shopping' ? '🛍' : '📍');
       const m = L.marker(s.coords, { icon: suggestionIcon(emoji, suggestionColor(s.tag || '', s.fromUser || '')) });
+      const img = s.image ? `<img src="${esc(s.image)}" alt="" style="width:100%;height:96px;object-fit:cover;border-radius:8px;margin-bottom:6px"/>` : '';
       const desc = s.desc ? `<br>${esc(s.desc)}` : '';
       const link = s.url ? `<br><a href="${esc(s.url)}" target="_blank" rel="noreferrer">ссылка&nbsp;↗</a>` : '';
-      m.bindPopup(`<b>${esc(s.name)}</b>${desc}${link}`);
+      m.bindPopup(`${img}<b>${esc(s.name)}</b>${desc}${link}`);
       m.addTo(mLayer);
       bounds.push(s.coords);
     });

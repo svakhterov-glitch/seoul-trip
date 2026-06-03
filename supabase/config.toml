@@ -27,3 +27,6 @@ verify_jwt = false
 
 [functions.describe-places]
 verify_jwt = false
+
+[functions.image-search]
+verify_jwt = false

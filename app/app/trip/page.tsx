@@ -26,6 +26,7 @@ import { generateItinerary, type ItineraryPace } from '@/lib/generateItinerary';
 import { suggestChecklist } from '@/lib/suggestChecklist';
 import { geocodeQueries, cityCenter, inRegion } from '@/lib/geocode';
 import { describePlaces } from '@/lib/describePlaces';
+import { searchImages } from '@/lib/imageSearch';
 import { fetchMediaBoard, fetchMoreMedia } from '@/lib/mediaBoard';
 import { type MediaItem } from '@/lib/media';
 import { formatDateRange, daysBetween } from '@/lib/days';
@@ -391,6 +392,18 @@ function PlannerInner() {
           await updateSuggestion(s.id, { description: dsc });
         }));
       }
+      // 4) Картинка места (Kakao image search) — для мест без фото: чтобы в карточке
+      //    и попапе на карте было фото, а не смайлик.
+      const needImg = list.filter((s) => s.name && !s.image).slice(0, 60);
+      if (needImg.length) {
+        const imgs = await searchImages(needImg.map((s) => `${s.name} ${base.city}`.trim()));
+        await Promise.all(needImg.map(async (s, i) => {
+          const url = imgs[i];
+          if (!url) return;
+          patchSuggestion(s.id, { image: url });
+          await updateSuggestion(s.id, { image: url });
+        }));
+      }
       // Помечаем все попытанные предложения разобранными — счётчик дойдёт до нуля,
       // а кнопка покажет «✅ Всё обработано» вместо вечного «(N)».
       const tried = list.filter(needsWork).map((s) => s.id);
@@ -638,7 +651,7 @@ function PlannerInner() {
     // Нет исходной ссылки (фото/пересланное без URL) — даём ссылку «открыть
     // карточку места» поиском по названию, как у «Медиа».
     .map((s) => ({ id: s.id, name: s.name, coords: s.coords as Coords, kind: s.kind,
-      url: s.url || (s.name ? placeMapsUrl(s.name, trip.city) : ''), desc: s.description, tag: s.tag, fromUser: s.fromUser }));
+      url: s.url || (s.name ? placeMapsUrl(s.name, trip.city) : ''), desc: s.description, tag: s.tag, fromUser: s.fromUser, image: s.image }));
   const sugLayerMarkers = sugAllMarkers.filter((s) => !routeNames.has(norm(s.name)));
   const mediaLayerMarkers = (mediaItems ?? []).filter((m) => m.coords && !routeNames.has(norm(m.name)));
 
