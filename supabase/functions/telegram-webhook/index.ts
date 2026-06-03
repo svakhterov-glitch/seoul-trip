@@ -73,6 +73,23 @@ async function handleUpdate(update: any): Promise<void> {
   const tripId = await tripForChat(chatId);
   if (!tripId) return; // не подключено — молчим (без спама)
 
+  // 2.5) ТОЧНЫЙ ГЕОТЕГ Telegram: «поделиться геопозицией» (location) или карточка
+  //   заведения (venue). Это точные координаты от самого Telegram — берём как есть,
+  //   ничего не геокодим. У venue ещё есть название и адрес.
+  const venue = msg.venue ?? null;
+  const loc = msg.location ?? venue?.location ?? null;
+  if (loc && typeof loc.latitude === "number" && typeof loc.longitude === "number") {
+    const name = (venue?.title || text.trim().split("\n")[0] || "Точка на карте").slice(0, 120);
+    await insertSuggestions([{
+      trip_id: tripId, chat_id: chatId, kind: "place", url: "",
+      name, description: (venue?.address ?? "").toString().slice(0, 300), image: "",
+      coords: [loc.latitude, loc.longitude],
+      from_user: fromUser, raw_text: text.slice(0, 500),
+    }]);
+    await reply(chatId, `Добавил в предложку:\n📍 ${name}`, msg.message_id);
+    return;
+  }
+
   const entities = msg.entities ?? msg.caption_entities ?? [];
   const urls = extractUrls(text, entities);
   const listItems = parseList(text, entities);

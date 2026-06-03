@@ -78,7 +78,7 @@ export function SuggestionBoard({
           {places.length > 0 && (
             <Group title="Места" count={places.length}>
               {places.map((it) => (
-                <SuggestionCard key={it.id} item={it} days={days} busy={busy}
+                <SuggestionCard key={it.id} item={it} days={days} busy={busy} processing={processing}
                   onAddToDay={onAddToDay} onAddToShopping={onAddToShopping} onDismiss={onDismiss} onTag={onTag} />
               ))}
             </Group>
@@ -86,7 +86,7 @@ export function SuggestionBoard({
           {shopping.length > 0 && (
             <Group title="Покупки" count={shopping.length}>
               {shopping.map((it) => (
-                <SuggestionCard key={it.id} item={it} days={days} busy={busy}
+                <SuggestionCard key={it.id} item={it} days={days} busy={busy} processing={processing}
                   onAddToDay={onAddToDay} onAddToShopping={onAddToShopping} onDismiss={onDismiss} onTag={onTag} />
               ))}
             </Group>
@@ -106,21 +106,27 @@ function Group({ title, count, children }: { title: string; count: number; child
   );
 }
 
-function SuggestionCard({ item, days, busy, onAddToDay, onAddToShopping, onDismiss, onTag }: {
-  item: TgSuggestion; days: Day[]; busy: boolean;
+function SuggestionCard({ item, days, busy, processing, onAddToDay, onAddToShopping, onDismiss, onTag }: {
+  item: TgSuggestion; days: Day[]; busy: boolean; processing: boolean;
   onAddToDay: (i: TgSuggestion, d: number) => void;
   onAddToShopping: (i: TgSuggestion) => void;
   onDismiss: (i: TgSuggestion) => void;
   onTag: (i: TgSuggestion, tag: string) => void;
 }) {
   const [day, setDay] = useState<number>(days[0]?.number ?? 1);
+  // Место без координат после разбора — точку найти не удалось (индикатор «?»).
+  // Во время разбора не показываем — точка ещё может появиться.
+  const noPoint = item.kind === 'place' && !item.coords && !processing;
   return (
     <article className={styles.card}>
       {item.image
         ? <img className={styles.thumb} src={item.image} alt="" loading="lazy" />
         : <div className={styles.thumbEmpty} aria-hidden="true">{item.kind === 'shopping' ? '🛍' : '📍'}</div>}
       <div className={styles.body}>
-        <div className={styles.name}>{item.name}</div>
+        <div className={styles.name}>
+          {item.name}
+          {noPoint && <span className={styles.noPoint} title="Точку на карте найти не удалось">?</span>}
+        </div>
         {item.description && <div className={styles.desc}>{item.description}</div>}
         <div className={styles.meta}>
           {item.fromUser && <span>от {item.fromUser}</span>}
