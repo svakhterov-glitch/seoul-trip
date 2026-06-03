@@ -145,7 +145,7 @@ function PlannerInner() {
 
   // доска «Медиа» — лениво: при открытии её вкладки ИЛИ при включении слоя на маршруте
   useEffect(() => {
-    const need = activeDay === MEDIA_TAB || (activeDay === 0 && layerMedia);
+    const need = activeDay === MEDIA_TAB || (activeDay >= 0 && layerMedia);
     if (!need || !trip || mediaItems !== null || mediaLoading) return;
     setMediaLoading(true);
     fetchMediaBoard(trip.city, trip.country)
@@ -155,7 +155,7 @@ function PlannerInner() {
 
   // «Предложка» (Telegram) — лениво: при открытии её вкладки ИЛИ при включении слоя
   useEffect(() => {
-    const need = activeDay === INBOX_TAB || (activeDay === 0 && layerSug);
+    const need = activeDay === INBOX_TAB || (activeDay >= 0 && layerSug);
     if (!need || !trip || suggestions !== null || suggestLoading) return;
     setSuggestLoading(true);
     Promise.all([listSuggestions(trip.id), telegramLinkStatus(trip.id)])
@@ -166,7 +166,7 @@ function PlannerInner() {
   // Авто-разбор предложки (фото/координаты) — один раз: при открытии её вкладки
   // ИЛИ при включении слоя «Предложка» на маршруте (иначе метки без точки не видны).
   useEffect(() => {
-    const active = activeDay === INBOX_TAB || (activeDay === 0 && layerSug);
+    const active = activeDay === INBOX_TAB || (activeDay >= 0 && layerSug);
     if (!active || !suggestions || autoProcessedRef.current) return;
     if (rawSuggestionCount(suggestions) === 0) return;
     autoProcessedRef.current = true;
@@ -675,7 +675,7 @@ function PlannerInner() {
           inboxCount={suggestions?.length ?? 0}
           onSelect={(d) => { setActiveDay(d); setHighlightId(null); }} />
 
-        {activeDay === 0 && (
+        {activeDay >= 0 && (
           <div className={styles.layers} role="group" aria-label="Слои на карте">
             <span className={styles.layersLabel}>Слои на карте:</span>
             <button type="button" className={layerMedia ? styles.layerOn : styles.layer}
@@ -702,9 +702,9 @@ function PlannerInner() {
             }}
             onPlaceClick={openEdit}
             media={activeDay === MEDIA_TAB ? (mediaItems ?? [])
-              : (activeDay === 0 && layerMedia) ? mediaLayerMarkers : undefined}
+              : (activeDay >= 0 && layerMedia) ? mediaLayerMarkers : undefined}
             suggestions={activeDay === INBOX_TAB ? sugAllMarkers
-              : (activeDay === 0 && layerSug) ? sugLayerMarkers : undefined}
+              : (activeDay >= 0 && layerSug) ? sugLayerMarkers : undefined}
             highlightId={highlightId} onMediaClick={setHighlightId}
             hotels={trip.hotels} />
         </div>
