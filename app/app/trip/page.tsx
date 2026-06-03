@@ -638,7 +638,7 @@ function PlannerInner() {
     // Нет исходной ссылки (фото/пересланное без URL) — даём ссылку «открыть
     // карточку места» поиском по названию, как у «Медиа».
     .map((s) => ({ id: s.id, name: s.name, coords: s.coords as Coords, kind: s.kind,
-      url: s.url || (s.name ? placeMapsUrl(s.name, trip.city) : ''), desc: s.description, tag: s.tag }));
+      url: s.url || (s.name ? placeMapsUrl(s.name, trip.city) : ''), desc: s.description, tag: s.tag, fromUser: s.fromUser }));
   const sugLayerMarkers = sugAllMarkers.filter((s) => !routeNames.has(norm(s.name)));
   const mediaLayerMarkers = (mediaItems ?? []).filter((m) => m.coords && !routeNames.has(norm(m.name)));
 

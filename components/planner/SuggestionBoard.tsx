@@ -3,7 +3,10 @@
 import { useState, type ReactNode } from 'react';
 import type { Day } from '@/lib/entities';
 import type { TgSuggestion, TgLinkStatus } from '@/lib/telegramInbox';
-import { SUGGESTION_TAGS } from '@/lib/suggestionTags';
+import { SUGGESTION_TAGS, tagEmoji } from '@/lib/suggestionTags';
+
+/** Подпись категории со смайликом ('Важно' и пустая — без смайлика). */
+const catLabel = (t: string) => `${tagEmoji(t)} ${t}`.trim();
 import styles from './SuggestionBoard.module.css';
 
 interface Props {
@@ -29,18 +32,25 @@ export function SuggestionBoard({
   items, days, loading, busy = false, link, botName, connecting = false,
   processing = false, rawCount = 0, onProcess, onConnect, onAddToDay, onAddToShopping, onDismiss, onTag,
 }: Props) {
-  // фильтр по тегу: null = все, '' = без тегов, иначе конкретный тег
+  // фильтр по категории: null = все, '' = без категории, иначе конкретная категория
   const [tagFilter, setTagFilter] = useState<string | null>(null);
-  const shown = tagFilter === null ? items : items.filter((i) => (i.tag || '') === tagFilter);
-  const places = shown.filter((i) => i.kind === 'place');
-  const shopping = shown.filter((i) => i.kind === 'shopping');
-  const count = (t: string | null) => (t === null ? items.length : items.filter((i) => (i.tag || '') === t).length);
+  // принадлежность к категории: '' = всё, что вне списка категорий (включая пустые)
+  const inCat = (i: TgSuggestion, t: string) =>
+    t === '' ? !SUGGESTION_TAGS.includes(i.tag || '') : (i.tag || '') === t;
+  const shown = tagFilter === null ? items : items.filter((i) => inCat(i, tagFilter));
+  const count = (t: string | null) => (t === null ? items.length : items.filter((i) => inCat(i, t)).length);
 
   const filters: { key: string | null; label: string }[] = [
     { key: null, label: 'Все' },
-    ...SUGGESTION_TAGS.map((t) => ({ key: t, label: t })),
-    { key: '', label: 'Без тегов' },
+    ...SUGGESTION_TAGS.map((t) => ({ key: t, label: catLabel(t) })),
+    { key: '', label: 'Без категории' },
   ];
+
+  // секции страницы — по категориям (в порядке списка), плюс «Без категории».
+  const groups = [
+    ...SUGGESTION_TAGS.map((c) => ({ key: c, label: catLabel(c), list: shown.filter((i) => (i.tag || '') === c) })),
+    { key: '__none', label: 'Без категории', list: shown.filter((i) => !SUGGESTION_TAGS.includes(i.tag || '')) },
+  ].filter((g) => g.list.length > 0);
 
   return (
     <section className={styles.wrap} aria-label="Предложка из Telegram">
@@ -56,7 +66,7 @@ export function SuggestionBoard({
       <ConnectPanel link={link} botName={botName} connecting={connecting} onConnect={onConnect} />
 
       {items.length > 0 && (
-        <div className={styles.filters} role="group" aria-label="Фильтр по тегу">
+        <div className={styles.filters} role="group" aria-label="Фильтр по категории">
           {filters.map((f) => (
             <button key={f.label} type="button"
               className={`${styles.filter} ${tagFilter === f.key ? styles.filterOn : ''}`}
@@ -72,25 +82,17 @@ export function SuggestionBoard({
       ) : items.length === 0 ? (
         <p className={styles.note}>Пока пусто. Кидайте ссылки в подключённую группу — они появятся здесь.</p>
       ) : shown.length === 0 ? (
-        <p className={styles.note}>Нет предложений с этим тегом.</p>
+        <p className={styles.note}>Нет предложений в этой категории.</p>
       ) : (
         <>
-          {places.length > 0 && (
-            <Group title="Места" count={places.length}>
-              {places.map((it) => (
+          {groups.map((g) => (
+            <Group key={g.key} title={g.label} count={g.list.length}>
+              {g.list.map((it) => (
                 <SuggestionCard key={it.id} item={it} days={days} busy={busy} processing={processing}
                   onAddToDay={onAddToDay} onAddToShopping={onAddToShopping} onDismiss={onDismiss} onTag={onTag} />
               ))}
             </Group>
-          )}
-          {shopping.length > 0 && (
-            <Group title="Покупки" count={shopping.length}>
-              {shopping.map((it) => (
-                <SuggestionCard key={it.id} item={it} days={days} busy={busy} processing={processing}
-                  onAddToDay={onAddToDay} onAddToShopping={onAddToShopping} onDismiss={onDismiss} onTag={onTag} />
-              ))}
-            </Group>
-          )}
+          ))}
         </>
       )}
     </section>
@@ -121,7 +123,7 @@ function SuggestionCard({ item, days, busy, processing, onAddToDay, onAddToShopp
     <article className={styles.card}>
       {item.image
         ? <img className={styles.thumb} src={item.image} alt="" loading="lazy" />
-        : <div className={styles.thumbEmpty} aria-hidden="true">{item.kind === 'shopping' ? '🛍' : '📍'}</div>}
+        : <div className={styles.thumbEmpty} aria-hidden="true">{tagEmoji(item.tag || '') || (item.kind === 'shopping' ? '🛍' : '📍')}</div>}
       <div className={styles.body}>
         <div className={styles.name}>
           {item.name}
@@ -132,9 +134,9 @@ function SuggestionCard({ item, days, busy, processing, onAddToDay, onAddToShopp
           {item.fromUser && <span>от {item.fromUser}</span>}
           {item.url && <a className={styles.src} href={item.url} target="_blank" rel="noreferrer">ссылка ↗</a>}
           <select className={styles.tag} value={item.tag || ''} disabled={busy}
-            onChange={(e) => onTag(item, e.target.value)} aria-label="Тег">
-            <option value="">Без тегов</option>
-            {SUGGESTION_TAGS.map((t) => <option key={t} value={t}>{t}</option>)}
+            onChange={(e) => onTag(item, e.target.value)} aria-label="Категория">
+            <option value="">Без категории</option>
+            {SUGGESTION_TAGS.map((t) => <option key={t} value={t}>{catLabel(t)}</option>)}
           </select>
         </div>
         <div className={styles.actions}>
