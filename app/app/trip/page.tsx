@@ -635,7 +635,10 @@ function PlannerInner() {
   const norm = (s: string) => (s || '').trim().toLowerCase();
   // Метки слоёв для карты (с координатами; для наложения на маршрут — без уже добавленных).
   const sugAllMarkers = (suggestions ?? []).filter((s) => s.coords)
-    .map((s) => ({ id: s.id, name: s.name, coords: s.coords as Coords, kind: s.kind, url: s.url, desc: s.description, tag: s.tag }));
+    // Нет исходной ссылки (фото/пересланное без URL) — даём ссылку «открыть
+    // карточку места» поиском по названию, как у «Медиа».
+    .map((s) => ({ id: s.id, name: s.name, coords: s.coords as Coords, kind: s.kind,
+      url: s.url || (s.name ? placeMapsUrl(s.name, trip.city) : ''), desc: s.description, tag: s.tag }));
   const sugLayerMarkers = sugAllMarkers.filter((s) => !routeNames.has(norm(s.name)));
   const mediaLayerMarkers = (mediaItems ?? []).filter((m) => m.coords && !routeNames.has(norm(m.name)));
 
