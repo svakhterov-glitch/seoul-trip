@@ -112,6 +112,10 @@ function PlannerInner() {
   // идёт разбор ссылок предложки (фото/описание/координаты)
   const [processingSug, setProcessingSug] = useState(false);
   const autoProcessedRef = useRef(false); // авто-разбор предложки — один раз за открытие
+  // ID предложений, уже прошедших разбор: после попытки не считаем их «требующими
+  // работы» снова — иначе неназываемое место/ссылка без фото держит счётчик навсегда
+  // и кнопка «Обработать» выглядит сломанной (клик → та же неудача → «ничего»).
+  const [processedIds, setProcessedIds] = useState<Set<string>>(new Set());
   // слои на карте «Весь маршрут»: наложить метки Медиа / Предложки поверх маршрута
   const [layerMedia, setLayerMedia] = useState(false);
   const [layerSug, setLayerSug] = useState(false);
@@ -314,7 +318,9 @@ function PlannerInner() {
     return false;
   }
   function rawSuggestionCount(list: TgSuggestion[]): number {
-    return list.filter(needsWork).length;
+    // Не считаем уже попытанные: повторный разбор того же имени/ссылки результата
+    // не даст, а вечный счётчик создаёт впечатление, что кнопка не работает.
+    return list.filter((s) => needsWork(s) && !processedIds.has(s.id)).length;
   }
 
   function patchSuggestion(id: string, fields: Partial<TgSuggestion>) {
@@ -385,6 +391,10 @@ function PlannerInner() {
           await updateSuggestion(s.id, { description: dsc });
         }));
       }
+      // Помечаем все попытанные предложения разобранными — счётчик дойдёт до нуля,
+      // а кнопка покажет «✅ Всё обработано» вместо вечного «(N)».
+      const tried = list.filter(needsWork).map((s) => s.id);
+      if (tried.length) setProcessedIds((prev) => new Set([...prev, ...tried]));
     } finally {
       setProcessingSug(false);
     }
