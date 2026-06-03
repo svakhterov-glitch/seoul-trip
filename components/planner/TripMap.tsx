@@ -8,6 +8,7 @@ import { addDays } from '@/lib/days';
 import { dayColor } from '@/lib/dayColors';
 import { kindColor } from '@/lib/kindColors';
 import { type MediaItem, rubricMeta } from '@/lib/media';
+import { tagColor } from '@/lib/suggestionTags';
 import styles from './TripMap.module.css';
 
 /** Метка предложки на карте (слой «Предложка»). */
@@ -18,6 +19,7 @@ export interface SuggestionMarker {
   kind: 'place' | 'shopping';
   url?: string;   // ссылка-источник (показывается в попапе метки)
   desc?: string;  // краткое описание (как у «Медиа»)
+  tag?: string;   // тег предложки — задаёт цвет метки на карте
 }
 
 interface Props {
@@ -70,10 +72,10 @@ function mediaIcon(item: MediaItem, on: boolean) {
   });
 }
 
-function suggestionIcon(kind: 'place' | 'shopping') {
+function suggestionIcon(kind: 'place' | 'shopping', color: string) {
   return L.divIcon({
     className: '',
-    html: `<div class="${styles.sugPin}"><span>${kind === 'shopping' ? '🛍' : '✨'}</span></div>`,
+    html: `<div class="${styles.sugPin}" style="background:${color}"><span>${kind === 'shopping' ? '🛍' : '✨'}</span></div>`,
     iconSize: [30, 30], iconAnchor: [15, 30], popupAnchor: [0, -28],
   });
 }
@@ -210,7 +212,7 @@ export function TripMap({ trip, day, picking, draftCoords, onMapClick, onPlaceCl
     // СЛОЙ «ПРЕДЛОЖКА»: метки входящих из Telegram. Рисуем, если переданы.
     (suggestions ?? []).forEach((s) => {
       if (!s.coords) return;
-      const m = L.marker(s.coords, { icon: suggestionIcon(s.kind) });
+      const m = L.marker(s.coords, { icon: suggestionIcon(s.kind, tagColor(s.tag || '')) });
       const desc = s.desc ? `<br>${esc(s.desc)}` : '';
       const link = s.url ? `<br><a href="${esc(s.url)}" target="_blank" rel="noreferrer">ссылка&nbsp;↗</a>` : '';
       m.bindPopup(`<b>${esc(s.name)}</b>${desc}${link}`);

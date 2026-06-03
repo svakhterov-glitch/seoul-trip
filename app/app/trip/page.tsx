@@ -625,7 +625,7 @@ function PlannerInner() {
   const norm = (s: string) => (s || '').trim().toLowerCase();
   // Метки слоёв для карты (с координатами; для наложения на маршрут — без уже добавленных).
   const sugAllMarkers = (suggestions ?? []).filter((s) => s.coords)
-    .map((s) => ({ id: s.id, name: s.name, coords: s.coords as Coords, kind: s.kind, url: s.url, desc: s.description }));
+    .map((s) => ({ id: s.id, name: s.name, coords: s.coords as Coords, kind: s.kind, url: s.url, desc: s.description, tag: s.tag }));
   const sugLayerMarkers = sugAllMarkers.filter((s) => !routeNames.has(norm(s.name)));
   const mediaLayerMarkers = (mediaItems ?? []).filter((m) => m.coords && !routeNames.has(norm(m.name)));
 
