@@ -131,9 +131,12 @@ async function handleUpdate(update: any): Promise<void> {
   if ((!photoId && !forwarded) || !text.trim()) return;
   const ex = await aiExtract(text);
   const image = photoId ? await uploadPhoto(photoId) : "";
+  // Адрес из сообщения — самый надёжный ключ для Kakao (романизированное имя +
+  // рус. страна геокодер часто промахивает). Геокодим адрес сразу → точная точка.
+  const coords = ex.kind === "place" && ex.address ? await geocodeAddress(ex.address) : null;
   await insertSuggestions([{
     trip_id: tripId, chat_id: chatId, kind: ex.kind, url: "",
-    name: ex.name, description: ex.description, image, coords: null,
+    name: ex.name, description: ex.description, image, coords,
     from_user: fromUser, raw_text: text.slice(0, 500),
   }]);
   await reply(chatId, `Добавил в предложку:\n${ex.kind === "shopping" ? "🛍" : "📍"} ${ex.name}`, msg.message_id);
@@ -161,11 +164,11 @@ function isForwarded(msg: any): boolean {
 
 // Классификация + чистое имя/описание для текста БЕЗ ссылки — через Haiku (без
 // веб-поиска: быстро/дёшево). Фолбэк по ключевым словам, если ИИ недоступен.
-async function aiExtract(text: string): Promise<{ kind: "place" | "shopping"; name: string; description: string }> {
+async function aiExtract(text: string): Promise<{ kind: "place" | "shopping"; name: string; description: string; address: string }> {
   const firstLine = (text.split("\n").map((s) => s.trim()).filter(Boolean)[0] || "Из Telegram").slice(0, 80);
-  const fallback = (): { kind: "place" | "shopping"; name: string; description: string } => ({
+  const fallback = (): { kind: "place" | "shopping"; name: string; description: string; address: string } => ({
     kind: SHOP_WORDS.some((w) => text.toLowerCase().includes(w)) ? "shopping" : "place",
-    name: firstLine, description: text.slice(0, 300),
+    name: firstLine, description: text.slice(0, 300), address: "",
   });
   if (!ANTHROPIC_KEY || !text.trim()) return fallback();
   try {
@@ -174,14 +177,15 @@ async function aiExtract(text: string): Promise<{ kind: "place" | "shopping"; na
       headers: { "x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
       body: JSON.stringify({
         model: AI_MODEL,
-        max_tokens: 300,
+        max_tokens: 350,
         messages: [{
           role: "user",
           content: `Сообщение из чата путешественников — про МЕСТО (куда сходить) или ТОВАР (что купить).
-Верни ТОЛЬКО JSON, без пояснений: {"kind":"place|shopping","name":"...","description":"..."}.
+Верни ТОЛЬКО JSON, без пояснений: {"kind":"place|shopping","name":"...","description":"...","address":"..."}.
 - kind: "shopping" если это товар/покупка (косметика, БАД, одежда, гаджет, еда на вынос), иначе "place".
 - name: короткое РЕАЛЬНОЕ название места/товара (имя собственное не переводи), по-русски допустимо пояснение.
 - description: 1 короткая фраза по-русски.
+- address: ТОЧНЫЙ адрес места, если он есть в сообщении (улица, дом, район — как написано, НЕ переводи), иначе "". Для товара всегда "".
 Сообщение:
 """${text.slice(0, 800)}"""`,
         }],
@@ -196,7 +200,8 @@ async function aiExtract(text: string): Promise<{ kind: "place" | "shopping"; na
     const kind = o?.kind === "shopping" ? "shopping" : "place";
     const name = (typeof o?.name === "string" && o.name.trim()) ? o.name.trim().slice(0, 120) : firstLine;
     const description = typeof o?.description === "string" ? o.description.trim().slice(0, 300) : text.slice(0, 300);
-    return { kind, name, description };
+    const address = typeof o?.address === "string" ? o.address.trim().slice(0, 200) : "";
+    return { kind, name, description, address };
   } catch {
     return fallback();
   }
@@ -285,6 +290,25 @@ async function resolveLink(url: string): Promise<LinkInfo> {
     };
   } catch {
     return { name: "", desc: "", image: "", coords: null };
+  }
+}
+
+// Геокодинг адреса через задеплоенную функцию geocode (Kakao, фолбэк Nominatim).
+// Адрес — точный ключ; даже без города/страны Kakao находит корейские адреса.
+async function geocodeAddress(address: string): Promise<number[] | null> {
+  if (!address.trim()) return null;
+  try {
+    const r = await fetch(`${SUPABASE_URL}/functions/v1/geocode`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${ANON_KEY}`, apikey: ANON_KEY },
+      body: JSON.stringify({ queries: [address] }),
+    });
+    if (!r.ok) return null;
+    const d = await r.json();
+    const c = Array.isArray(d?.coords) ? d.coords[0] : null;
+    return (Array.isArray(c) && c.length === 2 && typeof c[0] === "number" && typeof c[1] === "number") ? c : null;
+  } catch {
+    return null;
   }
 }
 
