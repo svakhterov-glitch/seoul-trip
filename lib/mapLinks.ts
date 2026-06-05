@@ -52,7 +52,9 @@ export function isMapLink(url: string): boolean {
 export function catchtableUrl(name: string): string {
   const kr = ((name || '').match(/[가-힣][가-힣\s]*/g) || []).join(' ').trim();
   const q = (kr || name || '').trim();
-  return `https://app.catchtable.co.kr/ct/search?keyword=${enc(q)}`;
+  // Маршрут поиска глобального сайта CatchTable (из их же JS-бандла):
+  // /keyword-search?keyword=… (бэкенд — /api/v6/search/keyword).
+  return `https://www.catchtable.net/keyword-search?keyword=${enc(q)}`;
 }
 
 /** Ссылка-навигация в Kakao (маршрут «до точки»). Требует координат. */
