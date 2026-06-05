@@ -50,8 +50,11 @@ export function isMapLink(url: string): boolean {
  *  названию. CatchTable корейский, поэтому ищем по корейской части имени, если она
  *  есть (напр. «Kojima (스시 코지마)» → «스시 코지마»), иначе по всему названию. */
 export function catchtableUrl(name: string): string {
+  // Корейская часть названия — лучший запрос для CatchTable; иначе чистим имя от
+  // эмодзи/символов (напр. «🍽 Myeongdong Kyoja» → «Myeongdong Kyoja»).
   const kr = ((name || '').match(/[가-힣][가-힣\s]*/g) || []).join(' ').trim();
-  const q = (kr || name || '').trim();
+  const cleaned = (name || '').replace(/[^\p{L}\p{N}\s]/gu, ' ').replace(/\s+/g, ' ').trim();
+  const q = (kr || cleaned).trim();
   // Маршрут поиска глобального сайта CatchTable (из их же JS-бандла):
   // /keyword-search?keyword=… (бэкенд — /api/v6/search/keyword).
   return `https://www.catchtable.net/keyword-search?keyword=${enc(q)}`;

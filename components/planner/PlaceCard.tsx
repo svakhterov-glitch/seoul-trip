@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { type Place, type Category, getPlaceKind } from '@/lib/entities';
-import { placeMapLinks } from '@/lib/mapLinks';
+import { placeMapLinks, catchtableUrl } from '@/lib/mapLinks';
 import { PriceBadge, KindBadge, PersonBadge } from './badges';
 import styles from './PlaceCard.module.css';
 
@@ -126,6 +126,8 @@ export function PlaceCard({ place, category, onSelect, onEdit, onDelete, onToggl
                 onClick={(e) => e.stopPropagation()}>Naver</a>
               <a className={styles.mapLink} href={maps.google} target="_blank" rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}>Google</a>
+              <a className={styles.mapLink} href={catchtableUrl(place.name)} target="_blank" rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}>Catchtable</a>
             </div>
             {onAddChecklist && (
               <div className={styles.checklist} onClick={(e) => e.stopPropagation()}>

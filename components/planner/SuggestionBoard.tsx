@@ -4,6 +4,7 @@ import { useState, type ReactNode } from 'react';
 import type { Day } from '@/lib/entities';
 import type { TgSuggestion, TgLinkStatus } from '@/lib/telegramInbox';
 import { SUGGESTION_TAGS, tagEmoji } from '@/lib/suggestionTags';
+import { catchtableUrl } from '@/lib/mapLinks';
 
 /** Подпись категории со смайликом ('Важно' и пустая — без смайлика). */
 const catLabel = (t: string) => `${tagEmoji(t)} ${t}`.trim();
@@ -133,6 +134,7 @@ function SuggestionCard({ item, days, busy, processing, onAddToDay, onAddToShopp
         <div className={styles.meta}>
           {item.fromUser && <span>от {item.fromUser}</span>}
           {item.url && <a className={styles.src} href={item.url} target="_blank" rel="noreferrer">ссылка ↗</a>}
+          <a className={styles.src} href={catchtableUrl(item.name)} target="_blank" rel="noreferrer">Catchtable ↗</a>
           <select className={styles.tag} value={item.tag || ''} disabled={busy}
             onChange={(e) => onTag(item, e.target.value)} aria-label="Категория">
             <option value="">Без категории</option>
