@@ -27,6 +27,7 @@ import { suggestChecklist } from '@/lib/suggestChecklist';
 import { geocodeQueries, cityCenter, inRegion } from '@/lib/geocode';
 import { describePlaces } from '@/lib/describePlaces';
 import { searchImages } from '@/lib/imageSearch';
+import { SUGGESTION_TAGS, tagEmoji } from '@/lib/suggestionTags';
 import { fetchMediaBoard, fetchMoreMedia } from '@/lib/mediaBoard';
 import { type MediaItem } from '@/lib/media';
 import { formatDateRange, daysBetween } from '@/lib/days';
@@ -120,6 +121,13 @@ function PlannerInner() {
   // слои на карте «Весь маршрут»: наложить метки Медиа / Предложки поверх маршрута
   const [layerMedia, setLayerMedia] = useState(false);
   const [layerSug, setLayerSug] = useState(false);
+  // скрытые категории предложки на карте (пусто = показаны все); чип-фильтр под слоями
+  const [hiddenSugCats, setHiddenSugCats] = useState<Set<string>>(new Set());
+  const toggleSugCat = (key: string) => setHiddenSugCats((prev) => {
+    const next = new Set(prev);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    return next;
+  });
   const mapRef = useRef<HTMLDivElement>(null);
   // Свежий документ для патча после async-разбора (state мог уйти вперёд).
   const tripRef = useRef<TripDoc | null>(null);
@@ -654,6 +662,15 @@ function PlannerInner() {
       url: s.url || (s.name ? placeMapsUrl(s.name, trip.city) : ''), desc: s.description, tag: s.tag, fromUser: s.fromUser, image: s.image }));
   const sugLayerMarkers = sugAllMarkers.filter((s) => !routeNames.has(norm(s.name)));
   const mediaLayerMarkers = (mediaItems ?? []).filter((m) => m.coords && !routeNames.has(norm(m.name)));
+  // Чипы-категории под слоем «Предложка»: ключ '' = «Без категории». Только те,
+  // что реально есть среди меток. Нажатие чипа скрывает/показывает категорию на карте.
+  const catKey = (t: string) => (SUGGESTION_TAGS.includes(t) ? t : '');
+  const sugCatChips = [...SUGGESTION_TAGS, ''].map((key) => ({
+    key,
+    label: key === '' ? 'Без категории' : `${tagEmoji(key)} ${key}`.trim(),
+    count: sugLayerMarkers.filter((s) => catKey(s.tag || '') === key).length,
+  })).filter((c) => c.count > 0);
+  const sugLayerVisible = sugLayerMarkers.filter((s) => !hiddenSugCats.has(catKey(s.tag || '')));
 
   return (
     <main>
@@ -697,8 +714,22 @@ function PlannerInner() {
             </button>
             <button type="button" className={layerSug ? styles.layerOn : styles.layer}
               aria-pressed={layerSug} onClick={() => setLayerSug((v) => !v)}>
-              ✨ Предложка{layerSug ? (processingSug ? '…' : ` (${sugLayerMarkers.length})`) : ''}
+              ✨ Предложка{layerSug ? (processingSug ? '…' : ` (${sugLayerVisible.length})`) : ''}
             </button>
+          </div>
+        )}
+
+        {activeDay >= 0 && layerSug && sugCatChips.length > 0 && (
+          <div className={styles.layers} role="group" aria-label="Категории предложки на карте">
+            <span className={styles.layersLabel}>Категории:</span>
+            {sugCatChips.map((c) => (
+              <button key={c.key || 'none'} type="button"
+                className={hiddenSugCats.has(c.key) ? styles.layer : styles.layerOn}
+                aria-pressed={!hiddenSugCats.has(c.key)}
+                onClick={() => toggleSugCat(c.key)}>
+                {c.label} ({c.count})
+              </button>
+            ))}
           </div>
         )}
 
@@ -717,7 +748,7 @@ function PlannerInner() {
             media={activeDay === MEDIA_TAB ? (mediaItems ?? [])
               : (activeDay >= 0 && layerMedia) ? mediaLayerMarkers : undefined}
             suggestions={activeDay === INBOX_TAB ? sugAllMarkers
-              : (activeDay >= 0 && layerSug) ? sugLayerMarkers : undefined}
+              : (activeDay >= 0 && layerSug) ? sugLayerVisible : undefined}
             highlightId={highlightId} onMediaClick={setHighlightId}
             hotels={trip.hotels} />
         </div>
