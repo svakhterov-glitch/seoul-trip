@@ -9,6 +9,7 @@ import { dayColor } from '@/lib/dayColors';
 import { kindColor } from '@/lib/kindColors';
 import { type MediaItem, rubricMeta } from '@/lib/media';
 import { suggestionColor, tagEmoji } from '@/lib/suggestionTags';
+import { catchtableUrl } from '@/lib/mapLinks';
 import styles from './TripMap.module.css';
 
 /** Метка предложки на карте (слой «Предложка»). */
@@ -218,8 +219,10 @@ export function TripMap({ trip, day, picking, draftCoords, onMapClick, onPlaceCl
       const m = L.marker(s.coords, { icon: suggestionIcon(emoji, suggestionColor(s.tag || '', s.fromUser || '')) });
       const img = s.image ? `<img src="${esc(s.image)}" alt="" style="width:100%;height:96px;object-fit:cover;border-radius:8px;margin-bottom:6px"/>` : '';
       const desc = s.desc ? `<br>${esc(s.desc)}` : '';
-      const link = s.url ? `<br><a href="${esc(s.url)}" target="_blank" rel="noreferrer">ссылка&nbsp;↗</a>` : '';
-      m.bindPopup(`${img}<b>${esc(s.name)}</b>${desc}${link}`);
+      const g = s.url ? `<a href="${esc(s.url)}" target="_blank" rel="noreferrer">Google&nbsp;↗</a>` : '';
+      const ct = `<a href="${esc(catchtableUrl(s.name))}" target="_blank" rel="noreferrer">Catchtable&nbsp;↗</a>`;
+      const links = `<br>${[g, ct].filter(Boolean).join('&nbsp;&nbsp;·&nbsp;&nbsp;')}`;
+      m.bindPopup(`${img}<b>${esc(s.name)}</b>${desc}${links}`);
       m.addTo(mLayer);
       bounds.push(s.coords);
     });

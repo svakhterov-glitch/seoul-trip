@@ -46,6 +46,15 @@ export function isMapLink(url: string): boolean {
   return /maps\.app\.goo\.gl|goo\.gl\/maps|google\.[a-z.]+\/maps|maps\.google|map\.kakao\.com|place\.map\.kakao|map\.naver\.com|yandex\.[a-z.]+\/maps|maps\.apple\.com|2gis\./.test(u);
 }
 
+/** Ссылка на CatchTable (корейская площадка бронирования ресторанов) — поиск по
+ *  названию. CatchTable корейский, поэтому ищем по корейской части имени, если она
+ *  есть (напр. «Kojima (스시 코지마)» → «스시 코지마»), иначе по всему названию. */
+export function catchtableUrl(name: string): string {
+  const kr = ((name || '').match(/[가-힣][가-힣\s]*/g) || []).join(' ').trim();
+  const q = (kr || name || '').trim();
+  return `https://app.catchtable.co.kr/ct/search?keyword=${enc(q)}`;
+}
+
 /** Ссылка-навигация в Kakao (маршрут «до точки»). Требует координат. */
 export function kakaoRouteUrl(name: string, coords: Coords): string {
   const [lat, lng] = coords;
