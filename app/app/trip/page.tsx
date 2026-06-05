@@ -121,13 +121,22 @@ function PlannerInner() {
   // слои на карте «Весь маршрут»: наложить метки Медиа / Предложки поверх маршрута
   const [layerMedia, setLayerMedia] = useState(false);
   const [layerSug, setLayerSug] = useState(false);
-  // скрытые категории предложки на карте (пусто = показаны все); чип-фильтр под слоями
-  const [hiddenSugCats, setHiddenSugCats] = useState<Set<string>>(new Set());
+  // скрытые категории предложки на карте (пусто = показаны все); чип-фильтр под
+  // слоями. Запоминаются между днями и перезагрузками через localStorage.
+  const [hiddenSugCats, setHiddenSugCats] = useState<Set<string>>(() => {
+    try {
+      const raw = typeof window !== 'undefined' ? window.localStorage.getItem('tp_hiddenSugCats') : null;
+      return raw ? new Set<string>(JSON.parse(raw)) : new Set<string>();
+    } catch { return new Set<string>(); }
+  });
   const toggleSugCat = (key: string) => setHiddenSugCats((prev) => {
     const next = new Set(prev);
     if (next.has(key)) next.delete(key); else next.add(key);
     return next;
   });
+  useEffect(() => {
+    try { window.localStorage.setItem('tp_hiddenSugCats', JSON.stringify([...hiddenSugCats])); } catch { /* ignore */ }
+  }, [hiddenSugCats]);
   const mapRef = useRef<HTMLDivElement>(null);
   // Свежий документ для патча после async-разбора (state мог уйти вперёд).
   const tripRef = useRef<TripDoc | null>(null);

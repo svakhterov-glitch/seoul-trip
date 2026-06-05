@@ -231,7 +231,9 @@ export function TripMap({ trip, day, picking, draftCoords, onMapClick, onPlaceCl
     // слоёв или правке мест — чтобы карта не «прыгала».
     if (bounds.length && fitKeyRef.current !== day) {
       const animate = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      map.fitBounds(L.latLngBounds(bounds).pad(0.18), { animate });
+      // maxZoom держит масштаб в одном диапазоне между днями: день из 1–2 близких
+      // точек иначе зумится почти «в улицу» и карта визуально «скачет по размеру».
+      map.fitBounds(L.latLngBounds(bounds).pad(0.18), { animate, maxZoom: 14 });
       fitKeyRef.current = day;
     }
     setTimeout(() => map.invalidateSize(), 0);
