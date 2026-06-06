@@ -27,8 +27,9 @@ describe('demoMediaFor', () => {
       expect(RUBRICS).toContain(item.rubric);
       expect(getPlaceKind(item.segment)).not.toBeNull();
       expect(item.coords).not.toBeNull();
-      // Фото опционально, но если есть — это прямой Wikimedia-файл (хотлинк).
-      if (item.image) expect(item.image).toMatch(/^https:\/\/upload\.wikimedia\.org\//);
+      // Фото опционально, но если есть — это прямой хотлинк: свободный файл
+      // Wikimedia ИЛИ миниатюра с CDN Kakao (image-search).
+      if (item.image) expect(item.image).toMatch(/^https:\/\/(upload\.wikimedia\.org|search\d*\.kakaocdn\.net)\//);
     }
   });
 
