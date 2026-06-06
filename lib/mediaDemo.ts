@@ -17,6 +17,9 @@ import type { MediaItem } from '@/lib/media';
  *  - CatchTable (캐치테이블) — итоги года 2025: топ ресторанов по бронированиям
  *  - Asia's 50 Best Restaurants 2025 (церемония в Сеуле, 25 марта 2025)
  *  - «100 Taste of Seoul 2025» — список мэрии Сеула (60 экспертов)
+ *  - MICHELIN Guide Seoul & Busan 2026 (10-летие гида, рекордные 10 новых звёзд)
+ *  - Asia's 50 Best Restaurants 2026 (6 ресторанов Сеула; Mingles №4)
+ *  - Seoul Cafe & Bakery Fair 2026 / LetSeoul — кафе-тренды (концепт B.E.Y.O.N.D)
  */
 const SRC = {
   timeout: { source: 'Time Out Seoul', url: 'https://www.timeout.com/seoul/en/things-to-do/best-things-to-do-in-seoul', date: 'сентябрь 2025' },
@@ -25,6 +28,9 @@ const SRC = {
   catchtable: { source: 'CatchTable', url: 'https://www.mt.co.kr/future/2025/12/26/2025122614170384145', date: '2025' },
   asia50: { source: "Asia's 50 Best", url: 'https://www.theworlds50best.com/asia/en/the-list.html', date: '2025' },
   taste: { source: '100 Taste of Seoul', url: 'https://tasteofseoul.visitseoul.net', date: '2025' },
+  michelin2026: { source: 'MICHELIN Guide 2026', url: 'https://guide.michelin.com/en/article/michelin-guide-ceremony/michelin-guide-seoul-busan-2026-highlights', date: '2026' },
+  asia2026: { source: "Asia's 50 Best 2026", url: 'https://www.theworlds50best.com/asia/en/the-list.html', date: '2026' },
+  cafe2026: { source: 'Seoul Cafe Trends 2026', url: 'https://letseoul.com/en/articles/seoul-spring-cafe-trends-2026-beyond', date: '2026' },
 } as const;
 
 type Src = keyof typeof SRC;
@@ -78,8 +84,8 @@ const SEEDS: DemoSeed[] = [
     image: 'https://upload.wikimedia.org/wikipedia/commons/2/23/Hongdae_2.jpg' },
 
   // — MICHELIN Guide 2025 —
-  { id: 'demo_mingles', name: 'Mingles', coords: [37.5226819, 127.0391790], segment: 'food', rubric: 'best', src: 'michelin',
-    blurb: 'Три звезды Мишлен: современная корейская высокая кухня шефа Кан Мингу, сезонные сеты.' },
+  { id: 'demo_mingles', name: 'Mingles', coords: [37.5226819, 127.0391790], segment: 'food', rubric: 'best', src: 'asia2026',
+    blurb: '№4 в Asia’s 50 Best 2026 — лучший результат корейского ресторана за всё время; современная высокая кухня шефа Кан Мингу.' },
   { id: 'demo_seoryung', name: 'Soryeong (Пхеньянский нэнмён)', coords: [37.5585205, 126.9754518], segment: 'food', rubric: 'new', src: 'michelin',
     blurb: 'Холодная гречневая лапша по-пхеньянски — новичок категории Bib Gourmand в гиде Michelin 2025.' },
 
@@ -98,16 +104,28 @@ const SEEDS: DemoSeed[] = [
     blurb: 'Две звезды Мишлен в Чхондаме — новая корейская высокая кухня шефа Лим Чжонсика.' },
 
   // — Asia's 50 Best Restaurants 2025 (сеульские из списка) —
-  { id: 'demo_onjium', name: 'Onjium (Онджиым)', coords: [37.5806, 126.9742], segment: 'food', rubric: 'best', src: 'asia50',
-    blurb: 'Реконструкция придворной корейской кухни по старинным рецептам напротив дворца Кёнбоккун (№10 списка).' },
-  { id: 'demo_eatanic', name: 'Eatanic Garden', coords: [37.5030, 127.0415], segment: 'food', rubric: 'best', src: 'asia50',
-    blurb: 'Современная корейская кухня шефа Сон Чжонвона на 36-м этаже отеля Josun Palace; мишленовская звезда (№25).' },
-  { id: 'demo_mosu', name: 'Mosu Seoul (Мосу)', coords: [37.5411532, 126.9961548], segment: 'food', rubric: 'best', src: 'asia50',
-    blurb: 'Три звезды Мишлен: авторская корейская кухня шефа Ан Сонджэ с западной техникой в Ханнам-доне (№41).' },
+  { id: 'demo_onjium', name: 'Onjium (Онджиым)', coords: [37.5806, 126.9742], segment: 'food', rubric: 'best', src: 'asia2026',
+    blurb: 'Реконструкция придворной корейской кухни напротив дворца Кёнбоккун — №14 в Asia’s 50 Best 2026; шеф Чо Ынхи названа лучшим шеф-женщиной Азии.' },
+  { id: 'demo_eatanic', name: 'Eatanic Garden', coords: [37.5030, 127.0415], segment: 'food', rubric: 'best', src: 'asia2026',
+    blurb: 'Современная корейская кухня шефа Сон Чжонвона на верхнем этаже отеля Josun Palace — №26 в Asia’s 50 Best 2026.' },
+  { id: 'demo_mosu', name: 'Mosu Seoul (Мосу)', coords: [37.5411532, 126.9961548], segment: 'food', rubric: 'best', src: 'asia2026',
+    blurb: 'Три звезды Мишлен: авторская корейская кухня шефа Ан Сонджэ в Ханнам-доне — №41 в Asia’s 50 Best 2026.' },
 
   // — 100 Taste of Seoul 2025 (мэрия Сеула) —
   { id: 'demo_balwoo', name: 'Balwoo Gongyang (Балу Конъян)', coords: [37.5746, 126.9816], segment: 'food', rubric: 'best', src: 'taste',
     blurb: 'Храмовая кухня у ворот Чогеса: вегетарианские сеты по буддийским канонам, звезда Мишлен.' },
+
+  // — MICHELIN Guide Seoul & Busan 2026 (10-летие гида, рекордные 10 новых звёзд) —
+  { id: 'demo_mitou', name: 'Mitou (Митоу)', coords: [37.5258563716046, 127.044921119762], segment: 'food', rubric: 'new', src: 'michelin2026',
+    blurb: 'Новые 2 звезды Michelin 2026 и «зелёная звезда»: сезонная кухня с минимумом отходов и продуктами семейной фермы под Чонджу.' },
+  { id: 'demo_gosari', name: 'Gosari Express (Госари Экспресс)', coords: [37.5662676217473, 127.020008547897], segment: 'food', rubric: 'new', src: 'michelin2026',
+    blurb: 'Bib Gourmand 2026 и «зелёная звезда»: доступная корейская еда с экологичным подходом.' },
+
+  // — Кафе-тренды 2026 (Seoul Cafe & Bakery Fair, концепт B.E.Y.O.N.D) —
+  { id: 'demo_glow', name: 'Glow (Сонсу)', coords: [37.54550076140227, 127.04283608118138], segment: 'food', rubric: 'trending', src: 'cafe2026',
+    blurb: 'Кафе-тренд 2026 в Сонсу: 200 мест, из них 140 — на двухъярусной деревянной террасе с живыми деревьями.' },
+  { id: 'demo_artistbakery', name: 'Artist Bakery (Ангук)', coords: [37.5764071801326, 126.984358455132], segment: 'food', rubric: 'trending', src: 'cafe2026',
+    blurb: 'Хит выпечки 2026 у станции Ангук: соль-брэд и багет-сэндвичи; очереди даже в будни.' },
 ];
 
 export const SEOUL_MEDIA_DEMO: MediaItem[] = SEEDS.map((s) => ({
