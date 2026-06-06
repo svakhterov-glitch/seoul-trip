@@ -30,3 +30,6 @@ verify_jwt = false
 
 [functions.image-search]
 verify_jwt = false
+
+[functions.route]
+verify_jwt = false

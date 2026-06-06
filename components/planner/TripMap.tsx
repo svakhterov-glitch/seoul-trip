@@ -1,16 +1,22 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { type TripDoc, type Hotel, placesForDay, lastDayNumber, getPlaceKind, type Coords } from '@/lib/entities';
 import { addDays } from '@/lib/days';
+import { buildLegs, legKey, fetchWalkRoutes } from '@/lib/walkRoute';
 import { dayColor } from '@/lib/dayColors';
 import { kindColor } from '@/lib/kindColors';
 import { type MediaItem, rubricMeta } from '@/lib/media';
 import { suggestionColor, tagEmoji } from '@/lib/suggestionTags';
 import { catchtableUrl } from '@/lib/mapLinks';
 import styles from './TripMap.module.css';
+
+// Кеш пеших линий по улицам: ключ перегона → геометрия (или null = не построилось).
+// Модульный (живёт между перерисовками и сменами дня) — один перегон не запрашиваем
+// дважды. Перегоны-«поездки» (длинные) сюда не попадают — их рисуем пунктиром сразу.
+const walkCache = new Map<string, Coords[] | null>();
 
 /** Метка предложки на карте (слой «Предложка»). */
 export interface SuggestionMarker {
@@ -96,6 +102,8 @@ export function TripMap({ trip, day, picking, draftCoords, onMapClick, onPlaceCl
   // ключ последней авто-подгонки масштаба: подгоняем ТОЛЬКО при смене вида (дня),
   // а не при вкл/выкл слоёв или правке мест — иначе карта «прыгает».
   const fitKeyRef = useRef<number | null>(null);
+  // Бамп после прихода пеших линий с роутера — перерисовать слой уже с геометрией.
+  const [routeTick, setRouteTick] = useState(0);
   const clickCb = useRef(onMapClick);
   clickCb.current = onMapClick;
   const pickingRef = useRef(picking);
@@ -159,6 +167,9 @@ export function TripMap({ trip, day, picking, draftCoords, onMapClick, onPlaceCl
     mediaItemsRef.current = media ?? [];
 
     const bounds: Coords[] = [];
+    // Перегоны, для которых нужен пеший путь, но его ещё нет в кеше — запросим
+    // после отрисовки (одним вызовом), результат закешируем и перерисуем слой.
+    const toFetch: [Coords, Coords][] = [];
 
     // СЛОЙ МАРШРУТА (только day >= 0). Обзор: метка = номер дня, цвет = день.
     // Отдельный день: метка = порядок, цвет = ТИП места; маршрут — в цвете дня.
@@ -176,8 +187,30 @@ export function TripMap({ trip, day, picking, draftCoords, onMapClick, onPlaceCl
         bounds.push(p.coords as Coords);
       });
       const pts = order.map((p) => p.coords as Coords);
-      if (pts.length > 1) {
-        L.polyline(pts, { color, weight: day === 0 ? 3.5 : 4, opacity: 0.75 }).addTo(rLayer);
+      if (pts.length < 2) return;
+
+      if (!singleDay) {
+        // Обзор всего маршрута — прямые отрезки (без пешей детализации).
+        L.polyline(pts, { color, weight: 3.5, opacity: 0.75 }).addTo(rLayer);
+        return;
+      }
+
+      // Отдельный день: пеший путь по улицам; длинные перегоны (метро/такси) —
+      // пунктиром по прямой. Пока линия не построена — временно прямая (без скачков).
+      for (const leg of buildLegs(pts)) {
+        if (!leg.walk) {
+          L.polyline([leg.from, leg.to], { color, weight: 3, opacity: 0.6, dashArray: '2 9' }).addTo(rLayer);
+          continue;
+        }
+        const key = legKey(leg.from, leg.to);
+        if (walkCache.has(key)) {
+          const geom = walkCache.get(key);
+          const line = geom && geom.length > 1 ? geom : [leg.from, leg.to];
+          L.polyline(line, { color, weight: 4, opacity: 0.8 }).addTo(rLayer);
+        } else {
+          L.polyline([leg.from, leg.to], { color, weight: 4, opacity: 0.8 }).addTo(rLayer);
+          toFetch.push([leg.from, leg.to]);
+        }
       }
     };
 
@@ -197,6 +230,22 @@ export function TripMap({ trip, day, picking, draftCoords, onMapClick, onPlaceCl
         m.bindPopup(`<b>🏨 ${esc(h.name)}</b>`);
         m.addTo(mLayer);
         bounds.push(h.coords);
+      });
+    }
+
+    // Догружаем пешие линии для новых перегонов и перерисовываем слой, когда придут.
+    if (toFetch.length) {
+      const uniq = Array.from(new Map(toFetch.map((l) => [legKey(l[0], l[1]), l])).values());
+      fetchWalkRoutes(uniq).then((geoms) => {
+        let changed = false;
+        uniq.forEach((l, i) => {
+          const key = legKey(l[0], l[1]);
+          if (!walkCache.has(key)) {
+            walkCache.set(key, geoms[i]); // null тоже кешируем — не дёргать роутер повторно
+            changed = true;
+          }
+        });
+        if (changed) setRouteTick((t) => t + 1);
       });
     }
 
@@ -237,7 +286,7 @@ export function TripMap({ trip, day, picking, draftCoords, onMapClick, onPlaceCl
       fitKeyRef.current = day;
     }
     setTimeout(() => map.invalidateSize(), 0);
-  }, [trip, day, media, suggestions, hotels]);
+  }, [trip, day, media, suggestions, hotels, routeTick]);
 
   // Подсветка медиа-метки при наведении/клике в витрине (без перерисовки слоя).
   useEffect(() => {
