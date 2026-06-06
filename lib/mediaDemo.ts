@@ -20,6 +20,7 @@ import type { MediaItem } from '@/lib/media';
  *  - MICHELIN Guide Seoul & Busan 2026 (10-летие гида, рекордные 10 новых звёзд)
  *  - Asia's 50 Best Restaurants 2026 (6 ресторанов Сеула; Mingles №4)
  *  - Seoul Cafe & Bakery Fair 2026 / LetSeoul — кафе-тренды (концепт B.E.Y.O.N.D)
+ *  - Молодёжные медиа 2026: Hypebeast, TikTok/Instagram (вирусное), VisitKorea Gen-Z (핫플)
  */
 const SRC = {
   timeout: { source: 'Time Out Seoul', url: 'https://www.timeout.com/seoul/en/things-to-do/best-things-to-do-in-seoul', date: 'сентябрь 2025' },
@@ -31,6 +32,9 @@ const SRC = {
   michelin2026: { source: 'MICHELIN Guide 2026', url: 'https://guide.michelin.com/en/article/michelin-guide-ceremony/michelin-guide-seoul-busan-2026-highlights', date: '2026' },
   asia2026: { source: "Asia's 50 Best 2026", url: 'https://www.theworlds50best.com/asia/en/the-list.html', date: '2026' },
   cafe2026: { source: 'Seoul Cafe Trends 2026', url: 'https://letseoul.com/en/articles/seoul-spring-cafe-trends-2026-beyond', date: '2026' },
+  hypebeast: { source: 'Hypebeast', url: 'https://hypebeast.com/city-feed/seoul', date: '2026' },
+  genz: { source: 'VisitKorea · Gen Z', url: 'https://english.visitkorea.or.kr/svc/contents/contentsView.do?vcontsId=187836', date: '2026' },
+  social: { source: 'TikTok/Instagram (вирусное)', url: 'https://airial.travel/attractions/south-korea/seongsu-dong-cafe-street-seoul-FusHEwUT', date: '2026' },
 } as const;
 
 type Src = keyof typeof SRC;
@@ -126,6 +130,18 @@ const SEEDS: DemoSeed[] = [
     blurb: 'Кафе-тренд 2026 в Сонсу: 200 мест, из них 140 — на двухъярусной деревянной террасе с живыми деревьями.' },
   { id: 'demo_artistbakery', name: 'Artist Bakery (Ангук)', coords: [37.5764071801326, 126.984358455132], segment: 'food', rubric: 'trending', src: 'cafe2026',
     blurb: 'Хит выпечки 2026 у станции Ангук: соль-брэд и багет-сэндвичи; очереди даже в будни.' },
+
+  // — Молодёжные медиа: Hypebeast, TikTok/Instagram, Gen-Z 핫플 (2026) —
+  { id: 'demo_kith', name: 'Kith Seoul (Сонсу)', coords: [37.5411274489245, 127.047198971706], segment: 'shop', rubric: 'trending', src: 'hypebeast',
+    blurb: '4-этажный флагман Kith в Сонсу: стритвир, сникеры и лайфстайл — вирусный среди молодёжи.' },
+  { id: 'demo_blueelephant', name: 'Blue Elephant Seongsu', coords: [37.5475641895409, 127.04244685499], segment: 'shop', rubric: 'new', src: 'social',
+    blurb: 'Иммерсивный оптик-флагман на 1000 пхён (открыт в конце 2025) — хит TikTok и Instagram.' },
+  { id: 'demo_thisisneverthat', name: 'thisisneverthat (флагман)', coords: [37.54333450600984, 127.06172381152828], segment: 'shop', rubric: 'trending', src: 'hypebeast',
+    blurb: 'Флагман корейского стритвир-бренда: типографика и влияние 90-х/2000-х, любимый K-pop и рэп-сценой.' },
+  { id: 'demo_nudake_tea', name: 'NUDAKE Tea House (Хаус Досан)', coords: [37.5253657755817, 127.035680539267], segment: 'food', rubric: 'trending', src: 'social',
+    blurb: 'Чайный дом NUDAKE: «scented tea» и молекулярные десерты на «неземных» столах — вирусная фуд-эстетика.' },
+  { id: 'demo_sindang', name: 'Сындан-дон («Хипдандон»)', coords: [37.5630320348009, 127.014609897994], segment: 'fun', rubric: 'trending', src: 'genz',
+    blurb: 'Старые переулки Сындана с хип-барами, кафе и токпокки-тауном — ретро-район нового поколения.' },
 ];
 
 export const SEOUL_MEDIA_DEMO: MediaItem[] = SEEDS.map((s) => ({
