@@ -20,7 +20,8 @@ import type { MediaItem } from '@/lib/media';
  *  - MICHELIN Guide Seoul & Busan 2026 (10-летие гида, рекордные 10 новых звёзд)
  *  - Asia's 50 Best Restaurants 2026 (6 ресторанов Сеула; Mingles №4)
  *  - Seoul Cafe & Bakery Fair 2026 / LetSeoul — кафе-тренды (концепт B.E.Y.O.N.D)
- *  - Молодёжные медиа 2026: Hypebeast, TikTok/Instagram (вирусное), VisitKorea Gen-Z (핫플)
+ *  - Молодёжные медиа 2026: Hypebeast, TikTok/Instagram (вирусное), VisitKorea Gen-Z
+ *  - Европейская кухня: Michelin + гиды (французские/итальянские топы Сеула)
  */
 const SRC = {
   timeout: { source: 'Time Out Seoul', url: 'https://www.timeout.com/seoul/en/things-to-do/best-things-to-do-in-seoul', date: 'сентябрь 2025' },
@@ -35,6 +36,7 @@ const SRC = {
   hypebeast: { source: 'Hypebeast', url: 'https://hypebeast.com/city-feed/seoul', date: '2026' },
   genz: { source: 'VisitKorea · Gen Z', url: 'https://english.visitkorea.or.kr/svc/contents/contentsView.do?vcontsId=187836', date: '2026' },
   social: { source: 'TikTok/Instagram (вирусное)', url: 'https://airial.travel/attractions/south-korea/seongsu-dong-cafe-street-seoul-FusHEwUT', date: '2026' },
+  euro: { source: 'Michelin · гиды евро-кухни', url: 'https://www.catchtable.net/discovery/koreas-10-famous-french-restaurants-in-seoul.html', date: '2026' },
 } as const;
 
 type Src = keyof typeof SRC;
@@ -142,6 +144,23 @@ const SEEDS: DemoSeed[] = [
     blurb: 'Чайный дом NUDAKE: «scented tea» и молекулярные десерты на «неземных» столах — вирусная фуд-эстетика.' },
   { id: 'demo_sindang', name: 'Сындан-дон («Хипдандон»)', coords: [37.5630320348009, 127.014609897994], segment: 'fun', rubric: 'trending', src: 'genz',
     blurb: 'Старые переулки Сындана с хип-барами, кафе и токпокки-тауном — ретро-район нового поколения.' },
+
+  // — Европейская кухня: лучшие французские и итальянские (Michelin / гиды) —
+  { id: 'demo_pierregagnaire', name: 'Pierre Gagnaire à Séoul', coords: [37.5653451615156, 126.980957195279], segment: 'food', rubric: 'best', src: 'euro',
+    blurb: 'Французская высокая кухня, 1★ Michelin — сеульский ресторан «Пикассо гастрономии» на верхнем этаже отеля Lotte.',
+    image: 'https://search1.kakaocdn.net/argon/130x130_85_c/6HiNVISq231' },
+  { id: 'demo_stay', name: 'STAY (SIGNIEL)', coords: [37.513712986420245, 127.10430126361484], segment: 'food', rubric: 'best', src: 'euro',
+    blurb: 'Французский ресторан 1★ Michelin на 81-м этаже SIGNIEL — кухня и панорама Сеула с высоты.',
+    image: 'https://search1.kakaocdn.net/argon/130x130_85_c/FVXEFMDgfWG' },
+  { id: 'demo_allaprima', name: 'Alla Prima', coords: [37.51353812649945, 127.0260266212748], segment: 'food', rubric: 'best', src: 'euro',
+    blurb: 'Итальянская кухня 1★ Michelin шефа Ким Джинхёка — сезонные продукты, тонкие соусы, открытая кухня.',
+    image: 'https://search1.kakaocdn.net/argon/130x130_85_c/7w4HXmjrJDo' },
+  { id: 'demo_paolo', name: 'Paolo de Maria', coords: [37.57276754741214, 126.93689124668592], segment: 'food', rubric: 'best', src: 'euro',
+    blurb: 'Итальянская институция Сеула (Йонхи-дон): шеф Паоло де Мария, многократные награды Gambero Rosso «Due Forchette».',
+    image: 'https://search4.kakaocdn.net/argon/130x130_85_c/LFRT5cJ5g3p' },
+  { id: 'demo_ciuri', name: 'Ciuri Ciuri', coords: [37.5484907, 126.9213615], segment: 'food', rubric: 'trending', src: 'euro',
+    blurb: 'Аутентичная сицилийская кухня от сицилийцев Энрико и Фиоренцы — признанный один из лучших итальянцев Сеула (10 Magazine).',
+    image: 'https://search3.kakaocdn.net/argon/130x130_85_c/Il2I4lOIeeQ' },
 ];
 
 export const SEOUL_MEDIA_DEMO: MediaItem[] = SEEDS.map((s) => ({
