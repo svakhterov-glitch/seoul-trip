@@ -30,16 +30,19 @@ import { searchImages } from '@/lib/imageSearch';
 import { SUGGESTION_TAGS, tagEmoji } from '@/lib/suggestionTags';
 import { fetchMediaBoard, fetchMoreMedia } from '@/lib/mediaBoard';
 import { type MediaItem } from '@/lib/media';
+import { type MichelinItem } from '@/lib/michelin';
+import { demoMichelinFor } from '@/lib/michelinDemo';
 import { formatDateRange, daysBetween } from '@/lib/days';
 import { PlannerHeader } from '@/components/planner/PlannerHeader';
 import { AiItinerary } from '@/components/planner/AiItinerary';
 import { TripSettings } from '@/components/planner/TripSettings';
 import { TripCover, type TripCoverSave } from '@/components/planner/TripCover';
-import { DayTabs, MEDIA_TAB, INBOX_TAB } from '@/components/planner/DayTabs';
+import { DayTabs, MEDIA_TAB, INBOX_TAB, MICHELIN_TAB } from '@/components/planner/DayTabs';
 import { Inbox, type SearchState } from '@/components/planner/Inbox';
 import { Timeline } from '@/components/planner/Timeline';
 import { DayReorder } from '@/components/planner/DayReorder';
 import { MediaBoard } from '@/components/planner/MediaBoard';
+import { MichelinBoard } from '@/components/planner/MichelinBoard';
 import { SuggestionBoard } from '@/components/planner/SuggestionBoard';
 import { ShoppingList } from '@/components/planner/ShoppingList';
 import { type DaySave } from '@/components/planner/DayForm';
@@ -106,6 +109,8 @@ function PlannerInner() {
   const [mediaLoading, setMediaLoading] = useState(false);
   const [mediaRefreshing, setMediaRefreshing] = useState(false);
   const [highlightId, setHighlightId] = useState<string | null>(null);
+  // доска «Мишлен»: рестораны гида (null — ещё не загружали)
+  const [michelinItems, setMichelinItems] = useState<MichelinItem[] | null>(null);
   // Telegram-предложка: входящие из чата (null — ещё не загружали), статус привязки
   const [suggestions, setSuggestions] = useState<TgSuggestion[] | null>(null);
   const [suggestLoading, setSuggestLoading] = useState(false);
@@ -120,6 +125,7 @@ function PlannerInner() {
   const [processedIds, setProcessedIds] = useState<Set<string>>(new Set());
   // слои на карте «Весь маршрут»: наложить метки Медиа / Предложки поверх маршрута
   const [layerMedia, setLayerMedia] = useState(false);
+  const [layerMich, setLayerMich] = useState(false);
   const [layerSug, setLayerSug] = useState(false);
   // скрытые категории предложки на карте (пусто = показаны все); чип-фильтр под
   // слоями. Запоминаются между днями и перезагрузками через localStorage.
@@ -170,6 +176,13 @@ function PlannerInner() {
       .then((list) => setMediaItems(list))
       .finally(() => setMediaLoading(false));
   }, [activeDay, layerMedia, trip, mediaItems, mediaLoading]);
+
+  // доска «Мишлен» — лениво из фикстуры (демо-город): при открытии вкладки ИЛИ слоя
+  useEffect(() => {
+    const need = activeDay === MICHELIN_TAB || (activeDay >= 0 && layerMich);
+    if (!need || !trip || michelinItems !== null) return;
+    setMichelinItems(demoMichelinFor(trip.city));
+  }, [activeDay, layerMich, trip, michelinItems]);
 
   // «Предложка» (Telegram) — лениво: при открытии её вкладки ИЛИ при включении слоя
   useEffect(() => {
@@ -283,6 +296,16 @@ function PlannerInner() {
     if (!base) return;
     save(addInboxPlace(base, {
       name: item.name, coords: item.coords, desc: item.blurb,
+      source: 'media', url: item.coords ? placeMapsUrl(item.name, base.city) : '',
+    }));
+  }
+
+  function handleAddFromMichelin(item: MichelinItem) {
+    const base = tripRef.current;
+    if (!base) return;
+    const desc = [item.cuisine, item.price].filter(Boolean).join(' · ');
+    save(addInboxPlace(base, {
+      name: item.name, coords: item.coords, desc,
       source: 'media', url: item.coords ? placeMapsUrl(item.name, base.city) : '',
     }));
   }
@@ -671,6 +694,7 @@ function PlannerInner() {
       url: s.url || (s.name ? placeMapsUrl(s.name, trip.city) : ''), desc: s.description, tag: s.tag, fromUser: s.fromUser, image: s.image }));
   const sugLayerMarkers = sugAllMarkers.filter((s) => !routeNames.has(norm(s.name)));
   const mediaLayerMarkers = (mediaItems ?? []).filter((m) => m.coords && !routeNames.has(norm(m.name)));
+  const michelinLayerMarkers = (michelinItems ?? []).filter((m) => m.coords && !routeNames.has(norm(m.name)));
   // Чипы-категории под слоем «Предложка»: ключ '' = «Без категории». Только те,
   // что реально есть среди меток. Нажатие чипа скрывает/показывает категорию на карте.
   const catKey = (t: string) => (SUGGESTION_TAGS.includes(t) ? t : '');
@@ -721,6 +745,10 @@ function PlannerInner() {
               aria-pressed={layerMedia} onClick={() => setLayerMedia((v) => !v)}>
               ✨ Медиа{layerMedia ? (mediaLoading ? '…' : ` (${mediaLayerMarkers.length})`) : ''}
             </button>
+            <button type="button" className={layerMich ? styles.layerOn : styles.layer}
+              aria-pressed={layerMich} onClick={() => setLayerMich((v) => !v)}>
+              ✨ Мишлен{layerMich ? ` (${michelinLayerMarkers.length})` : ''}
+            </button>
             <button type="button" className={layerSug ? styles.layerOn : styles.layer}
               aria-pressed={layerSug} onClick={() => setLayerSug((v) => !v)}>
               ✨ Предложка{layerSug ? (processingSug ? '…' : ` (${sugLayerVisible.length})`) : ''}
@@ -756,6 +784,8 @@ function PlannerInner() {
             onPlaceClick={openEdit}
             media={activeDay === MEDIA_TAB ? (mediaItems ?? [])
               : (activeDay >= 0 && layerMedia) ? mediaLayerMarkers : undefined}
+            michelin={activeDay === MICHELIN_TAB ? (michelinItems ?? [])
+              : (activeDay >= 0 && layerMich) ? michelinLayerMarkers : undefined}
             suggestions={activeDay === INBOX_TAB ? sugAllMarkers
               : (activeDay >= 0 && layerSug) ? sugLayerVisible : undefined}
             highlightId={highlightId} onMediaClick={setHighlightId}
@@ -778,6 +808,9 @@ function PlannerInner() {
           <MediaBoard items={mediaItems ?? []} loading={mediaLoading} highlightId={highlightId} busy={busy}
             refreshing={mediaRefreshing} onHover={setHighlightId} onAdd={handleAddFromMedia} onRefresh={handleRefreshMedia}
             onDismiss={handleDismissMedia} />
+        ) : activeDay === MICHELIN_TAB ? (
+          <MichelinBoard items={michelinItems ?? []} loading={michelinItems === null} highlightId={highlightId}
+            busy={busy} onHover={setHighlightId} onAdd={handleAddFromMichelin} />
         ) : (
           <Timeline trip={trip} day={activeDay} categories={trip.categories} busy={busy}
             onAddPlace={openAdd} onEditPlace={openEdit} onDeletePlace={handleDelete}

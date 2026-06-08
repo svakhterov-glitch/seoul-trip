@@ -7,6 +7,8 @@ import styles from './DayTabs.module.css';
 export const MEDIA_TAB = -1;
 /** Сентинел вкладки «Предложка» (входящее из Telegram + список покупок). */
 export const INBOX_TAB = -2;
+/** Сентинел вкладки «Мишлен» (рестораны гида). */
+export const MICHELIN_TAB = -3;
 
 interface Props {
   days: Day[];
@@ -26,6 +28,9 @@ export function DayTabs({ days, categories, activeDay, onSelect, inboxCount = 0 
       <button type="button" role="tab" aria-selected={activeDay === MEDIA_TAB}
         className={`${activeDay === MEDIA_TAB ? styles.tabOn : styles.tab} ${styles.media}`}
         onClick={() => onSelect(MEDIA_TAB)}>✨ Медиа</button>
+      <button type="button" role="tab" aria-selected={activeDay === MICHELIN_TAB}
+        className={`${activeDay === MICHELIN_TAB ? styles.tabOn : styles.tab} ${styles.media}`}
+        onClick={() => onSelect(MICHELIN_TAB)}>✨ Мишлен</button>
       <button type="button" role="tab" aria-selected={activeDay === 0}
         className={activeDay === 0 ? styles.tabOn : styles.tab}
         onClick={() => onSelect(0)}>Весь маршрут</button>

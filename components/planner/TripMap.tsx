@@ -9,8 +9,9 @@ import { buildLegs, legKey, fetchWalkRoutes } from '@/lib/walkRoute';
 import { dayColor } from '@/lib/dayColors';
 import { kindColor } from '@/lib/kindColors';
 import { type MediaItem, rubricMeta } from '@/lib/media';
+import { type MichelinItem, distinctionMeta, starCount } from '@/lib/michelin';
 import { suggestionColor, tagEmoji } from '@/lib/suggestionTags';
-import { catchtableUrl } from '@/lib/mapLinks';
+import { catchtableUrl, placeMapLinks } from '@/lib/mapLinks';
 import styles from './TripMap.module.css';
 
 // Кеш пеших линий по улицам: ключ перегона → геометрия (или null = не построилось).
@@ -39,8 +40,9 @@ interface Props {
   onMapClick: (coords: Coords) => void;
   onPlaceClick: (id: string) => void;
   media?: MediaItem[];          // слой «Медиа» — рисуется, если передан
+  michelin?: MichelinItem[];    // слой «Мишлен» — рисуется, если передан
   suggestions?: SuggestionMarker[]; // слой «Предложка» — рисуется, если передан
-  highlightId?: string | null; // подсвеченная медиа-метка (синхрон с витриной)
+  highlightId?: string | null; // подсвеченная метка медиа/мишлен (синхрон с витриной)
   onMediaClick?: (id: string) => void;
   hotels?: Hotel[];        // отели с координатами — метки 🏨 (рисуются при day >= 0)
 }
@@ -81,6 +83,19 @@ function mediaIcon(item: MediaItem, on: boolean) {
   });
 }
 
+function michelinIcon(item: MichelinItem, on: boolean) {
+  const color = distinctionMeta(item.distinction).color;
+  const n = starCount(item.distinction);
+  const label = n > 0 ? '★'.repeat(n) : '🍴';
+  const cls = `${styles.mediaPin}${on ? ' ' + styles.mediaPinOn : ''}`;
+  const size = on ? 40 : 30;
+  return L.divIcon({
+    className: '',
+    html: `<div class="${cls}" style="background:${color}"><span style="font-size:${n === 3 ? 9 : n ? 11 : 15}px">${label}</span></div>`,
+    iconSize: [size, size], iconAnchor: [size / 2, size / 2], popupAnchor: [0, -size / 2 - 2],
+  });
+}
+
 function suggestionIcon(emoji: string, color: string) {
   return L.divIcon({
     className: '',
@@ -93,7 +108,7 @@ function esc(s: string): string {
   return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-export function TripMap({ trip, day, picking, draftCoords, onMapClick, onPlaceClick, media, suggestions, highlightId, onMediaClick, hotels }: Props) {
+export function TripMap({ trip, day, picking, draftCoords, onMapClick, onPlaceClick, media, michelin, suggestions, highlightId, onMediaClick, hotels }: Props) {
   const elRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markerLayer = useRef<L.LayerGroup | null>(null);
@@ -117,6 +132,8 @@ export function TripMap({ trip, day, picking, draftCoords, onMapClick, onPlaceCl
   highlightRef.current = highlightId ?? null;
   const mediaMarkers = useRef<Map<string, L.Marker>>(new Map());
   const mediaItemsRef = useRef<MediaItem[]>([]);
+  const michelinMarkers = useRef<Map<string, L.Marker>>(new Map());
+  const michelinItemsRef = useRef<MichelinItem[]>([]);
 
   // инициализация карты один раз
   useEffect(() => {
@@ -261,6 +278,23 @@ export function TripMap({ trip, day, picking, draftCoords, onMapClick, onPlaceCl
       bounds.push(it.coords);
     });
 
+    // СЛОЙ «МИШЛЕН»: метки ресторанов гида (цвет = отличие, звёзды/🍴). Рисуем, если переданы.
+    michelinMarkers.current.clear();
+    michelinItemsRef.current = michelin ?? [];
+    (michelin ?? []).forEach((it) => {
+      if (!it.coords) return;
+      const on = highlightRef.current === it.id;
+      const m = L.marker(it.coords, { icon: michelinIcon(it, on), zIndexOffset: on ? 1000 : 0 });
+      const meta = distinctionMeta(it.distinction);
+      const sub = [meta.label, it.cuisine, it.price].filter(Boolean).join(' · ');
+      const naver = placeMapLinks(it.name, it.coords, it.geo).naver;
+      m.bindPopup(`<b>${esc(it.name)}</b><br>${esc(sub)}<br><a href="${esc(naver)}" target="_blank" rel="noreferrer">Naver&nbsp;Map&nbsp;↗</a>`);
+      m.on('click', () => mediaCb.current?.(it.id));
+      m.addTo(mLayer);
+      michelinMarkers.current.set(it.id, m);
+      bounds.push(it.coords);
+    });
+
     // СЛОЙ «ПРЕДЛОЖКА»: метки входящих из Telegram. Рисуем, если переданы.
     (suggestions ?? []).forEach((s) => {
       if (!s.coords) return;
@@ -286,16 +320,22 @@ export function TripMap({ trip, day, picking, draftCoords, onMapClick, onPlaceCl
       fitKeyRef.current = day;
     }
     setTimeout(() => map.invalidateSize(), 0);
-  }, [trip, day, media, suggestions, hotels, routeTick]);
+  }, [trip, day, media, michelin, suggestions, hotels, routeTick]);
 
-  // Подсветка медиа-метки при наведении/клике в витрине (без перерисовки слоя).
+  // Подсветка метки медиа/мишлен при наведении/клике в витрине (без перерисовки слоя).
   useEffect(() => {
-    if (!mediaItemsRef.current.length) return;
     mediaItemsRef.current.forEach((it) => {
       const m = mediaMarkers.current.get(it.id);
       if (!m) return;
       const on = highlightId === it.id;
       m.setIcon(mediaIcon(it, on));
+      m.setZIndexOffset(on ? 1000 : 0);
+    });
+    michelinItemsRef.current.forEach((it) => {
+      const m = michelinMarkers.current.get(it.id);
+      if (!m) return;
+      const on = highlightId === it.id;
+      m.setIcon(michelinIcon(it, on));
       m.setZIndexOffset(on ? 1000 : 0);
     });
   }, [highlightId, day]);

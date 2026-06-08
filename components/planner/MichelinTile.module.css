@@ -1,0 +1,36 @@
+.tile {
+  position: relative; display: flex; flex-direction: column; gap: 3px;
+  background: #fff; border: 1px solid var(--line); border-left: 4px solid var(--line);
+  border-radius: 14px; padding: 12px 14px; cursor: pointer;
+  box-shadow: var(--shadow);
+}
+.on { box-shadow: 0 0 0 3px var(--accent); border-color: var(--accent); }
+
+.head { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
+.badge {
+  font-size: 12px; font-weight: 800; color: #fff; border-radius: 999px;
+  padding: 3px 10px; letter-spacing: .2px; flex: 0 0 auto;
+}
+.price { font-size: 13px; font-weight: 700; color: var(--muted); letter-spacing: 1px; }
+.noPin { margin-left: auto; font-size: 11px; color: var(--muted); }
+
+.name { font-size: 16px; font-weight: 800; color: var(--navy); line-height: 1.25; }
+.cuisine { font-size: 13px; color: var(--muted); }
+
+.foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
+.naver {
+  font-size: 12.5px; font-weight: 700; color: var(--accent); text-decoration: none;
+  border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; white-space: nowrap;
+  position: relative; z-index: 1;
+}
+.naver:hover { background: var(--bg-subtle); }
+.naver:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.add {
+  width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--line);
+  background: var(--bg-subtle); color: var(--navy); font-size: 19px; font-weight: 800;
+  cursor: pointer; line-height: 1; flex: 0 0 auto; touch-action: manipulation; z-index: 2;
+}
+.add:hover:not(:disabled) { background: #fff; border-color: var(--navy); }
+.add:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.add:disabled { opacity: .5; cursor: default; }
