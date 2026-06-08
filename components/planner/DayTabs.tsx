@@ -17,9 +17,11 @@ interface Props {
   onSelect: (day: number) => void;
   /** Сколько новых предложений в Telegram-предложке (для бейджа). */
   inboxCount?: number;
+  /** Показывать вкладку «Мишлен» (есть подборка гида для города — пока только Сеул). */
+  showMichelin?: boolean;
 }
 
-export function DayTabs({ days, categories, activeDay, onSelect, inboxCount = 0 }: Props) {
+export function DayTabs({ days, categories, activeDay, onSelect, inboxCount = 0, showMichelin = false }: Props) {
   return (
     <div className={styles.tabs} role="tablist" aria-label="Дни поездки">
       <button type="button" role="tab" aria-selected={activeDay === INBOX_TAB}
@@ -28,9 +30,11 @@ export function DayTabs({ days, categories, activeDay, onSelect, inboxCount = 0 
       <button type="button" role="tab" aria-selected={activeDay === MEDIA_TAB}
         className={`${activeDay === MEDIA_TAB ? styles.tabOn : styles.tab} ${styles.media}`}
         onClick={() => onSelect(MEDIA_TAB)}>✨ Медиа</button>
-      <button type="button" role="tab" aria-selected={activeDay === MICHELIN_TAB}
-        className={`${activeDay === MICHELIN_TAB ? styles.tabOn : styles.tab} ${styles.media}`}
-        onClick={() => onSelect(MICHELIN_TAB)}>✨ Мишлен</button>
+      {showMichelin && (
+        <button type="button" role="tab" aria-selected={activeDay === MICHELIN_TAB}
+          className={`${activeDay === MICHELIN_TAB ? styles.tabOn : styles.tab} ${styles.media}`}
+          onClick={() => onSelect(MICHELIN_TAB)}>✨ Мишлен</button>
+      )}
       <button type="button" role="tab" aria-selected={activeDay === 0}
         className={activeDay === 0 ? styles.tabOn : styles.tab}
         onClick={() => onSelect(0)}>Весь маршрут</button>

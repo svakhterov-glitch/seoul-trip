@@ -695,6 +695,8 @@ function PlannerInner() {
   const sugLayerMarkers = sugAllMarkers.filter((s) => !routeNames.has(norm(s.name)));
   const mediaLayerMarkers = (mediaItems ?? []).filter((m) => m.coords && !routeNames.has(norm(m.name)));
   const michelinLayerMarkers = (michelinItems ?? []).filter((m) => m.coords && !routeNames.has(norm(m.name)));
+  // Вкладку/слой «Мишлен» показываем только если для города есть подборка гида (пока — Сеул).
+  const showMichelin = !!trip && demoMichelinFor(trip.city).length > 0;
   // Чипы-категории под слоем «Предложка»: ключ '' = «Без категории». Только те,
   // что реально есть среди меток. Нажатие чипа скрывает/показывает категорию на карте.
   const catKey = (t: string) => (SUGGESTION_TAGS.includes(t) ? t : '');
@@ -735,7 +737,7 @@ function PlannerInner() {
         )}
 
         <DayTabs days={trip.days} categories={trip.categories} activeDay={activeDay}
-          inboxCount={suggestions?.length ?? 0}
+          inboxCount={suggestions?.length ?? 0} showMichelin={showMichelin}
           onSelect={(d) => { setActiveDay(d); setHighlightId(null); }} />
 
         {activeDay >= 0 && (
@@ -745,10 +747,12 @@ function PlannerInner() {
               aria-pressed={layerMedia} onClick={() => setLayerMedia((v) => !v)}>
               ✨ Медиа{layerMedia ? (mediaLoading ? '…' : ` (${mediaLayerMarkers.length})`) : ''}
             </button>
-            <button type="button" className={layerMich ? styles.layerOn : styles.layer}
-              aria-pressed={layerMich} onClick={() => setLayerMich((v) => !v)}>
-              ✨ Мишлен{layerMich ? ` (${michelinLayerMarkers.length})` : ''}
-            </button>
+            {showMichelin && (
+              <button type="button" className={layerMich ? styles.layerOn : styles.layer}
+                aria-pressed={layerMich} onClick={() => setLayerMich((v) => !v)}>
+                ✨ Мишлен{layerMich ? ` (${michelinLayerMarkers.length})` : ''}
+              </button>
+            )}
             <button type="button" className={layerSug ? styles.layerOn : styles.layer}
               aria-pressed={layerSug} onClick={() => setLayerSug((v) => !v)}>
               ✨ Предложка{layerSug ? (processingSug ? '…' : ` (${sugLayerVisible.length})`) : ''}
